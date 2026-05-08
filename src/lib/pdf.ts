@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf'
-import { Diligencia, Advogado } from '@/types'
+import { Diligencia, Advogado, EmpresaCliente } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -23,6 +23,10 @@ function hoje(): string {
   return new Date().toISOString().split('T')[0]
 }
 
+function toProperCase(s: string): string {
+  return s.split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ')
+}
+
 function setupDoc(doc: jsPDF) {
   doc.setFont('helvetica')
 }
@@ -40,18 +44,15 @@ function rodape(doc: jsPDF, pageWidth: number, pageHeight: number, page: number)
 }
 
 function cabecalho(doc: jsPDF, pageWidth: number) {
-  // Linha superior
   doc.setDrawColor(30, 64, 175)
   doc.setLineWidth(1.2)
   doc.line(15, 18, pageWidth - 15, 18)
 
-  // Nome do escritório
   doc.setFontSize(15)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 64, 175)
   doc.text('ANA RODRIGUES ADVOCACIA', pageWidth / 2, 13, { align: 'center' })
 
-  // Subtítulo
   doc.setFontSize(8.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100)
@@ -67,33 +68,339 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   const ph = doc.internal.pageSize.getHeight()
   setupDoc(doc)
 
-  cabecalho(doc, pw)
+  const lh95  = 5.5
+  const M     = 20
+  const BLUE: [number, number, number] = [30, 64, 175]
+  const TW    = pw - M - M
+  const BOTTOM = ph - 20   // margem inferior de 20 mm
+
+  let y = 20
+
+  // Adiciona nova página e reseta y quando o bloco não cabe
+  function checkPage(need: number) {
+    if (y + need > BOTTOM) {
+      doc.addPage()
+      y = 20
+    }
+  }
+
+  // ── Título ────────────────────────────────────────────────────────────────
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...BLUE)
+  doc.text('CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS', pw / 2, y, { align: 'center' })
+  y += 14
+
+  // ── Frase inicial ─────────────────────────────────────────────────────────
+  doc.setFontSize(9.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(20)
+  const introLines = doc.splitTextToSize(
+    'Pelo presente instrumento particular, as partes abaixo identificadas:',
+    TW,
+  )
+  doc.text(introLines, M, y)
+  y += introLines.length * lh95 + 7
+
+  // ── Helper: bloco LABEL: texto ────────────────────────────────────────────
+  function blocoLabel(label: string, texto: string) {
+    doc.setFontSize(9.5)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(20)
+    const labelFull = `${label}: `
+    const labelW = doc.getTextWidth(labelFull)
+    doc.setFont('helvetica', 'normal')
+    const wrapped = doc.splitTextToSize(texto, TW - labelW)
+    checkPage(wrapped.length * lh95 + 9)
+    doc.setFont('helvetica', 'bold')
+    doc.text(labelFull, M, y)
+    doc.setFont('helvetica', 'normal')
+    doc.text(wrapped[0], M + labelW, y)
+    for (let i = 1; i < wrapped.length; i++) {
+      y += lh95
+      doc.text(wrapped[i], M, y)
+    }
+    y += lh95 + 8
+  }
+
+  // ── Helper: cláusula ──────────────────────────────────────────────────────
+  function clausula(titulo: string, corpo: string) {
+    doc.setFontSize(9.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(20)
+    const wrapped = doc.splitTextToSize(corpo, TW)
+    checkPage(lh95 + 3 + wrapped.length * lh95 + 8)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...BLUE)
+    doc.text(titulo, M, y)
+    y += lh95 + 3
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9.5)
+    doc.setTextColor(20)
+    doc.text(wrapped, M, y, { align: 'justify', maxWidth: TW })
+    y += wrapped.length * lh95 + 8
+  }
+
+  // ── CONTRATANTE ───────────────────────────────────────────────────────────
+  blocoLabel(
+    'CONTRATANTE',
+    'ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL ADVOCACIA LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob nº 32.536.156/0001-88 com sede na Avenida José Luiz Ferraz, 355/1602 – Recreio dos Bandeirantes – Rio de Janeiro/RJ.',
+  )
+
+  // ── CONTRATADO ────────────────────────────────────────────────────────────
+  const oab = advogado.oab ? advogado.oab.toUpperCase() : ''
+  const oabStr = oab ? `, OAB nº ${oab}` : ''
+  const enderecoStr = advogado.endereco ? `, com endereço em ${toProperCase(advogado.endereco)}` : ''
+  blocoLabel(
+    'CONTRATADO',
+    `${advogado.nomeCompleto?.toUpperCase() || '___________________________'}, pessoa física, inscrito(a) no CPF sob nº ${advogado.cpf || '___________________'}${oabStr}${enderecoStr}.`,
+  )
+
+  // ── Resolvem firmar ───────────────────────────────────────────────────────
+  checkPage(18)
+  doc.setFontSize(9.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(20)
+  const resolveLines = doc.splitTextToSize(
+    'Resolvem firmar o presente CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS, que se regerá pelas cláusulas e condições seguintes:',
+    TW,
+  )
+  doc.text(resolveLines, M, y)
+  y += resolveLines.length * lh95 + 9
+
+  // ── Cláusulas 1ª a 3ª ────────────────────────────────────────────────────
+  clausula(
+    'CLÁUSULA 1ª – DO OBJETO',
+    'O presente contrato tem como objeto a prestação de serviços de natureza técnica e profissional pelo CONTRATADO, de forma autônoma e independente, sem qualquer vínculo empregatício.',
+  )
+  clausula(
+    'CLÁUSULA 2ª – DA AUTONOMIA',
+    'O CONTRATADO exercerá suas atividades com total autonomia técnica, sem subordinação hierárquica, sem controle de jornada, sem exclusividade e sem cumprimento de horário fixo.',
+  )
+  clausula(
+    'CLÁUSULA 3ª – DA INEXISTÊNCIA DE VÍNCULO EMPREGATÍCIO',
+    'As partes reconhecem que o presente contrato não gera vínculo empregatício, não se aplicando as disposições da CLT, inexistindo habitualidade, subordinação, pessoalidade ou onerosidade típica da relação de emprego.',
+  )
+
+  // ── Cláusula 4ª – itens a) e b) ──────────────────────────────────────────
+  const textoA = `a) Pelos serviços prestados, o CONTRATADO receberá o valor de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), mediante pagamento via PIX ou transferência bancária, após apresentação de recibo de prestação de serviços.`
+  const wrappedA = doc.splitTextToSize(textoA, TW)
+  const textoB = 'b) Para os casos em que comprovadamente a diligência tiver duração de mais de 6 horas (360 minutos) ou finalizar após as 20 horas, o valor dos honorários fixados no item a, será dobrado.'
+  const wrappedB = doc.splitTextToSize(textoB, TW)
+  checkPage(lh95 + 3 + wrappedA.length * lh95 + 5 + wrappedB.length * lh95 + 8)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...BLUE)
+  doc.text('CLÁUSULA 4ª – DA REMUNERAÇÃO', M, y)
+  y += lh95 + 3
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9.5)
+  doc.setTextColor(20)
+  doc.text(wrappedA, M, y, { align: 'justify', maxWidth: TW })
+  y += wrappedA.length * lh95 + 5
+
+  doc.text(wrappedB, M, y, { align: 'justify', maxWidth: TW })
+  y += wrappedB.length * lh95 + 8
+
+  // ── Cláusulas 5ª a 8ª ────────────────────────────────────────────────────
+  clausula(
+    'CLÁUSULA 5ª – DAS OBRIGAÇÕES FISCAIS',
+    'O CONTRATADO é o único responsável pelo recolhimento de seus tributos, contribuições previdenciárias e declaração de rendimentos junto à Receita Federal, não cabendo ao CONTRATANTE qualquer responsabilidade solidária.',
+  )
+  clausula(
+    'CLÁUSULA 6ª – DA VIGÊNCIA',
+    'O presente contrato tem vigência por prazo indeterminado, vigorando até o cumprimento do serviço contratado.',
+  )
+  clausula(
+    'CLÁUSULA 7ª – DA CONFIDENCIALIDADE',
+    'O CONTRATADO compromete-se a manter sigilo absoluto sobre quaisquer informações às quais tiver acesso em razão da prestação dos serviços.',
+  )
+  clausula(
+    'CLÁUSULA 8ª – DO FORO',
+    'Fica eleito o foro da comarca do Rio de Janeiro, para dirimir quaisquer dúvidas oriundas deste contrato.',
+  )
+
+  // ── Fecho ─────────────────────────────────────────────────────────────────
+  checkPage(20)
+  doc.setFontSize(9.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(20)
+  const fechoLines = doc.splitTextToSize(
+    'E, por estarem justas e contratadas, as partes assinam o presente instrumento em duas vias de igual teor.',
+    TW,
+  )
+  doc.text(fechoLines, M, y)
+  y += fechoLines.length * lh95 + 16
+
+  // ── Assinaturas — bloco separado visualmente, não pode ficar colado ────────
+  checkPage(46)
+  doc.setFontSize(9.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(20)
+  doc.text('Local e data: ________________________________', M, y)
+  y += 14
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('ADRIANA RODRIGUES AGUIDA – OAB/RJ nº 175.466: ________________________________', M, y)
+  y += 12
+
+  doc.text('CONTRATADO: ________________________________', M, y)
+
+  // (sem rodapé — modelo Word não possui)
+
+  const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
+  const filename = `contrato_${nomeAdv}_${diligencia.ccc.replace(/\//g, '-')}_${hoje()}.pdf`
+  return { doc, filename }
+}
+
+function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsPDF; filename: string } {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pw = doc.internal.pageSize.getWidth()
+  setupDoc(doc)
+
+  const M    = 15
+  const lh10 = 6
+  const lh9  = 5.5
+  const BLUE: [number, number, number] = [30, 64, 175]
+  const TW   = pw - M - M
+
+  // ── Título (linha única, como no modelo Word) ─────────────────────────────
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...BLUE)
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 22, { align: 'center' })
+  doc.setTextColor(0)
+
+  let y = 38
+
+  // ── Parágrafo principal ───────────────────────────────────────────────────
+  const dataServico = diligencia.dataAtendimento
+    ? formatDate(diligencia.dataAtendimento)
+    : formatDate(hoje())
+  const descricaoServico = diligencia.tipoDiligencia || 'diligência jurídica'
+
+  // CCC é número interno — não aparece no recibo
+  const paragrafo1 = doc.splitTextToSize(
+    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '___________________________'}, inscrito(a) no CPF nº ${advogado.cpf || '___________________'}, declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88, a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), referente à prestação de serviços profissionais realizados de forma AUTÔNOMA, sem vínculo empregatício, no dia ${dataServico} para ${descricaoServico}.`,
+    TW,
+  )
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(20)
+  doc.text(paragrafo1, M, y, { align: 'justify', maxWidth: TW })
+  y += paragrafo1.length * lh10 + 10
+
+  // ── Declaração fiscal ─────────────────────────────────────────────────────
+  const paragrafo2 = doc.splitTextToSize(
+    'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos, contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil, não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.',
+    TW,
+  )
+  doc.setFontSize(10)
+  doc.setTextColor(20)
+  doc.text(paragrafo2, M, y, { align: 'justify', maxWidth: TW })
+  y += paragrafo2.length * lh10 + 10
+
+  // ── Dados de pagamento ────────────────────────────────────────────────────
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(20)
+  doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y)
+  y += lh10 + 4
+  doc.text(`Chave PIX: ${advogado.chavePix || '___________________________'}`, M, y)
+  y += lh10 + 14
+
+  // ── Local e data ──────────────────────────────────────────────────────────
+  doc.text(`Local e data: Rio de Janeiro, ${formatarDataExtenso(hoje())}.`, M, y)
+  y += 28
+
+  // ── Assinatura — bloco separado visualmente ───────────────────────────────
+  doc.setFontSize(10)
+  doc.text('Assinatura do prestador de serviço: ________________________________', M, y)
+  y += 18
+
+  doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '___________________________'}`, M, y)
+  y += lh9 + 7
+  doc.text(`CPF: ${advogado.cpf || '___________________'}`, M, y)
+  if (advogado.oab) {
+    y += lh9 + 7
+    doc.text(`OAB nº: ${advogado.oab.toUpperCase()}`, M, y)
+  }
+  if (advogado.endereco) {
+    y += lh9 + 7
+    doc.text(`Endereço: ${toProperCase(advogado.endereco)}`, M, y)
+  }
+
+  // (sem rodapé — modelo Word não possui)
+
+  const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
+  const ref = diligencia.ccc ? diligencia.ccc.replace(/\//g, '-') : hoje()
+  const filename = `recibo_${nomeAdv}_${ref}_${hoje()}.pdf`
+  return { doc, filename }
+}
+
+function _selectReciboBuilder(_diligencia: Diligencia) {
+  return _buildReciboDoc
+}
+
+// ─── Contrato V.TAL ──────────────────────────────────────────────────────────
+
+function _buildContratoVTALDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsPDF; filename: string } {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pw = doc.internal.pageSize.getWidth()
+  const ph = doc.internal.pageSize.getHeight()
+  setupDoc(doc)
+
+  // Cabeçalho V.TAL — cor roxa/violeta
+  doc.setDrawColor(109, 40, 217)
+  doc.setLineWidth(1.2)
+  doc.line(15, 18, pw - 15, 18)
+
+  doc.setFontSize(15)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(109, 40, 217)
+  doc.text('ANA RODRIGUES ADVOCACIA', pw / 2, 13, { align: 'center' })
+
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(100)
+  doc.text('Prestação de Serviços — V.TAL', pw / 2, 23, { align: 'center' })
+  doc.setTextColor(0)
 
   // Título
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(20)
   doc.text('CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE DILIGÊNCIA', pw / 2, 34, { align: 'center' })
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(109, 40, 217)
+  doc.text('[ Modelo V.TAL ]', pw / 2, 40, { align: 'center' })
 
   doc.setFontSize(8.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(100)
-  doc.text(`Ref.: ${diligencia.ccc}`, pw / 2, 40, { align: 'center' })
+  doc.text(`Ref.: ${diligencia.ccc}`, pw / 2, 46, { align: 'center' })
   doc.setTextColor(0)
 
-  let y = 50
+  let y = 56
 
-  // Bloco CONTRATANTE
+  // CONTRATANTE
   doc.setFontSize(9.5)
   doc.setFont('helvetica', 'bold')
   doc.text('CONTRATANTE', 15, y)
   y += 5
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text('Ana Rodrigues Advocacia, escritório de advocacia, doravante denominado CONTRATANTE.', 15, y, { maxWidth: pw - 30 })
-  y += 10
+  doc.text(
+    'Ana Rodrigues Advocacia, escritório de advocacia, contratada pela empresa V.TAL para coordenação de diligências jurídicas, doravante denominada CONTRATANTE.',
+    15, y, { maxWidth: pw - 30 },
+  )
+  y += 12
 
-  // Bloco CONTRATADO
+  // CONTRATADO
   doc.setFontSize(9.5)
   doc.setFont('helvetica', 'bold')
   doc.text('CONTRATADO', 15, y)
@@ -101,13 +408,12 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   const contratadoLinhas = doc.splitTextToSize(
-    `${advogado.nomeCompleto}, inscrito(a) na OAB sob o nº ${advogado.oab}, CPF ${advogado.cpf}, residente e domiciliado(a) em ${advogado.cidadePrincipal}/${advogado.uf}, doravante denominado(a) CONTRATADO(A).`,
+    `${advogado.nomeCompleto}, inscrito(a) na OAB sob o nº ${advogado.oab}, CPF ${advogado.cpf || ''}, residente e domiciliado(a) em ${advogado.cidadePrincipal}/${advogado.uf}, doravante denominado(a) CONTRATADO(A).`,
     pw - 30,
   )
   doc.text(contratadoLinhas, 15, y)
   y += contratadoLinhas.length * 5 + 5
 
-  // Linha divisória
   doc.setDrawColor(220)
   doc.setLineWidth(0.3)
   doc.line(15, y, pw - 15, y)
@@ -120,9 +426,8 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   y += 6
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-
   const objetoText = doc.splitTextToSize(
-    `O presente contrato tem por objeto a prestação de serviços de diligência jurídica pelo CONTRATADO ao CONTRATANTE, na modalidade ${diligencia.modoDiligencia} (${diligencia.tipoDiligencia}), referente ao caso CCC ${diligencia.ccc}, envolvendo a vítima ${diligencia.vitima}, ocorrido em ${diligencia.cidade}/${diligencia.uf}. Tipo de evento: ${diligencia.tipoEvento}.`,
+    `O presente contrato tem por objeto a prestação de serviços de diligência jurídica pelo CONTRATADO ao CONTRATANTE, no âmbito do contrato firmado entre Ana Rodrigues Advocacia e V.TAL, na modalidade ${diligencia.modoDiligencia} (${diligencia.tipoDiligencia}), referente ao caso CCC ${diligencia.ccc}, envolvendo a vítima ${diligencia.vitima}, ocorrido em ${diligencia.cidade}/${diligencia.uf}. Tipo de evento: ${diligencia.tipoEvento}.`,
     pw - 30,
   )
   doc.text(objetoText, 15, y)
@@ -136,7 +441,7 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   const valorText = doc.splitTextToSize(
-    `Pela prestação dos serviços ora contratados, o CONTRATANTE pagará ao CONTRATADO o valor de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), a ser quitado conforme acordado entre as partes.`,
+    `Pela prestação dos serviços ora contratados, o CONTRATANTE pagará ao CONTRATADO o valor de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), a ser quitado conforme acordado entre as partes, em conformidade com os termos contratuais vigentes entre Ana Rodrigues Advocacia e V.TAL.`,
     pw - 30,
   )
   doc.text(valorText, 15, y)
@@ -150,26 +455,27 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   const obrigacoesItems = [
-    'Realizar a diligência no prazo e condições acordados;',
-    'Manter sigilo sobre todas as informações obtidas;',
+    'Realizar a diligência no prazo e condições acordados com Ana Rodrigues Advocacia;',
+    'Manter absoluto sigilo sobre todas as informações obtidas, especialmente dados relativos à V.TAL;',
     'Apresentar relatório detalhado ao término da diligência;',
-    'Comunicar imediatamente qualquer impedimento ou intercorrência.',
+    'Comunicar imediatamente qualquer impedimento ou intercorrência;',
+    'Respeitar os procedimentos internos estabelecidos para atendimento da V.TAL.',
   ]
   for (const item of obrigacoesItems) {
     doc.text(`• ${item}`, 18, y, { maxWidth: pw - 33 })
-    y += 5.5
+    y += 6
   }
   y += 3
 
   // Vigência
   doc.setFontSize(9.5)
   doc.setFont('helvetica', 'bold')
-  doc.text('CLÁUSULA 4ª — DA VIGÊNCIA', 15, y)
+  doc.text('CLÁUSULA 4ª — DA VIGÊNCIA E CONFIDENCIALIDADE', 15, y)
   y += 6
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   const vigenciaText = doc.splitTextToSize(
-    `O presente contrato produz efeitos a partir da data de sua assinatura, permanecendo vigente até a conclusão dos serviços e liquidação das obrigações financeiras, podendo ser rescindido por qualquer das partes mediante notificação prévia de 48 horas.`,
+    `O presente contrato produz efeitos a partir da data de sua assinatura, permanecendo vigente até a conclusão dos serviços e liquidação das obrigações financeiras. As informações relacionadas à V.TAL são de caráter estritamente confidencial e não poderão ser divulgadas a terceiros, sob pena de responsabilização civil e criminal.`,
     pw - 30,
   )
   doc.text(vigenciaText, 15, y)
@@ -194,7 +500,6 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   doc.text(dataStr, pw / 2, y, { align: 'center' })
   y += 16
 
-  // Linhas de assinatura
   const col1 = 35
   const col2 = pw - 35
   doc.setLineWidth(0.5)
@@ -213,125 +518,31 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   y += 4
   doc.text(`OAB: ${advogado.oab}`, col2, y, { align: 'center' })
 
-  rodape(doc, pw, ph, 1)
+  // Rodapé V.TAL
+  doc.setFontSize(8)
+  doc.setTextColor(150)
+  doc.text(
+    `Escritório Ana Rodrigues Advocacia — Contrato V.TAL — Gerado em ${formatarDataExtenso(hoje())} — Página 1`,
+    pw / 2,
+    ph - 12,
+    { align: 'center' },
+  )
+  doc.setTextColor(0)
 
   const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
-  const filename = `contrato_${nomeAdv}_${diligencia.ccc.replace(/\//g, '-')}_${hoje()}.pdf`
+  const filename = `contrato_vtal_${nomeAdv}_${diligencia.ccc.replace(/\//g, '-')}_${hoje()}.pdf`
   return { doc, filename }
 }
 
-function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsPDF; filename: string } {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  const pw = doc.internal.pageSize.getWidth()
-  const ph = doc.internal.pageSize.getHeight()
-  setupDoc(doc)
-
-  cabecalho(doc, pw)
-
-  // Título
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(20)
-  doc.text('RECIBO DE PAGAMENTO', pw / 2, 34, { align: 'center' })
-
-  doc.setFontSize(8.5)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100)
-  doc.text(`Ref.: ${diligencia.ccc}`, pw / 2, 40, { align: 'center' })
-  doc.setTextColor(0)
-
-  // Caixa destaque valor
-  const boxY = 50
-  doc.setFillColor(239, 246, 255)
-  doc.setDrawColor(147, 197, 253)
-  doc.setLineWidth(0.4)
-  doc.roundedRect(15, boxY, pw - 30, 22, 3, 3, 'FD')
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(30, 64, 175)
-  doc.text('VALOR RECEBIDO', pw / 2, boxY + 8, { align: 'center' })
-  doc.setFontSize(16)
-  doc.text(formatCurrency(diligencia.valorDiligencia), pw / 2, boxY + 17, { align: 'center' })
-  doc.setTextColor(0)
-
-  let y = boxY + 32
-
-  // Texto principal do recibo
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  const textoRecibo = doc.splitTextToSize(
-    `Eu, ${advogado.nomeCompleto}, inscrito(a) na OAB sob o nº ${advogado.oab}, CPF ${advogado.cpf}, residente e domiciliado(a) em ${advogado.cidadePrincipal}/${advogado.uf}, declaro ter recebido de Ana Rodrigues Advocacia a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), referente à prestação de serviços de diligência jurídica conforme especificado abaixo.`,
-    pw - 30,
-  )
-  doc.text(textoRecibo, 15, y)
-  y += textoRecibo.length * 6 + 10
-
-  // Tabela de detalhes
-  doc.setFillColor(248, 250, 252)
-  doc.setDrawColor(226, 232, 240)
-  doc.setLineWidth(0.3)
-  doc.roundedRect(15, y, pw - 30, 58, 2, 2, 'FD')
-
-  const detY = y + 8
-  const campo = (label: string, valor: string, yOff: number) => {
-    doc.setFontSize(8.5)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(100)
-    doc.text(label.toUpperCase(), 22, detY + yOff)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30)
-    doc.text(valor, 70, detY + yOff)
-  }
-
-  campo('CCC / Processo', diligencia.ccc, 0)
-  campo('Vítima', diligencia.vitima, 8)
-  campo('Tipo de diligência', `${diligencia.tipoDiligencia} — ${diligencia.modoDiligencia}`, 16)
-  campo('Local', `${diligencia.cidade}/${diligencia.uf}`, 24)
-  campo('Tipo de evento', diligencia.tipoEvento, 32)
-  campo('Data do recibo', formatarDataExtenso(hoje()), 40)
-  campo('Chave Pix do contratado', advogado.chavePix || 'Não informada', 48)
-
-  doc.setTextColor(0)
-  y += 68
-
-  // Declaração final
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  const declaracao = doc.splitTextToSize(
-    'Para clareza e como prova deste recebimento, firmo o presente recibo em via única, declarando que nada mais tenho a receber a título dos serviços acima discriminados.',
-    pw - 30,
-  )
-  doc.text(declaracao, 15, y)
-  y += declaracao.length * 5.5 + 14
-
-  // Data e assinatura
-  doc.setFontSize(9)
-  doc.text(`${advogado.cidadePrincipal}, ${formatarDataExtenso(hoje())}.`, pw / 2, y, { align: 'center' })
-  y += 16
-
-  doc.setLineWidth(0.5)
-  doc.setDrawColor(80)
-  doc.line(pw / 2 - 40, y, pw / 2 + 40, y)
-  y += 4
-  doc.setFontSize(8.5)
-  doc.setFont('helvetica', 'bold')
-  doc.text(advogado.nomeCompleto, pw / 2, y, { align: 'center' })
-  y += 4
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text(`OAB: ${advogado.oab} · CPF: ${advogado.cpf}`, pw / 2, y, { align: 'center' })
-
-  rodape(doc, pw, ph, 1)
-
-  const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
-  const filename = `recibo_${nomeAdv}_${diligencia.ccc.replace(/\//g, '-')}_${hoje()}.pdf`
-  return { doc, filename }
+function _selectContratoBuilder(diligencia: Diligencia) {
+  return diligencia.empresaCliente === EmpresaCliente.VTAL ? _buildContratoVTALDoc : _buildContratoDoc
 }
 
 // ─── Contrato ────────────────────────────────────────────────────────────────
 
 export function gerarContratoPDF(diligencia: Diligencia, advogado: Advogado): string {
-  const { doc, filename } = _buildContratoDoc(diligencia, advogado)
+  const builder = _selectContratoBuilder(diligencia)
+  const { doc, filename } = builder(diligencia, advogado)
   doc.save(filename)
   return filename
 }
@@ -341,19 +552,20 @@ export function gerarContratoParaZapSign(
   diligencia: Diligencia,
   advogado: Advogado,
 ): { filename: string; base64: string } {
-  const { doc, filename } = _buildContratoDoc(diligencia, advogado)
+  const builder = _selectContratoBuilder(diligencia)
+  const { doc, filename } = builder(diligencia, advogado)
   doc.save(filename)
   const base64 = doc.output('datauristring').split(',')[1]
   return { filename, base64 }
 }
 
 // Gera o PDF e retorna apenas o base64 (sem disparar download).
-// Usar na página de diligência onde o PDF já foi baixado anteriormente.
 export function gerarContratoBase64Only(
   diligencia: Diligencia,
   advogado: Advogado,
 ): { filename: string; base64: string } {
-  const { doc, filename } = _buildContratoDoc(diligencia, advogado)
+  const builder = _selectContratoBuilder(diligencia)
+  const { doc, filename } = builder(diligencia, advogado)
   const base64 = doc.output('datauristring').split(',')[1]
   return { filename, base64 }
 }
@@ -361,7 +573,8 @@ export function gerarContratoBase64Only(
 // ─── Recibo ──────────────────────────────────────────────────────────────────
 
 export function gerarReciboPDF(diligencia: Diligencia, advogado: Advogado): string {
-  const { doc, filename } = _buildReciboDoc(diligencia, advogado)
+  const builder = _selectReciboBuilder(diligencia)
+  const { doc, filename } = builder(diligencia, advogado)
   doc.save(filename)
   return filename
 }
@@ -371,7 +584,8 @@ export function gerarReciboParaZapSign(
   diligencia: Diligencia,
   advogado: Advogado,
 ): { filename: string; base64: string } {
-  const { doc, filename } = _buildReciboDoc(diligencia, advogado)
+  const builder = _selectReciboBuilder(diligencia)
+  const { doc, filename } = builder(diligencia, advogado)
   doc.save(filename)
   const base64 = doc.output('datauristring').split(',')[1]
   return { filename, base64 }
@@ -382,12 +596,13 @@ export function gerarReciboBase64Only(
   diligencia: Diligencia,
   advogado: Advogado,
 ): { filename: string; base64: string } {
-  const { doc, filename } = _buildReciboDoc(diligencia, advogado)
+  const builder = _selectReciboBuilder(diligencia)
+  const { doc, filename } = builder(diligencia, advogado)
   const base64 = doc.output('datauristring').split(',')[1]
   return { filename, base64 }
 }
 
-// ─── Valor por extenso (simplificado, reais) ─────────────────────────────────
+// ─── Valor por extenso (reais) ────────────────────────────────────────────────
 
 function valorPorExtenso(valor: number): string {
   const inteiro = Math.floor(valor)
@@ -396,7 +611,8 @@ function valorPorExtenso(valor: number): string {
   const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
     'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove']
   const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa']
-  const centenas = ['', 'cem', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
+  // 'cento' para 101-199; o caso exato 100 é tratado com early return abaixo
+  const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
     'seiscentos', 'setecentos', 'oitocentos', 'novecentos']
 
   function partes(n: number): string {

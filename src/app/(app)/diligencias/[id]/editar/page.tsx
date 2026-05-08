@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
-import { StatusDiligencia, StatusPagamento, ModoDiligencia, TipoDiligencia, TipoEvento } from '@/types'
-import { cleanPhone } from '@/lib/utils'
+import { StatusDiligencia, StatusPagamento, ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente } from '@/types'
+import { cleanPhone, normalizarCccBat, validarCccBat } from '@/lib/utils'
+import { TIPOS_EVENTO_BAT } from '@/lib/constants'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
   'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -33,10 +34,12 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     telefoneVitima: original.telefoneVitima,
     cargo: original.cargo,
     empresa: original.empresa,
+    empresaCliente: original.empresaCliente,
     cidade: original.cidade,
     uf: original.uf,
     tipoEvento: original.tipoEvento,
     tipoDiligencia: original.tipoDiligencia,
+    tipoDiligenciaDescricao: original.tipoDiligenciaDescricao || '',
     modoDiligencia: original.modoDiligencia,
     advogadoId: original.advogadoId,
     valorDiligencia: String(original.valorDiligencia),
@@ -101,11 +104,21 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     setErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
   }
 
+  function handleCccBlur() {
+    if (!form || form.empresaCliente !== EmpresaCliente.BatBrasil) return
+    const normalized = normalizarCccBat(form.ccc)
+    if (normalized !== form.ccc) set('ccc', normalized)
+  }
+
   function validate(f: NonNullable<typeof form>) {
     const e: Record<string, string> = {}
-    if (!f.ccc) e.ccc = 'Obrigatório'
+    if (f.empresaCliente === EmpresaCliente.BatBrasil) {
+      const erroCcc = validarCccBat(f.ccc)
+      if (erroCcc) e.ccc = erroCcc
+    } else if (!f.ccc) {
+      // VTAL: CCC é o nº processo, opcional
+    }
     if (!f.vitima) e.vitima = 'Obrigatório'
-    if (!f.empresa) e.empresa = 'Obrigatório'
     if (!f.cidade) e.cidade = 'Obrigatório'
     if (!f.uf) e.uf = 'Obrigatório'
     if (f.telefoneVitima) {
@@ -129,7 +142,9 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         telefoneVitima: cleanPhone(form.telefoneVitima),
         cargo: form.cargo,
         empresa: form.empresa,
+        empresaCliente: form.empresaCliente,
         cidade: form.cidade,
+        tipoDiligenciaDescricao: form.tipoDiligencia === TipoDiligencia.Outro ? form.tipoDiligenciaDescricao : undefined,
         uf: form.uf,
         tipoEvento: form.tipoEvento as TipoEvento,
         tipoDiligencia: form.tipoDiligencia as TipoDiligencia,
@@ -178,13 +193,27 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
       <Card>
         <CardHeader><CardTitle>Identificação</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value)} error={errors.ccc} />
+          <Input
+            label="CCC"
+            value={form.ccc}
+            onChange={(e) => set('ccc', form.empresaCliente === EmpresaCliente.BatBrasil ? e.target.value.toUpperCase() : e.target.value)}
+            onBlur={handleCccBlur}
+            error={errors.ccc}
+            placeholder={form.empresaCliente === EmpresaCliente.BatBrasil ? 'BR-2026030019' : undefined}
+          />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)}
-            options={Object.values(TipoEvento).map((v) => ({ value: v, label: v }))} />
+            options={form.empresaCliente === EmpresaCliente.BatBrasil
+              ? TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))
+              : Object.values(TipoEvento).map((v) => ({ value: v, label: v }))} />
           <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)}
             options={Object.values(TipoDiligencia).map((v) => ({ value: v, label: v }))} />
           <Select label="Modo" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)}
             options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
+          {form.tipoDiligencia === TipoDiligencia.Outro && (
+            <div className="sm:col-span-2">
+              <Input label="Descrição do tipo (Outro)" value={form.tipoDiligenciaDescricao} onChange={(e) => set('tipoDiligenciaDescricao', e.target.value)} placeholder="Descreva o tipo de diligência" />
+            </div>
+          )}
         </CardBody>
       </Card>
 
@@ -197,7 +226,11 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
           <Input label="Telefone" value={form.telefoneVitima} onChange={(e) => set('telefoneVitima', e.target.value)} error={errors.telefoneVitima} />
           <Input label="Cargo" value={form.cargo} onChange={(e) => set('cargo', e.target.value)} />
           <div className="sm:col-span-2">
-            <Input label="Empresa" value={form.empresa} onChange={(e) => set('empresa', e.target.value)} error={errors.empresa} />
+            <Select label="Cliente (escritório)" value={form.empresaCliente} onChange={(e) => set('empresaCliente', e.target.value)}
+              options={Object.values(EmpresaCliente).map((v) => ({ value: v, label: v }))} />
+          </div>
+          <div className="sm:col-span-2">
+            <Input label="Empresa da vítima" value={form.empresa} onChange={(e) => set('empresa', e.target.value)} placeholder="Nome da empresa onde a vítima trabalha" />
           </div>
           <Input label="Cidade" value={form.cidade} onChange={(e) => set('cidade', e.target.value)} error={errors.cidade} />
           <Select label="UF" value={form.uf} onChange={(e) => set('uf', e.target.value)}

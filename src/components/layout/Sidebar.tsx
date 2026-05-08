@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileSearch, ClipboardList, Users,
-  DollarSign, MessageSquare, FileText, Scale, X, BarChart3,
+  DollarSign, MessageSquare, FileText, Scale, X, BarChart3, CarFront,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +18,7 @@ const navItems = [
   { href: '/pesquisa', label: 'Pesquisa', icon: MessageSquare },
   { href: '/documentos', label: 'Documentos', icon: FileText },
   { href: '/relatorios', label: 'Relatórios', icon: BarChart3 },
+  { href: '/consulta-placas', label: 'Consulta de Placas', icon: CarFront },
 ]
 
 interface SidebarProps {

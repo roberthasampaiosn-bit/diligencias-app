@@ -85,6 +85,7 @@ export async function insertDiligencia(
 export async function patchDiligencia(id: string, patch: Partial<Diligencia>): Promise<void> {
   const row: Record<string, unknown> = {}
 
+  if ('empresaCliente' in patch) row.empresa_cliente = patch.empresaCliente
   if ('ccc' in patch) row.ccc = patch.ccc
   if ('vitima' in patch) row.vitima = patch.vitima
   if ('telefoneVitima' in patch) row.telefone_vitima = patch.telefoneVitima
@@ -94,6 +95,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('uf' in patch) row.uf = patch.uf
   if ('tipoEvento' in patch) row.tipo_evento = patch.tipoEvento
   if ('tipoDiligencia' in patch) row.tipo_diligencia = patch.tipoDiligencia
+  if ('tipoDiligenciaDescricao' in patch) row.tipo_diligencia_descricao = patch.tipoDiligenciaDescricao ?? null
   if ('modoDiligencia' in patch) row.modo_diligencia = patch.modoDiligencia
   if ('advogadoId' in patch) row.advogado_id = patch.advogadoId
   if ('valorDiligencia' in patch) row.valor_diligencia = patch.valorDiligencia ?? null
@@ -104,6 +106,11 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('cicloFinalizado' in patch) row.ciclo_finalizado = patch.cicloFinalizado
   if ('eventoId' in patch) row.evento_id = patch.eventoId ?? null
   if ('observacaoInterna' in patch) row.observacao_interna = patch.observacaoInterna ?? null
+  if ('dataAtendimento' in patch) row.data_atendimento = patch.dataAtendimento ?? null
+  if ('macro' in patch) row.macro = patch.macro ?? null
+  if ('localAtendimento' in patch) row.local_atendimento = patch.localAtendimento ?? null
+  if ('resultadoDemanda' in patch) row.resultado_demanda = patch.resultadoDemanda ?? null
+  if ('centroCusto' in patch) row.centro_custo = patch.centroCusto ?? null
   if ('zapsignDocumentIdContrato' in patch) row.zapsign_document_id_contrato = patch.zapsignDocumentIdContrato ?? null
   if ('zapsignDocumentIdRecibo' in patch) row.zapsign_document_id_recibo = patch.zapsignDocumentIdRecibo ?? null
   if ('linkAssinaturaAdriana' in patch) row.link_assinatura_adriana = patch.linkAssinaturaAdriana ?? null

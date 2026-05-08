@@ -42,7 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const telefoneAdvogado = whatsappAdvogado.replace(/\D/g, '')
 
   const signerAdriana = {
-    name: 'Ana Rodrigues',
+    name: 'Adriana Rodrigues',
     email: emailAdriana,
     phone_country: '55',
     phone_number: telefoneAdriana.replace(/\D/g, ''),
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let linkAdvogado: string
 
   if (tipo === 'contrato') {
-    linkAdriana = signersList.find((s) => s.name === 'Ana Rodrigues')?.sign_url ?? signersList[0]?.sign_url
+    linkAdriana = signersList.find((s) => s.name === 'Adriana Rodrigues')?.sign_url ?? signersList[0]?.sign_url
     linkAdvogado = signersList.find((s) => s.name === nomeAdvogado)?.sign_url ?? signersList[1]?.sign_url ?? ''
   } else {
     linkAdvogado = signersList[0]?.sign_url ?? ''

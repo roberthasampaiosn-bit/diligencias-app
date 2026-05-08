@@ -4,16 +4,18 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   BarChart3, Calendar, Users, MapPin, ClipboardList,
-  DollarSign, CheckCircle2, Clock, Star, TrendingUp,
+  DollarSign, CheckCircle2, Clock, Star, TrendingUp, CarFront, XCircle, Download,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
+import { useConsultasPlacas } from '@/context/ConsultaPlacasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Input } from '@/components/ui/Input'
-import { StatusDiligenciaBadge, StatusPagamentoBadge } from '@/components/shared/StatusBadge'
+import { Button } from '@/components/ui/Button'
+import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { StatusDiligencia, StatusPagamento, StatusPesquisa, ModoDiligencia } from '@/types'
+import { StatusDiligencia, StatusPagamento, StatusPesquisa, ModoDiligencia, EmpresaCliente } from '@/types'
 
 // ─── helpers de data ──────────────────────────────────────────────────────────
 
@@ -59,9 +61,13 @@ function Td({ children, className }: { children: React.ReactNode; className?: st
 export default function RelatoriosPage() {
   const { diligencias } = useDiligencias()
   const { advogadoMap } = useAdvogados()
+  const { consultasPlacas } = useConsultasPlacas()
 
   const [dataInicio, setDataInicio] = useState(() => primeiroDiaMes(new Date()))
   const [dataFim, setDataFim] = useState(() => ultimoDiaMes(new Date()))
+  const [filtroSolicitante, setFiltroSolicitante] = useState('')
+  const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>('todas')
+  const [exportando, setExportando] = useState(false)
 
   function aplicarEstesMes() {
     const now = new Date()
@@ -85,9 +91,68 @@ export default function RelatoriosPage() {
   const filtradas = useMemo(() => {
     return diligencias.filter((d) => {
       const data = d.createdAt.split('T')[0]
-      return data >= dataInicio && data <= dataFim
+      if (data < dataInicio || data > dataFim) return false
+      if (filtroEmpresa !== 'todas' && d.empresaCliente !== filtroEmpresa) return false
+      return true
     })
-  }, [diligencias, dataInicio, dataFim])
+  }, [diligencias, dataInicio, dataFim, filtroEmpresa])
+
+  async function exportarExcel() {
+    setExportando(true)
+    try {
+      const XLSX = await import('xlsx')
+      const dados = filtradas.map((d) => {
+        const adv = advogadoMap.get(d.advogadoId)
+        return {
+          // ── Identificação ───────────────────────────────────────────────
+          Cliente: d.empresaCliente,
+          'CCC / Nº Processo': d.ccc,
+          Vítima: d.vitima,
+          'Empresa (Vítima)': d.empresa,
+          // ── Tipo ────────────────────────────────────────────────────────
+          'Tipo de Diligência': d.tipoDiligencia,
+          'Descrição (Outro)': d.tipoDiligenciaDescricao ?? '',
+          'Modo de Atendimento': d.modoDiligencia,
+          'Tipo de Evento': d.tipoEvento,
+          // ── Localização ─────────────────────────────────────────────────
+          Cidade: d.cidade,
+          UF: d.uf,
+          // ── Advogado e Financeiro ────────────────────────────────────────
+          Advogado: adv?.nomeCompleto ?? '—',
+          'Valor (R$)': d.valorDiligencia,
+          Status: d.status,
+          Pagamento: d.statusPagamento,
+          // ── Datas ───────────────────────────────────────────────────────
+          'Data de Criação': formatDate(d.createdAt.split('T')[0]),
+          'Data de Atendimento': d.dataAtendimento ? formatDate(d.dataAtendimento) : '',
+          'Data de Conclusão': d.cicloFinalizado ? formatDate(d.updatedAt.split('T')[0]) : '',
+          'Ciclo Finalizado': d.cicloFinalizado ? 'Sim' : 'Não',
+          // ── Campos V.TAL (em branco para BAT BRASIL) ─────────────────────
+          Macro: d.macro ?? '',
+          'Local de Atendimento': d.localAtendimento ?? '',
+          'Resultado da Demanda': d.resultadoDemanda ?? '',
+          'Centro de Custo': d.centroCusto ?? '',
+          Observações: d.observacoes ?? '',
+        }
+      })
+      const ws = XLSX.utils.json_to_sheet(dados)
+      // Larguras mínimas para leitura
+      ws['!cols'] = [
+        { wch: 12 }, { wch: 22 }, { wch: 30 }, { wch: 25 },
+        { wch: 22 }, { wch: 22 }, { wch: 14 }, { wch: 18 },
+        { wch: 18 }, { wch: 6  }, { wch: 28 }, { wch: 12 },
+        { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 16 },
+        { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 20 },
+        { wch: 25 }, { wch: 22 }, { wch: 30 },
+      ]
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Diligências')
+      const sufCliente = filtroEmpresa !== 'todas' ? `_${filtroEmpresa.replace(/\s/g, '_').replace('.', '')}` : ''
+      XLSX.writeFile(wb, `relatorio_diligencias${sufCliente}_${dataInicio}_${dataFim}.xlsx`)
+    } finally {
+      setExportando(false)
+    }
+  }
 
   // ── Indicadores ──────────────────────────────────────────────────────────────
   const ind = useMemo(() => {
@@ -119,6 +184,27 @@ export default function RelatoriosPage() {
       advogadosAcionados,
     }
   }, [filtradas])
+
+  // ── Consultas de Placas filtradas ────────────────────────────────────────────
+  const consultasFiltradas = useMemo(() => {
+    return consultasPlacas.filter((c) => {
+      const data = c.dataConsulta
+      if (data < dataInicio || data > dataFim) return false
+      if (filtroSolicitante && !c.solicitante.toLowerCase().includes(filtroSolicitante.toLowerCase())) return false
+      return true
+    })
+  }, [consultasPlacas, dataInicio, dataFim, filtroSolicitante])
+
+  const indPlacas = useMemo(() => {
+    const localizadas = consultasFiltradas.filter((c) => c.resultado === 'Localizada')
+    const naoLocalizadas = consultasFiltradas.filter((c) => c.resultado === 'Não localizada')
+    return {
+      total: consultasFiltradas.length,
+      localizadas: localizadas.length,
+      naoLocalizadas: naoLocalizadas.length,
+      totalPago: localizadas.reduce((s, c) => s + (c.valor ?? 0), 0),
+    }
+  }, [consultasFiltradas])
 
   // ── Resumo por advogado ───────────────────────────────────────────────────────
   const resumoAdvogados = useMemo(() => {
@@ -163,12 +249,17 @@ export default function RelatoriosPage() {
   return (
     <div className="space-y-5">
       {/* Cabeçalho */}
-      <div className="flex items-center gap-3">
-        <BarChart3 className="w-6 h-6 text-blue-600 flex-shrink-0" />
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Relatórios</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Indicadores das diligências por período</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Relatórios</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Indicadores das diligências por período</p>
+          </div>
         </div>
+        <Button variant="secondary" size="sm" loading={exportando} onClick={exportarExcel}>
+          <Download className="w-4 h-4" /> Exportar Excel
+        </Button>
       </div>
 
       {/* Filtro de período */}
@@ -218,8 +309,24 @@ export default function RelatoriosPage() {
               </button>
             </div>
           </div>
+          <div className="flex gap-1.5 flex-wrap mt-3 pt-3 border-t border-slate-100">
+            <span className="text-xs text-slate-500 self-center mr-1">Empresa:</span>
+            <button onClick={() => setFiltroEmpresa('todas')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === 'todas' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              Todas
+            </button>
+            <button onClick={() => setFiltroEmpresa(filtroEmpresa === EmpresaCliente.BatBrasil ? 'todas' : EmpresaCliente.BatBrasil)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === EmpresaCliente.BatBrasil ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              BAT BRASIL
+            </button>
+            <button onClick={() => setFiltroEmpresa(filtroEmpresa === EmpresaCliente.VTAL ? 'todas' : EmpresaCliente.VTAL)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === EmpresaCliente.VTAL ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              V.TAL
+            </button>
+          </div>
           <p className="text-xs text-slate-400 mt-2">
             {ind.total} diligência{ind.total !== 1 ? 's' : ''} no período selecionado
+            {filtroEmpresa !== 'todas' && <span className="ml-1">· filtrado por <strong>{filtroEmpresa}</strong></span>}
           </p>
         </CardBody>
       </Card>
@@ -336,6 +443,108 @@ export default function RelatoriosPage() {
         )}
       </Card>
 
+      {/* ─── Seção Consulta de Placas ─────────────────────────────────────────── */}
+      <div className="pt-2 space-y-5">
+        <div className="flex items-center gap-2">
+          <CarFront className="w-5 h-5 text-blue-600" />
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Consulta de Placas</h2>
+            <p className="text-xs text-slate-400">Filtros de período aplicados acima</p>
+          </div>
+        </div>
+
+        {/* Filtro por solicitante */}
+        <Card>
+          <CardBody>
+            <div className="flex items-end gap-3">
+              <div className="w-56">
+                <Input
+                  label="Filtrar por solicitante"
+                  value={filtroSolicitante}
+                  onChange={(e) => setFiltroSolicitante(e.target.value)}
+                  placeholder="Nome do solicitante..."
+                />
+              </div>
+              {filtroSolicitante && (
+                <button
+                  onClick={() => setFiltroSolicitante('')}
+                  className="mb-0.5 text-xs text-slate-500 hover:text-slate-700 underline"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-2">{indPlacas.total} consulta{indPlacas.total !== 1 ? 's' : ''} no período</p>
+          </CardBody>
+        </Card>
+
+        {/* Indicadores de placas */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard title="Total de consultas" value={indPlacas.total} icon={CarFront} color="blue" />
+          <StatCard title="Localizadas" value={indPlacas.localizadas} icon={CheckCircle2} color="emerald" />
+          <StatCard title="Não localizadas" value={indPlacas.naoLocalizadas} icon={XCircle} color="red" />
+          <StatCard title="Total pago" value={formatCurrency(indPlacas.totalPago)} icon={DollarSign} color="emerald" />
+        </div>
+
+        {/* Tabela de consultas */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CarFront className="w-4 h-4 text-slate-400" />
+              <CardTitle>Consultas no período</CardTitle>
+              <span className="text-xs text-slate-400">({indPlacas.total})</span>
+            </div>
+          </CardHeader>
+          {consultasFiltradas.length === 0 ? (
+            <CardBody>
+              <p className="text-sm text-slate-400 text-center py-6">Nenhuma consulta de placa no período.</p>
+            </CardBody>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <Th>Placa</Th>
+                    <Th>Solicitante</Th>
+                    <Th>Data</Th>
+                    <Th>Resultado</Th>
+                    <Th>Valor</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {consultasFiltradas.map((c) => (
+                    <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                      <Td><span className="font-mono font-bold text-slate-800">{c.placa}</span></Td>
+                      <Td>{c.solicitante}</Td>
+                      <Td className="whitespace-nowrap">{formatDate(c.dataConsulta)}</Td>
+                      <Td>
+                        {c.resultado === 'Localizada' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                            <CheckCircle2 className="w-3 h-3" /> Localizada
+                          </span>
+                        ) : c.resultado === 'Não localizada' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            <XCircle className="w-3 h-3" /> Não localizada
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </Td>
+                      <Td className="font-semibold whitespace-nowrap">
+                        {c.resultado === 'Localizada' && c.valor != null
+                          ? formatCurrency(c.valor)
+                          : <span className="text-slate-400">—</span>
+                        }
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
       {/* Tabela 3 — Eventos do período */}
       <Card>
         <CardHeader>
@@ -355,6 +564,7 @@ export default function RelatoriosPage() {
               <thead>
                 <tr className="border-b border-slate-100">
                   <Th>CCC / Vítima</Th>
+                  <Th>Empresa</Th>
                   <Th>Tipo</Th>
                   <Th>Cidade/UF</Th>
                   <Th>Data</Th>
@@ -378,6 +588,7 @@ export default function RelatoriosPage() {
                         </Link>
                         <span className="font-mono text-xs text-blue-600">{d.ccc}</span>
                       </Td>
+                      <Td><EmpresaBadge empresaCliente={d.empresaCliente} /></Td>
                       <Td>
                         <div>{d.tipoEvento}</div>
                         <span className="text-xs text-slate-400">{d.modoDiligencia}</span>

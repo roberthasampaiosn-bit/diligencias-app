@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Plus, X } from 'lucide-react'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -10,13 +10,15 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
-import { cleanPhone, toTitleCase } from '@/lib/utils'
+import { cleanPhone, toTitleCase, maskCPF, validarCPF } from '@/lib/utils'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
   'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
 
-export default function NovoAdvogadoPage() {
+function NovoAdvogadoForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnTo = searchParams.get('returnTo') || ''
   const { createAdvogado } = useAdvogados()
   const [form, setForm] = useState({
     nomeCompleto: '',
@@ -54,7 +56,7 @@ export default function NovoAdvogadoPage() {
   function validate() {
     const e: Record<string, string> = {}
     if (!form.nomeCompleto) e.nomeCompleto = 'Campo obrigatório'
-    if (!form.cpf || form.cpf.replace(/\D/g, '').length !== 11) e.cpf = 'CPF deve ter 11 dígitos'
+    if (form.cpf && !validarCPF(form.cpf)) e.cpf = 'CPF inválido'
     if (!form.oab) e.oab = 'Campo obrigatório'
     if (!form.endereco) e.endereco = 'Campo obrigatório'
     if (!form.cidadePrincipal) e.cidadePrincipal = 'Campo obrigatório'
@@ -64,7 +66,6 @@ export default function NovoAdvogadoPage() {
       const d = cleanPhone(form.telefone)
       if (d.length < 10 || d.length > 11) e.telefone = 'Deve ter 10 ou 11 dígitos'
     }
-    if (!form.chavePix) e.chavePix = 'Campo obrigatório'
     return e
   }
 
@@ -75,9 +76,9 @@ export default function NovoAdvogadoPage() {
     setSaving(true)
     try {
       const telefone = cleanPhone(form.telefone)
-      const payload = {
+      const novo = await createAdvogado({
         nomeCompleto: toTitleCase(form.nomeCompleto),
-        cpf: cleanPhone(form.cpf),
+        cpf: form.cpf ? form.cpf.replace(/\D/g, '') : undefined,
         oab: form.oab,
         endereco: form.endereco,
         cidadePrincipal: toTitleCase(form.cidadePrincipal),
@@ -85,12 +86,15 @@ export default function NovoAdvogadoPage() {
         cidadesAtendidas: cidadesAtendidas.map((c) => toTitleCase(c)),
         telefone,
         whatsapp: telefone,
-        chavePix: form.chavePix,
+        chavePix: form.chavePix || undefined,
         observacoes: form.observacoes || undefined,
+      })
+      if (returnTo) {
+        const sep = returnTo.includes('?') ? '&' : '?'
+        router.push(`${returnTo}${sep}newAdvogadoId=${novo.id}`)
+      } else {
+        router.push(`/advogados/${novo.id}`)
       }
-      console.log('[handleSubmit] dados a cadastrar:', payload)
-      const novo = await createAdvogado(payload)
-      router.push(`/advogados/${novo.id}`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Verifique sua conexão e tente novamente.'
       console.error('[handleSubmit] erro ao cadastrar advogado:', err)
@@ -118,10 +122,29 @@ export default function NovoAdvogadoPage() {
         <CardHeader><CardTitle>Dados Pessoais</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Input label="Nome completo" value={form.nomeCompleto} onChange={(e) => set('nomeCompleto', e.target.value)} error={errors.nomeCompleto} />
+            <Input
+              label="Nome completo"
+              value={form.nomeCompleto}
+              onChange={(e) => set('nomeCompleto', e.target.value)}
+              onBlur={(e) => set('nomeCompleto', toTitleCase(e.target.value))}
+              error={errors.nomeCompleto}
+            />
           </div>
-          <Input label="CPF" value={form.cpf} onChange={(e) => set('cpf', e.target.value)} error={errors.cpf} placeholder="000.000.000-00" helper="Apenas números" />
-          <Input label="OAB" value={form.oab} onChange={(e) => set('oab', e.target.value)} error={errors.oab} placeholder="SP 123456" />
+          <Input
+            label="CPF (opcional)"
+            value={form.cpf}
+            onChange={(e) => set('cpf', maskCPF(e.target.value))}
+            error={errors.cpf}
+            placeholder="000.000.000-00"
+          />
+          <Input
+            label="OAB nº"
+            value={form.oab}
+            onChange={(e) => set('oab', e.target.value)}
+            error={errors.oab}
+            placeholder="SP 123456"
+            helper="Usado em contratos e recibos"
+          />
           <div className="sm:col-span-2">
             <Input label="Endereço completo" value={form.endereco} onChange={(e) => set('endereco', e.target.value)} error={errors.endereco} placeholder="Rua, número, bairro, cidade - UF, CEP" />
           </div>
@@ -164,10 +187,10 @@ export default function NovoAdvogadoPage() {
         <CardHeader><CardTitle>Contato e Pagamento</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Input label="Telefone/WhatsApp" value={form.telefone} onChange={(e) => set('telefone', e.target.value)} error={errors.telefone} placeholder="11987654321" helper="Apenas números, com DDD — usado para ligação e WhatsApp" />
+            <Input label="Telefone/WhatsApp" value={form.telefone} onChange={(e) => set('telefone', e.target.value)} error={errors.telefone} placeholder="11987654321" helper="Com DDD — usado para ligação e WhatsApp" />
           </div>
           <div className="sm:col-span-2">
-            <Input label="Chave Pix" value={form.chavePix} onChange={(e) => set('chavePix', e.target.value)} error={errors.chavePix} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+            <Input label="Chave Pix (opcional)" value={form.chavePix} onChange={(e) => set('chavePix', e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" />
           </div>
           <div className="sm:col-span-2">
             <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Informações adicionais..." />
@@ -176,7 +199,7 @@ export default function NovoAdvogadoPage() {
       </Card>
 
       <div className="flex gap-3 justify-end pb-6">
-        <Link href="/advogados">
+        <Link href={returnTo || '/advogados'}>
           <Button variant="secondary" type="button">Cancelar</Button>
         </Link>
         <Button type="submit" loading={saving}>
@@ -185,4 +208,8 @@ export default function NovoAdvogadoPage() {
       </div>
     </form>
   )
+}
+
+export default function NovoAdvogadoPage() {
+  return <Suspense><NovoAdvogadoForm /></Suspense>
 }

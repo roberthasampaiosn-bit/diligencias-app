@@ -10,9 +10,9 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { StatusDiligenciaBadge, StatusPagamentoBadge } from '@/components/shared/StatusBadge'
+import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency } from '@/lib/utils'
-import { Diligencia, StatusDiligencia, ModoDiligencia, Advogado } from '@/types'
+import { Diligencia, StatusDiligencia, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
 
 // ── Row memoizado ─────────────────────────────────────────────────────────────
 
@@ -32,6 +32,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
         <p className="font-medium text-slate-800 truncate max-w-[180px]">{d.vitima}</p>
         <p className="text-xs text-slate-400">{d.tipoEvento}</p>
       </td>
+      <td className="px-4 py-3"><EmpresaBadge empresaCliente={d.empresaCliente} /></td>
       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{d.cidade}/{d.uf}</td>
       <td className="px-4 py-3">
         <p className="text-slate-600 truncate max-w-[160px]">{adv?.nomeCompleto ?? '—'}</p>
@@ -64,34 +65,42 @@ function DiligenciasContent() {
   const [search, setSearch] = useState(searchParams.get('ccc') || '')
   const [filtroStatus, setFiltroStatus] = useState<'todos' | StatusDiligencia>('todos')
   const [filtroModo, setFiltroModo] = useState<'todos' | ModoDiligencia>('todos')
+  const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>('todas')
 
   const lista = useMemo(() => {
     let l = diligencias
     if (filtroStatus !== 'todos') l = l.filter((d) => d.status === filtroStatus)
     if (filtroModo !== 'todos') l = l.filter((d) => d.modoDiligencia === filtroModo)
+    if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (search) {
       const q = search.toLowerCase()
       l = l.filter(
         (d) =>
           d.ccc.toLowerCase().includes(q) ||
           d.vitima.toLowerCase().includes(q) ||
+          d.empresaCliente.toLowerCase().includes(q) ||
           d.empresa.toLowerCase().includes(q) ||
           d.cidade.toLowerCase().includes(q)
       )
     }
     return l
-  }, [diligencias, search, filtroStatus, filtroModo])
+  }, [diligencias, search, filtroStatus, filtroModo, filtroEmpresa])
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Diligências</h1>
           <p className="text-sm text-slate-500 mt-0.5">{diligencias.length} diligências cadastradas</p>
         </div>
-        <Link href="/diligencias/nova">
-          <Button size="md"><Plus className="w-4 h-4" /> Nova diligência</Button>
-        </Link>
+        <div className="flex gap-2 flex-wrap">
+          <Link href="/diligencias/nova?cliente=bat">
+            <Button size="md" variant="secondary"><Plus className="w-4 h-4" /> Nova diligência BAT BRASIL</Button>
+          </Link>
+          <Link href="/diligencias/nova?cliente=vtal">
+            <Button size="md" className="bg-purple-600 hover:bg-purple-700 text-white"><Plus className="w-4 h-4" /> Nova diligência V.TAL</Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -115,6 +124,17 @@ function DiligenciasContent() {
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroModo === ModoDiligencia.Remoto ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                 Remoto
               </button>
+              <div className="w-px bg-slate-200 mx-0.5" />
+              <button
+                onClick={() => startTransition(() => setFiltroEmpresa(filtroEmpresa === EmpresaCliente.BatBrasil ? 'todas' : EmpresaCliente.BatBrasil))}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === EmpresaCliente.BatBrasil ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                BAT BRASIL
+              </button>
+              <button
+                onClick={() => startTransition(() => setFiltroEmpresa(filtroEmpresa === EmpresaCliente.VTAL ? 'todas' : EmpresaCliente.VTAL))}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === EmpresaCliente.VTAL ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                V.TAL
+              </button>
             </div>
           </div>
         </CardHeader>
@@ -130,7 +150,10 @@ function DiligenciasContent() {
                 <Link key={d.id} href={`/diligencias/${d.id}`} className="block px-4 py-3.5 hover:bg-slate-50">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="font-semibold text-slate-800 text-sm truncate">{d.vitima}</p>
-                    <StatusDiligenciaBadge status={d.status} />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <EmpresaBadge empresaCliente={d.empresaCliente} />
+                      <StatusDiligenciaBadge status={d.status} />
+                    </div>
                   </div>
                   <p className="text-xs text-blue-600 font-mono mb-1">{d.ccc}</p>
                   <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -152,7 +175,7 @@ function DiligenciasContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['CCC', 'Vítima', 'Cidade/UF', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
+                    {['CCC', 'Vítima', 'Cliente', 'Cidade/UF', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>

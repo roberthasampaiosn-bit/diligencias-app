@@ -35,15 +35,15 @@ export async function insertAdvogado(a: Omit<Advogado, 'id' | 'createdAt'>): Pro
 export async function patchAdvogado(id: string, patch: Partial<Advogado>): Promise<void> {
   const row: Partial<Omit<AdvogadoRow, 'id' | 'created_at' | 'updated_at'>> = {}
   if ('nomeCompleto' in patch) row.nome_completo = patch.nomeCompleto
-  if ('cpf' in patch) row.cpf = patch.cpf
+  if ('cpf' in patch) row.cpf = patch.cpf ?? null
   if ('oab' in patch) row.oab = patch.oab
   if ('endereco' in patch) row.endereco = patch.endereco
   if ('cidadePrincipal' in patch) row.cidade_principal = patch.cidadePrincipal
   if ('uf' in patch) row.uf = patch.uf
   if ('cidadesAtendidas' in patch) row.cidades_atendidas = patch.cidadesAtendidas
   if ('telefone' in patch) row.telefone = patch.telefone
-  if ('whatsapp' in patch) row.whatsapp = patch.whatsapp
-  if ('chavePix' in patch) row.chave_pix = patch.chavePix
+  if ('whatsapp' in patch) row.whatsapp = patch.whatsapp ?? null
+  if ('chavePix' in patch) row.chave_pix = patch.chavePix ?? null
   if ('observacoes' in patch) row.observacoes = patch.observacoes ?? null
   if (Object.keys(row).length === 0) return
   const { error } = await supabase.from('advogados').update(row).eq('id', id)

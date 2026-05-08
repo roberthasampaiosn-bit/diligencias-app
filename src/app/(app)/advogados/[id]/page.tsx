@@ -79,7 +79,7 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
             <Phone className="w-3.5 h-3.5" /> {formatPhone(advogado.telefone)}
           </Button>
         </a>
-        <a href={`https://wa.me/55${advogado.whatsapp}`} target="_blank" rel="noopener noreferrer">
+        <a href={`https://wa.me/55${(advogado.whatsapp || advogado.telefone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
           <Button variant="secondary" size="sm">
             <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp
           </Button>
@@ -91,10 +91,10 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
           <CardHeader><CardTitle>Dados Pessoais</CardTitle></CardHeader>
           <CardBody className="space-y-3">
             <DetailRow label="Nome completo" value={advogado.nomeCompleto} />
-            <DetailRow label="CPF" value={formatCPF(advogado.cpf)} />
+            {advogado.cpf && <DetailRow label="CPF" value={formatCPF(advogado.cpf)} />}
             <DetailRow label="OAB" value={advogado.oab} />
             <DetailRow label="Endereço" value={advogado.endereco} />
-            <DetailRow label="Chave Pix" value={advogado.chavePix} />
+            {advogado.chavePix && <DetailRow label="Chave Pix" value={advogado.chavePix} />}
             {advogado.observacoes && <DetailRow label="Observações" value={advogado.observacoes} />}
           </CardBody>
         </Card>

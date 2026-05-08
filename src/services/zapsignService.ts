@@ -79,14 +79,15 @@ export const SIGNER_ADRIANA: ZapSignSigner = {
 
 export function buildSignerAdvogado(advogado: {
   nomeCompleto: string
-  whatsapp: string
+  telefone: string
+  whatsapp?: string
 }): ZapSignSigner {
   return {
     name: advogado.nomeCompleto,
     // Email do advogado não está no cadastro atual — placeholder até o campo ser adicionado
     email: 'PLACEHOLDER_EMAIL_ADVOGADO@email.com',
     phone_country: '55',
-    phone_number: advogado.whatsapp.replace(/\D/g, ''),
+    phone_number: (advogado.whatsapp || advogado.telefone).replace(/\D/g, ''),
     auth_mode: 'assinaturaTela',
     send_automatic_email: false,
     send_automatic_whatsapp: false,
@@ -123,7 +124,7 @@ export function getAdvogadoSignUrl(
 // ─── Helper: monta URL do WhatsApp para o advogado ───────────────────────────
 
 export function buildWhatsAppZapSign(
-  whatsapp: string,
+  whatsapp: string | undefined,
   nomeAdvogado: string,
   ccc: string,
   tipoDoc: 'contrato' | 'recibo',
@@ -131,7 +132,7 @@ export function buildWhatsAppZapSign(
 ): string {
   const primeiro = nomeAdvogado.split(' ')[0]
   const msg = `Olá ${primeiro}, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${signUrl}`
-  const numero = whatsapp.replace(/\D/g, '')
+  const numero = (whatsapp ?? '').replace(/\D/g, '')
   return `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
 }
 

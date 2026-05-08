@@ -5,8 +5,9 @@ import { ToastProvider } from './ToastContext'
 import { DiligenciasProvider, useDiligencias } from './DiligenciasContext'
 import { AdvogadosProvider, useAdvogados } from './AdvogadosContext'
 import { EventosProvider, useEventos } from './EventosContext'
+import { ConsultaPlacasProvider, useConsultasPlacas } from './ConsultaPlacasContext'
 
-export { useDiligencias, useAdvogados, useEventos }
+export { useDiligencias, useAdvogados, useEventos, useConsultasPlacas }
 export { useToast } from './ToastContext'
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -15,7 +16,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       <DiligenciasProvider>
         <AdvogadosProvider>
           <EventosProvider>
-            {children}
+            <ConsultaPlacasProvider>
+              {children}
+            </ConsultaPlacasProvider>
           </EventosProvider>
         </AdvogadosProvider>
       </DiligenciasProvider>

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
-import { cleanPhone, toTitleCase } from '@/lib/utils'
+import { cleanPhone, toTitleCase, maskCPF, validarCPF } from '@/lib/utils'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
   'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -46,13 +46,13 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
     if (advogado && !initialized) {
       setForm({
         nomeCompleto: advogado.nomeCompleto,
-        cpf: advogado.cpf,
+        cpf: advogado.cpf ?? '',
         oab: advogado.oab,
         endereco: advogado.endereco,
         cidadePrincipal: advogado.cidadePrincipal,
         uf: advogado.uf,
         telefone: advogado.telefone,
-        chavePix: advogado.chavePix,
+        chavePix: advogado.chavePix ?? '',
         observacoes: advogado.observacoes ?? '',
       })
       setCidadesAtendidas(advogado.cidadesAtendidas)
@@ -90,7 +90,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
   function validate() {
     const e: Record<string, string> = {}
     if (!form.nomeCompleto) e.nomeCompleto = 'Campo obrigatório'
-    if (!form.cpf || form.cpf.replace(/\D/g, '').length !== 11) e.cpf = 'CPF deve ter 11 dígitos'
+    if (form.cpf && !validarCPF(form.cpf)) e.cpf = 'CPF inválido'
     if (!form.oab) e.oab = 'Campo obrigatório'
     if (!form.endereco) e.endereco = 'Campo obrigatório'
     if (!form.cidadePrincipal) e.cidadePrincipal = 'Campo obrigatório'
@@ -100,7 +100,6 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
       const d = cleanPhone(form.telefone)
       if (d.length < 10 || d.length > 11) e.telefone = 'Deve ter 10 ou 11 dígitos'
     }
-    if (!form.chavePix) e.chavePix = 'Campo obrigatório'
     return e
   }
 
@@ -113,7 +112,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
       const telefone = cleanPhone(form.telefone)
       await updateAdvogado(id, {
         nomeCompleto: toTitleCase(form.nomeCompleto),
-        cpf: cleanPhone(form.cpf),
+        cpf: form.cpf ? form.cpf.replace(/\D/g, '') : undefined,
         oab: form.oab,
         endereco: form.endereco,
         cidadePrincipal: toTitleCase(form.cidadePrincipal),
@@ -121,7 +120,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
         cidadesAtendidas: cidadesAtendidas.map((c) => toTitleCase(c)),
         telefone,
         whatsapp: telefone,
-        chavePix: form.chavePix,
+        chavePix: form.chavePix || undefined,
         observacoes: form.observacoes || undefined,
       })
       router.push(`/advogados/${id}`)
@@ -152,10 +151,29 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
         <CardHeader><CardTitle>Dados Pessoais</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Input label="Nome completo" value={form.nomeCompleto} onChange={(e) => set('nomeCompleto', e.target.value)} error={errors.nomeCompleto} />
+            <Input
+              label="Nome completo"
+              value={form.nomeCompleto}
+              onChange={(e) => set('nomeCompleto', e.target.value)}
+              onBlur={(e) => set('nomeCompleto', toTitleCase(e.target.value))}
+              error={errors.nomeCompleto}
+            />
           </div>
-          <Input label="CPF" value={form.cpf} onChange={(e) => set('cpf', e.target.value)} error={errors.cpf} placeholder="000.000.000-00" helper="Apenas números" />
-          <Input label="OAB" value={form.oab} onChange={(e) => set('oab', e.target.value)} error={errors.oab} placeholder="SP 123456" />
+          <Input
+            label="CPF (opcional)"
+            value={form.cpf}
+            onChange={(e) => set('cpf', maskCPF(e.target.value))}
+            error={errors.cpf}
+            placeholder="000.000.000-00"
+          />
+          <Input
+            label="OAB nº"
+            value={form.oab}
+            onChange={(e) => set('oab', e.target.value)}
+            error={errors.oab}
+            placeholder="SP 123456"
+            helper="Usado em contratos e recibos"
+          />
           <div className="sm:col-span-2">
             <Input label="Endereço completo" value={form.endereco} onChange={(e) => set('endereco', e.target.value)} error={errors.endereco} placeholder="Rua, número, bairro, cidade - UF, CEP" />
           </div>
@@ -198,10 +216,10 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
         <CardHeader><CardTitle>Contato e Pagamento</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Input label="Telefone/WhatsApp" value={form.telefone} onChange={(e) => set('telefone', e.target.value)} error={errors.telefone} placeholder="11987654321" helper="Apenas números, com DDD — usado para ligação e WhatsApp" />
+            <Input label="Telefone/WhatsApp" value={form.telefone} onChange={(e) => set('telefone', e.target.value)} error={errors.telefone} placeholder="11987654321" helper="Com DDD — usado para ligação e WhatsApp" />
           </div>
           <div className="sm:col-span-2">
-            <Input label="Chave Pix" value={form.chavePix} onChange={(e) => set('chavePix', e.target.value)} error={errors.chavePix} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+            <Input label="Chave Pix (opcional)" value={form.chavePix} onChange={(e) => set('chavePix', e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" />
           </div>
           <div className="sm:col-span-2">
             <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Informações adicionais..." />

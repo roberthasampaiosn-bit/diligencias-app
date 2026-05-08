@@ -70,7 +70,7 @@ const SearchDropdown = memo(function SearchDropdown({
       if (out.filter((r) => r.type === 'advogado').length >= 5) break
       if (
         a.nomeCompleto.toLowerCase().includes(q) ||
-        (qDigits.length >= 4 && (a.cpf.includes(qDigits) || a.telefone.includes(qDigits)))
+        (qDigits.length >= 4 && (a.cpf?.includes(qDigits) || a.telefone.includes(qDigits)))
       ) {
         out.push({
           type: 'advogado',

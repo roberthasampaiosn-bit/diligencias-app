@@ -18,10 +18,10 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
-import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge } from '@/components/shared/StatusBadge'
+import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia } from '@/types'
-import { buildWhatsAppZapSign } from '@/services/zapsignService'
+import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
 
 interface Params { id: string }
@@ -80,11 +80,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   // Refs para inputs de arquivo ocultos
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  // ZapSign — links de assinatura (sessão; persiste no DB após migração Supabase)
+  // ZapSign — loading states (links são derivados do DB via d.linkAssinatura*)
   const [enviandoContratoZap, setEnviandoContratoZap] = useState(false)
   const [enviandoReciboZap, setEnviandoReciboZap] = useState(false)
-  const [linkContratoZap, setLinkContratoZap] = useState<string | null>(null)
-  const [linkReciboZap, setLinkReciboZap] = useState<string | null>(null)
 
   const d = useMemo(() => diligencias.find((x) => x.id === id), [diligencias, id])
   const adv = d ? advogadoMap.get(d.advogadoId) : undefined
@@ -99,20 +97,29 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     )
   }
 
+  // Links de assinatura derivados do DB — persistem entre recarregamentos
+  const linkContratoZap = d.linkAssinaturaAdvogadoContrato ?? null
+  const linkReciboZap = d.linkAssinaturaAdvogadoRecibo ?? null
+
   const whatsappVitima = buildWhatsAppUrl(d.telefoneVitima, buildPesquisaMessage(d.vitima, d.tipoEvento))
   const isRemoto = d.modoDiligencia === 'Remoto'
   const podeFinalizar = d.status === StatusDiligencia.Realizada
     && (isRemoto || d.statusPagamento === StatusPagamento.Pago)
     && !d.cicloFinalizado
 
-  const whatsappAdv = adv ? `https://wa.me/55${adv.whatsapp}?text=${encodeURIComponent(`Olá ${adv.nomeCompleto.split(' ')[0]}, tudo bem? Referente à diligência ${d.ccc}.`)}` : '#'
+  const advPhone = adv ? (adv.whatsapp || adv.telefone).replace(/\D/g, '') : ''
+  const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(`Olá ${adv.nomeCompleto.split(' ')[0]}, tudo bem? Referente à diligência ${d.ccc}.`)}` : '#'
 
   const whatsappZapContrato = adv && linkContratoZap
-    ? buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, d.ccc, 'contrato', linkContratoZap)
+    ? buildWhatsAppZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'contrato', linkContratoZap)
     : null
 
   const whatsappZapRecibo = adv && linkReciboZap
-    ? buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, d.ccc, 'recibo', linkReciboZap)
+    ? buildWhatsAppZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'recibo', linkReciboZap)
+    : null
+
+  const whatsappZapAdriana = d.linkAssinaturaAdriana
+    ? buildWhatsAppAdriana(d.ccc, 'contrato', d.linkAssinaturaAdriana)
     : null
 
   function handleUpload(campo: keyof Anexos) {
@@ -181,8 +188,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         return
       }
       const zapResult: EnviarZapSignResult = await res.json()
-      setLinkContratoZap(zapResult.linkAdvogado)
-      // Persiste links no banco + estado local
+      // Persiste no banco — d.linkAssinaturaAdvogadoContrato é derivado do contexto após o update
       await updateDiligencia(id, {
         zapsignDocumentIdContrato: zapResult.documentToken,
         linkAssinaturaAdriana: zapResult.linkAdriana,
@@ -223,8 +229,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         return
       }
       const zapResult: EnviarZapSignResult = await res.json()
-      setLinkReciboZap(zapResult.linkAdvogado)
-      // Persiste links no banco + estado local
+      // Persiste no banco — d.linkAssinaturaAdvogadoRecibo é derivado do contexto após o update
       await updateDiligencia(id, {
         zapsignDocumentIdRecibo: zapResult.documentToken,
         linkAssinaturaAdvogadoRecibo: zapResult.linkAdvogado,
@@ -303,7 +308,10 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-slate-800 truncate">{d.vitima}</h1>
-          <p className="text-xs text-blue-600 font-mono">{d.ccc}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-blue-600 font-mono">{d.ccc}</p>
+            <EmpresaBadge empresaCliente={d.empresaCliente} />
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {d.cicloFinalizado && <Badge variant="success">Ciclo finalizado</Badge>}
@@ -327,15 +335,15 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </Button>
         )}
 
-        {/* ZapSign — Enviar contrato para assinatura */}
-        {!isRemoto && d.anexos.contratoGerado && !linkContratoZap && (
+        {/* ZapSign — Enviar contrato para assinatura (some quando já enviado ou assinado) */}
+        {!isRemoto && d.anexos.contratoGerado && !d.statusAssinaturaContrato && (
           <Button variant="secondary" size="sm" loading={enviandoContratoZap} onClick={handleEnviarContratoZapSign}>
             <Send className="w-3.5 h-3.5" /> Enviar contrato p/ assinatura
           </Button>
         )}
 
-        {/* ZapSign — Enviar recibo para assinatura */}
-        {!isRemoto && d.anexos.reciboGerado && !linkReciboZap && (
+        {/* ZapSign — Enviar recibo para assinatura (some quando já enviado ou assinado) */}
+        {!isRemoto && d.anexos.reciboGerado && !d.statusAssinaturaRecibo && (
           <Button variant="secondary" size="sm" loading={enviandoReciboZap} onClick={handleEnviarReciboZapSign}>
             <Send className="w-3.5 h-3.5" /> Enviar recibo p/ assinatura
           </Button>
@@ -351,10 +359,19 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         )}
 
         {/* ZapSign — Enviar link assinatura recibo via WhatsApp */}
-        {linkReciboZap && whatsappZapRecibo && (
+        {linkReciboZap && whatsappZapRecibo && d.statusAssinaturaRecibo !== 'assinado' && (
           <a href={whatsappZapRecibo} target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="sm">
               <MessageCircle className="w-3.5 h-3.5 text-green-600" /> Link recibo (WA)
+            </Button>
+          </a>
+        )}
+
+        {/* ZapSign — Link de assinatura para Adriana */}
+        {d.linkAssinaturaAdriana && whatsappZapAdriana && d.statusAssinaturaContrato !== 'assinado' && (
+          <a href={whatsappZapAdriana} target="_blank" rel="noopener noreferrer">
+            <Button variant="ghost" size="sm">
+              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> Link contrato (Adriana)
             </Button>
           </a>
         )}
@@ -473,11 +490,11 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             </CardHeader>
             <CardBody className="space-y-3">
               <DR label="Nome" value={adv.nomeCompleto} />
-              <DR label="CPF" value={formatCPF(adv.cpf)} />
+              {adv.cpf && <DR label="CPF" value={formatCPF(adv.cpf)} />}
               <DR label="OAB" value={adv.oab} />
               <DR label="WhatsApp" value={
-                <a href={`https://wa.me/55${adv.whatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline">
-                  <MessageCircle className="w-3.5 h-3.5" />{formatPhone(adv.whatsapp)}
+                <a href={`https://wa.me/55${(adv.whatsapp || adv.telefone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline">
+                  <MessageCircle className="w-3.5 h-3.5" />{formatPhone(adv.whatsapp || adv.telefone)}
                 </a>
               } />
               <DR label="Pix" value={adv.chavePix} />
@@ -704,34 +721,67 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             </div>
           )}
 
-          {/* ZapSign — status de assinatura digital */}
-          {(linkContratoZap || linkReciboZap) && (
+          {/* ZapSign — status de assinatura digital (lê do DB — persiste entre recarregamentos) */}
+          {(d.statusAssinaturaContrato || d.statusAssinaturaRecibo) && (
             <div className="mt-3 pt-3 border-t border-slate-100">
               <p className="text-xs font-medium text-slate-400 mb-2">Assinatura digital (ZapSign)</p>
               <div className="space-y-2">
-                {linkContratoZap && (
+                {d.statusAssinaturaContrato && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg">
-                      <Send className="w-3 h-3" /> Contrato enviado para assinatura
-                    </span>
-                    {whatsappZapContrato && (
+                    {d.statusAssinaturaContrato === 'assinado' ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg">
+                        <CheckCircle2 className="w-3 h-3" /> Contrato assinado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg">
+                        <Send className="w-3 h-3" /> Contrato enviado — aguardando assinatura
+                      </span>
+                    )}
+                    {d.anexos.contratoAssinado && (
+                      <a href={d.anexos.contratoAssinado} target="_blank" rel="noopener noreferrer">
+                        <button className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                          <Download className="w-3 h-3" /> Baixar assinado
+                        </button>
+                      </a>
+                    )}
+                    {whatsappZapContrato && d.statusAssinaturaContrato !== 'assinado' && (
                       <a href={whatsappZapContrato} target="_blank" rel="noopener noreferrer">
                         <button className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium px-2 py-1 rounded-lg hover:bg-green-50 transition-colors">
-                          <MessageCircle className="w-3 h-3" /> Enviar link via WhatsApp
+                          <MessageCircle className="w-3 h-3" /> WA advogado
+                        </button>
+                      </a>
+                    )}
+                    {whatsappZapAdriana && d.statusAssinaturaContrato !== 'assinado' && (
+                      <a href={whatsappZapAdriana} target="_blank" rel="noopener noreferrer">
+                        <button className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium px-2 py-1 rounded-lg hover:bg-green-50 transition-colors">
+                          <MessageCircle className="w-3 h-3" /> WA Adriana
                         </button>
                       </a>
                     )}
                   </div>
                 )}
-                {linkReciboZap && (
+                {d.statusAssinaturaRecibo && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg">
-                      <Send className="w-3 h-3" /> Recibo enviado para assinatura
-                    </span>
-                    {whatsappZapRecibo && (
+                    {d.statusAssinaturaRecibo === 'assinado' ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg">
+                        <CheckCircle2 className="w-3 h-3" /> Recibo assinado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg">
+                        <Send className="w-3 h-3" /> Recibo enviado — aguardando assinatura
+                      </span>
+                    )}
+                    {d.anexos.reciboAssinado && (
+                      <a href={d.anexos.reciboAssinado} target="_blank" rel="noopener noreferrer">
+                        <button className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                          <Download className="w-3 h-3" /> Baixar assinado
+                        </button>
+                      </a>
+                    )}
+                    {whatsappZapRecibo && d.statusAssinaturaRecibo !== 'assinado' && (
                       <a href={whatsappZapRecibo} target="_blank" rel="noopener noreferrer">
                         <button className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium px-2 py-1 rounded-lg hover:bg-green-50 transition-colors">
-                          <MessageCircle className="w-3 h-3" /> Enviar link via WhatsApp
+                          <MessageCircle className="w-3 h-3" /> WA advogado
                         </button>
                       </a>
                     )}

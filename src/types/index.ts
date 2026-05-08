@@ -1,5 +1,14 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+export enum EmpresaCliente {
+  BatBrasil = 'BAT BRASIL',
+  VTAL = 'V.TAL',
+}
+
+export function normalizeEmpresa(value: string): EmpresaCliente {
+  return value === EmpresaCliente.VTAL ? EmpresaCliente.VTAL : EmpresaCliente.BatBrasil
+}
+
 export enum StatusDiligencia {
   EmAndamento = 'Em andamento',
   Realizada = 'Realizada',
@@ -15,6 +24,11 @@ export enum TipoDiligencia {
   Oitiva = 'Oitiva',
   Levantamento = 'Levantamento',
   Pericia = 'Perícia',
+  Audiencia = 'Audiência',
+  Aditamento = 'Aditamento',
+  Protocolo = 'Protocolo',
+  DiligenciaDP = 'Diligência em DP',
+  ConsultaProcessual = 'Consulta processual',
   Outro = 'Outro',
 }
 
@@ -68,15 +82,15 @@ export interface AvaliacaoAdvogado {
 export interface Advogado {
   id: string
   nomeCompleto: string
-  cpf: string
   oab: string
   endereco: string
   cidadePrincipal: string
   uf: string
   cidadesAtendidas: string[]
   telefone: string
-  whatsapp: string
-  chavePix: string
+  cpf?: string
+  whatsapp?: string
+  chavePix?: string
   observacoes?: string
   createdAt: string
 }
@@ -146,11 +160,12 @@ export interface Pesquisa {
 
 export interface Diligencia {
   id: string
+  empresaCliente: EmpresaCliente   // cliente do escritório (BAT BRASIL | V.TAL)
   ccc: string
   vitima: string
   telefoneVitima: string
   cargo: string
-  empresa: string
+  empresa: string                  // empresa da vítima (texto livre)
   cidade: string
   uf: string
   tipoEvento: TipoEvento
@@ -176,6 +191,13 @@ export interface Diligencia {
   linkAssinaturaAdvogadoRecibo?: string
   statusAssinaturaContrato?: 'pendente' | 'assinado'
   statusAssinaturaRecibo?: 'pendente' | 'assinado'
+  tipoDiligenciaDescricao?: string  // preenchido quando tipoDiligencia === 'Outro'
+  // Campos específicos V.TAL (opcionais para BAT BRASIL)
+  dataAtendimento?: string
+  macro?: string
+  localAtendimento?: string
+  resultadoDemanda?: string
+  centroCusto?: string
   createdAt: string
   updatedAt: string
 }
@@ -202,4 +224,23 @@ export interface FinanceiroStats {
   countPagoMes: number
   countPendenteMes: number
   countAtrasado: number
+}
+
+// ─── Consulta de Placa ────────────────────────────────────────────────────────
+
+export type ResultadoConsultaPlaca = 'Localizada' | 'Não localizada'
+
+export interface ConsultaPlaca {
+  id: string
+  placa: string
+  solicitante: string
+  dataConsulta: string
+  resultado?: ResultadoConsultaPlaca
+  observacoes?: string
+  // preenchidos apenas quando resultado = 'Localizada'
+  anexoResultado?: string
+  valor?: number
+  comprovantePagamento?: string
+  createdAt: string
+  updatedAt: string
 }

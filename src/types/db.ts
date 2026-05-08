@@ -4,15 +4,16 @@
 export interface AdvogadoRow {
   id: string
   nome_completo: string
-  cpf: string
+  cpf: string | null
   oab: string
+  oab_numero: string | null
   endereco: string
   cidade_principal: string
   uf: string
   cidades_atendidas: string[]
   telefone: string
-  whatsapp: string
-  chave_pix: string
+  whatsapp: string | null
+  chave_pix: string | null
   observacoes: string | null
   created_at: string
   updated_at: string
@@ -31,15 +32,17 @@ export interface LigacaoRow {
 
 export interface DiligenciaRow {
   id: string
+  empresa_cliente: string          // cliente do escritório (BAT BRASIL | V.TAL)
   ccc: string
   vitima: string
   telefone_vitima: string
   cargo: string
-  empresa: string
+  empresa: string                  // empresa da vítima (texto livre)
   cidade: string
   uf: string
   tipo_evento: string
   tipo_diligencia: string
+  tipo_diligencia_descricao: string | null
   modo_diligencia: string
   advogado_id: string
   valor_diligencia: number | null
@@ -66,6 +69,12 @@ export interface DiligenciaRow {
   avaliacao_contratar_novamente: boolean | null
   avaliacao_data: string | null
   observacao_interna: string | null
+  // Campos específicos V.TAL
+  data_atendimento?: string | null
+  macro?: string | null
+  local_atendimento?: string | null
+  resultado_demanda?: string | null
+  centro_custo?: string | null
   // ZapSign — assinatura digital
   zapsign_document_id_contrato?: string | null
   zapsign_document_id_recibo?: string | null
@@ -77,6 +86,20 @@ export interface DiligenciaRow {
   created_at: string
   updated_at: string
   ligacoes?: LigacaoRow[]
+}
+
+export interface ConsultaPlacaRow {
+  id: string
+  placa: string
+  solicitante: string
+  data_consulta: string
+  resultado: string | null
+  observacoes: string | null
+  anexo_resultado: string | null
+  valor: number | null
+  comprovante_pagamento: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface EventoRow {

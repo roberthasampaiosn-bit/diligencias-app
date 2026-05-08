@@ -3,8 +3,9 @@ import {
   TipoEvento, TipoDiligencia, ModoDiligencia,
   StatusDiligencia, StatusPagamento, StatusPesquisa,
   ResultadoLigacao, TipoOperador, StatusEvento,
+  ConsultaPlaca, ResultadoConsultaPlaca, EmpresaCliente,
 } from '@/types'
-import { AdvogadoRow, DiligenciaRow, LigacaoRow, EventoRow } from '@/types/db'
+import { AdvogadoRow, DiligenciaRow, LigacaoRow, EventoRow, ConsultaPlacaRow } from '@/types/db'
 
 const LEGACY_PESQUISA_CONCLUIDA = new Set(['Respondida', 'Sem contato'])
 
@@ -21,15 +22,15 @@ export function toAdvogado(row: AdvogadoRow): Advogado {
   return {
     id: row.id,
     nomeCompleto: row.nome_completo,
-    cpf: row.cpf,
     oab: row.oab,
     endereco: row.endereco,
     cidadePrincipal: row.cidade_principal,
     uf: row.uf,
     cidadesAtendidas: row.cidades_atendidas,
     telefone: row.telefone,
-    whatsapp: row.whatsapp,
-    chavePix: row.chave_pix,
+    cpf: row.cpf ?? undefined,
+    whatsapp: row.whatsapp ?? undefined,
+    chavePix: row.chave_pix ?? undefined,
     observacoes: row.observacoes ?? undefined,
     createdAt: row.created_at,
   }
@@ -40,15 +41,16 @@ export function fromAdvogado(
 ): Omit<AdvogadoRow, 'id' | 'created_at' | 'updated_at'> {
   return {
     nome_completo: a.nomeCompleto,
-    cpf: a.cpf,
+    cpf: a.cpf ?? null,
     oab: a.oab,
+    oab_numero: null,
     endereco: a.endereco,
     cidade_principal: a.cidadePrincipal,
     uf: a.uf,
     cidades_atendidas: a.cidadesAtendidas,
     telefone: a.telefone,
-    whatsapp: a.whatsapp,
-    chave_pix: a.chavePix,
+    whatsapp: a.whatsapp ?? null,
+    chave_pix: a.chavePix ?? null,
     observacoes: a.observacoes ?? null,
   }
 }
@@ -71,6 +73,7 @@ export function toLigacao(row: LigacaoRow): Ligacao {
 export function toDiligencia(row: DiligenciaRow): Diligencia {
   return {
     id: row.id,
+    empresaCliente: (row.empresa_cliente as EmpresaCliente) ?? EmpresaCliente.BatBrasil,
     ccc: row.ccc,
     vitima: row.vitima,
     telefoneVitima: row.telefone_vitima,
@@ -80,6 +83,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     uf: row.uf,
     tipoEvento: row.tipo_evento as TipoEvento,
     tipoDiligencia: row.tipo_diligencia as TipoDiligencia,
+    tipoDiligenciaDescricao: row.tipo_diligencia_descricao ?? undefined,
     modoDiligencia: row.modo_diligencia as ModoDiligencia,
     advogadoId: row.advogado_id,
     valorDiligencia: row.valor_diligencia ?? 0,
@@ -112,6 +116,11 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
       contratariaNovamente: row.avaliacao_contratar_novamente ?? undefined,
     } : undefined,
     observacaoInterna: row.observacao_interna ?? undefined,
+    dataAtendimento: row.data_atendimento ?? undefined,
+    macro: row.macro ?? undefined,
+    localAtendimento: row.local_atendimento ?? undefined,
+    resultadoDemanda: row.resultado_demanda ?? undefined,
+    centroCusto: row.centro_custo ?? undefined,
     zapsignDocumentIdContrato: row.zapsign_document_id_contrato ?? undefined,
     zapsignDocumentIdRecibo: row.zapsign_document_id_recibo ?? undefined,
     linkAssinaturaAdriana: row.link_assinatura_adriana ?? undefined,
@@ -128,6 +137,7 @@ export function fromDiligencia(
   d: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>,
 ): Omit<DiligenciaRow, 'id' | 'created_at' | 'updated_at' | 'ligacoes'> {
   return {
+    empresa_cliente: d.empresaCliente,
     ccc: d.ccc,
     vitima: d.vitima,
     telefone_vitima: d.telefoneVitima,
@@ -163,13 +173,54 @@ export function fromDiligencia(
     avaliacao_contratar_novamente: d.avaliacao?.contratariaNovamente ?? null,
     avaliacao_data: d.avaliacao ? new Date().toISOString() : null,
     observacao_interna: d.observacaoInterna ?? null,
-    zapsign_document_id_contrato: d.zapsignDocumentIdContrato ?? null,
-    zapsign_document_id_recibo: d.zapsignDocumentIdRecibo ?? null,
-    link_assinatura_adriana: d.linkAssinaturaAdriana ?? null,
-    link_assinatura_advogado_contrato: d.linkAssinaturaAdvogadoContrato ?? null,
-    link_assinatura_advogado_recibo: d.linkAssinaturaAdvogadoRecibo ?? null,
-    status_assinatura_contrato: d.statusAssinaturaContrato ?? null,
-    status_assinatura_recibo: d.statusAssinaturaRecibo ?? null,
+    // Colunas opcionais adicionadas em migrations — só incluídas no payload quando têm valor,
+    // evitando erro "column not found" caso a migration ainda não tenha sido executada.
+    ...(d.tipoDiligenciaDescricao != null && { tipo_diligencia_descricao: d.tipoDiligenciaDescricao }),
+    ...(d.dataAtendimento != null && { data_atendimento: d.dataAtendimento }),
+    ...(d.macro != null && { macro: d.macro }),
+    ...(d.localAtendimento != null && { local_atendimento: d.localAtendimento }),
+    ...(d.resultadoDemanda != null && { resultado_demanda: d.resultadoDemanda }),
+    ...(d.centroCusto != null && { centro_custo: d.centroCusto }),
+    ...(d.zapsignDocumentIdContrato != null && { zapsign_document_id_contrato: d.zapsignDocumentIdContrato }),
+    ...(d.zapsignDocumentIdRecibo != null && { zapsign_document_id_recibo: d.zapsignDocumentIdRecibo }),
+    ...(d.linkAssinaturaAdriana != null && { link_assinatura_adriana: d.linkAssinaturaAdriana }),
+    ...(d.linkAssinaturaAdvogadoContrato != null && { link_assinatura_advogado_contrato: d.linkAssinaturaAdvogadoContrato }),
+    ...(d.linkAssinaturaAdvogadoRecibo != null && { link_assinatura_advogado_recibo: d.linkAssinaturaAdvogadoRecibo }),
+    ...(d.statusAssinaturaContrato != null && { status_assinatura_contrato: d.statusAssinaturaContrato }),
+    ...(d.statusAssinaturaRecibo != null && { status_assinatura_recibo: d.statusAssinaturaRecibo }),
+  } as Omit<DiligenciaRow, 'id' | 'created_at' | 'updated_at' | 'ligacoes'>
+}
+
+// ─── Consulta de Placa ────────────────────────────────────────────────────────
+
+export function toConsultaPlaca(row: ConsultaPlacaRow): ConsultaPlaca {
+  return {
+    id: row.id,
+    placa: row.placa,
+    solicitante: row.solicitante,
+    dataConsulta: row.data_consulta,
+    resultado: (row.resultado as ResultadoConsultaPlaca) ?? undefined,
+    observacoes: row.observacoes ?? undefined,
+    anexoResultado: row.anexo_resultado ?? undefined,
+    valor: row.valor ?? undefined,
+    comprovantePagamento: row.comprovante_pagamento ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function fromConsultaPlaca(
+  c: Omit<ConsultaPlaca, 'id' | 'createdAt' | 'updatedAt'>,
+): Omit<ConsultaPlacaRow, 'id' | 'created_at' | 'updated_at'> {
+  return {
+    placa: c.placa,
+    solicitante: c.solicitante,
+    data_consulta: c.dataConsulta,
+    resultado: c.resultado ?? null,
+    observacoes: c.observacoes ?? null,
+    anexo_resultado: c.anexoResultado ?? null,
+    valor: c.valor ?? null,
+    comprovante_pagamento: c.comprovantePagamento ?? null,
   }
 }
 
