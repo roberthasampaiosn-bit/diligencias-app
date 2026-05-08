@@ -60,6 +60,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [modalRealizada, setModalRealizada] = useState(false)
   const [modalPago, setModalPago] = useState(false)
   const [modalFinalizar, setModalFinalizar] = useState(false)
+  const [modalPendencia, setModalPendencia] = useState(false)
   const [showDownloads, setShowDownloads] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfErro, setPdfErro] = useState<string | null>(null)
@@ -109,6 +110,14 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
 
   const advPhone = adv ? (adv.whatsapp || adv.telefone).replace(/\D/g, '') : ''
   const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(`Olá ${adv.nomeCompleto.split(' ')[0]}, tudo bem? Referente à diligência ${d.ccc}.`)}` : '#'
+
+  // Pendência documental (presencial): falta contrato assinado, recibo assinado ou comprovante pgto
+  const pendenciasDocumentais = !isRemoto ? [
+    !d.anexos.contratoAssinado && 'contrato assinado',
+    !d.anexos.reciboAssinado && 'recibo assinado',
+    !d.anexos.comprovantePagamento && 'comprovante de pagamento',
+  ].filter(Boolean) as string[] : []
+  const temPendenciaDocumental = d.cicloFinalizado && pendenciasDocumentais.length > 0
 
   const whatsappZapContrato = adv && linkContratoZap
     ? buildWhatsAppZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'contrato', linkContratoZap)
@@ -314,7 +323,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {d.cicloFinalizado && <Badge variant="success">Ciclo finalizado</Badge>}
+          {d.cicloFinalizado && !temPendenciaDocumental && <Badge variant="success">Ciclo finalizado</Badge>}
+          {temPendenciaDocumental && <Badge variant="warning">Pendência documental</Badge>}
           <Link href={`/diligencias/${id}/editar`}>
             <Button variant="secondary" size="sm"><Edit className="w-3.5 h-3.5" /> Editar</Button>
           </Link>
@@ -322,94 +332,90 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
       </div>
 
       {/* ── STICKY ACTION BAR ── */}
-      <div className="sticky top-0 z-20 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex flex-wrap gap-2">
+      <div className="sticky top-0 z-20 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex flex-wrap gap-2 items-center">
+
+        {/* ── Grupo 1: Documentos e assinatura ── */}
         {!isRemoto && (
           <Button variant="secondary" size="sm" loading={gerandoContrato} onClick={handleGerarContrato}>
             <FileText className="w-3.5 h-3.5" /> Gerar contrato
           </Button>
         )}
-
         {!isRemoto && (
           <Button variant="secondary" size="sm" loading={gerandoRecibo} onClick={handleGerarRecibo}>
             <FileText className="w-3.5 h-3.5" /> Gerar recibo
           </Button>
         )}
-
-        {/* ZapSign — Enviar contrato para assinatura (some quando já enviado ou assinado) */}
         {!isRemoto && d.anexos.contratoGerado && !d.statusAssinaturaContrato && (
           <Button variant="secondary" size="sm" loading={enviandoContratoZap} onClick={handleEnviarContratoZapSign}>
             <Send className="w-3.5 h-3.5" /> Enviar contrato p/ assinatura
           </Button>
         )}
-
-        {/* ZapSign — Enviar recibo para assinatura (some quando já enviado ou assinado) */}
         {!isRemoto && d.anexos.reciboGerado && !d.statusAssinaturaRecibo && (
           <Button variant="secondary" size="sm" loading={enviandoReciboZap} onClick={handleEnviarReciboZapSign}>
             <Send className="w-3.5 h-3.5" /> Enviar recibo p/ assinatura
           </Button>
         )}
-
-        {/* ZapSign — Enviar link assinatura contrato via WhatsApp */}
-        {linkContratoZap && whatsappZapContrato && (
-          <a href={whatsappZapContrato} target="_blank" rel="noopener noreferrer">
-            <Button variant="ghost" size="sm">
-              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> Link contrato (WA)
-            </Button>
-          </a>
-        )}
-
-        {/* ZapSign — Enviar link assinatura recibo via WhatsApp */}
-        {linkReciboZap && whatsappZapRecibo && d.statusAssinaturaRecibo !== 'assinado' && (
-          <a href={whatsappZapRecibo} target="_blank" rel="noopener noreferrer">
-            <Button variant="ghost" size="sm">
-              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> Link recibo (WA)
-            </Button>
-          </a>
-        )}
-
-        {/* ZapSign — Link de assinatura para Adriana */}
         {d.linkAssinaturaAdriana && whatsappZapAdriana && d.statusAssinaturaContrato !== 'assinado' && (
           <a href={whatsappZapAdriana} target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="sm">
-              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> Link contrato (Adriana)
+              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WA Adriana — contrato
+            </Button>
+          </a>
+        )}
+        {linkContratoZap && whatsappZapContrato && d.statusAssinaturaContrato !== 'assinado' && (
+          <a href={whatsappZapContrato} target="_blank" rel="noopener noreferrer">
+            <Button variant="ghost" size="sm">
+              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WA advogado — contrato
+            </Button>
+          </a>
+        )}
+        {linkReciboZap && whatsappZapRecibo && d.statusAssinaturaRecibo !== 'assinado' && (
+          <a href={whatsappZapRecibo} target="_blank" rel="noopener noreferrer">
+            <Button variant="ghost" size="sm">
+              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WA advogado — recibo
             </Button>
           </a>
         )}
 
+        {/* Divisor visual */}
+        {!isRemoto && <span className="w-px h-5 bg-slate-200 mx-1 flex-shrink-0" />}
+
+        {/* ── Grupo 2: Ações operacionais ── */}
         {d.status !== StatusDiligencia.Realizada && (
           <Button variant="success" size="sm" onClick={() => setModalRealizada(true)}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Marcar realizada
           </Button>
         )}
-
         {d.status === StatusDiligencia.Realizada && !d.anexos.comprovanteServico && !isRemoto && (
           <Button variant="secondary" size="sm" onClick={() => handleUpload('comprovanteServico')}>
-            <Upload className="w-3.5 h-3.5" /> Anexar comprov. serviço
+            <Upload className="w-3.5 h-3.5" /> Comprov. serviço
           </Button>
         )}
-
         {d.statusPagamento !== StatusPagamento.Pago && !isRemoto && (
           <Button variant="primary" size="sm" onClick={() => setModalPago(true)}>
             <DollarSign className="w-3.5 h-3.5" /> Registrar pagamento
           </Button>
         )}
-
         {d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento && !isRemoto && (
           <Button variant="secondary" size="sm" onClick={() => handleUpload('comprovantePagamento')}>
-            <Upload className="w-3.5 h-3.5" /> Anexar comprov. pgto
+            <Upload className="w-3.5 h-3.5" /> Comprov. pgto
           </Button>
         )}
-
         {podeFinalizar && (
-          <Button variant="success" size="sm" onClick={() => setModalFinalizar(true)}>
+          <Button variant="success" size="sm" onClick={() => {
+            if (pendenciasDocumentais.length > 0) setModalPendencia(true)
+            else setModalFinalizar(true)
+          }}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Finalizar ciclo
           </Button>
         )}
 
-        {!isRemoto && adv && (
+        {/* ── Grupo 3: Contatos — empurrado para a direita ── */}
+        <span className="flex-1" />
+        {adv && (
           <a href={whatsappAdv} target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="sm">
-              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> Advogado
+              <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WA advogado
             </Button>
           </a>
         )}
@@ -420,9 +426,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             </Button>
           </Link>
         )}
-        <a href={whatsappVitima} target="_blank" rel="noopener noreferrer" className="ml-auto">
+        <a href={whatsappVitima} target="_blank" rel="noopener noreferrer">
           <Button variant="ghost" size="sm">
-            <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp vítima
+            <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WA vítima
           </Button>
         </a>
       </div>
@@ -868,6 +874,28 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </Button>
         </Link>
       </div>
+
+      {/* Modal pendência documental — antes de finalizar */}
+      <Modal open={modalPendencia} onClose={() => setModalPendencia(false)} title="Pendências documentais" size="sm">
+        <div className="p-5 space-y-4">
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 mb-1">Faltam os seguintes documentos:</p>
+              <ul className="space-y-0.5">
+                {pendenciasDocumentais.map((p) => (
+                  <li key={p} className="text-sm text-amber-700">• {p}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">Você pode voltar e anexar os documentos, ou concluir mesmo assim — a diligência ficará marcada com pendência documental.</p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setModalPendencia(false)}>Voltar e anexar</Button>
+            <Button variant="warning" size="sm" onClick={() => { setModalPendencia(false); setModalFinalizar(true) }}>Concluir mesmo assim</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal confirmar realização */}
       <Modal open={modalRealizada} onClose={() => setModalRealizada(false)} title="Confirmar realização" size="sm">

@@ -240,7 +240,7 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   doc.setFontSize(9.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(20)
-  doc.text('Local e data: ________________________________', M, y)
+  doc.text(`São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
   y += 14
 
   doc.setFont('helvetica', 'bold')
@@ -313,7 +313,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   y += lh10 + 14
 
   // ── Local e data ──────────────────────────────────────────────────────────
-  doc.text(`Local e data: Rio de Janeiro, ${formatarDataExtenso(hoje())}.`, M, y)
+  doc.text(`São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
   y += 28
 
   // ── Assinatura — bloco separado visualmente ───────────────────────────────
@@ -495,7 +495,7 @@ function _buildContratoVTALDoc(diligencia: Diligencia, advogado: Advogado): { do
   y += 12
 
   // Data e assinaturas
-  const dataStr = `${advogado.cidadePrincipal}, ${formatarDataExtenso(hoje())}.`
+  const dataStr = `São Paulo, ${formatarDataExtenso(hoje())}.`
   doc.setFontSize(9)
   doc.text(dataStr, pw / 2, y, { align: 'center' })
   y += 16
