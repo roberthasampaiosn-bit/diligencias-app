@@ -2,12 +2,13 @@
 
 import { memo } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, FileSearch, ClipboardList, Users,
-  DollarSign, MessageSquare, FileText, Scale, X, BarChart3, CarFront,
+  DollarSign, MessageSquare, FileText, Scale, X, BarChart3, CarFront, LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,6 +29,17 @@ interface SidebarProps {
 
 export const Sidebar = memo(function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, signOut } = useAuth()
+
+  async function handleSignOut() {
+    await signOut()
+    router.replace('/login')
+  }
+
+  const userEmail = user?.email ?? ''
+  const userName = userEmail.split('@')[0].split('.')[0]
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1)
 
   return (
     <>
@@ -83,8 +95,22 @@ export const Sidebar = memo(function Sidebar({ open, onClose }: SidebarProps) {
           </ul>
         </nav>
 
-        <div className="px-6 py-4 border-t border-slate-700">
-          <p className="text-slate-500 text-xs">v1.0.0 — Mock Data</p>
+        <div className="px-4 py-4 border-t border-slate-700 space-y-3">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">{displayName.charAt(0)}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-slate-200 text-sm font-medium truncate">{displayName}</p>
+              <p className="text-slate-500 text-xs truncate">{userEmail}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          >
+            <LogOut className="w-4 h-4" /> Sair
+          </button>
         </div>
       </aside>
     </>
