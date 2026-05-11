@@ -477,6 +477,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </CardHeader>
           <CardBody className="space-y-3">
             <DR label="CCC" value={<span className="font-mono text-blue-700">{d.ccc}</span>} />
+            {d.dataAtendimento && <DR label="Data do evento" value={formatDate(d.dataAtendimento)} />}
             <DR label="Tipo de evento" value={d.tipoEvento} />
             <DR label="Tipo de diligência" value={d.tipoDiligencia} />
             <DR label="Modo" value={d.modoDiligencia} />

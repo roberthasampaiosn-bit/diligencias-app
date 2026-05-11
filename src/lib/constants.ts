@@ -1,3 +1,30 @@
+import { TipoDiligencia } from '@/types'
+
+// ─── Tipos de diligência por cliente ─────────────────────────────────────────
+
+export const TIPOS_DILIGENCIA_BAT: TipoDiligencia[] = [
+  TipoDiligencia.RegistroBO,
+  TipoDiligencia.AditamentoBO,
+  TipoDiligencia.DepoimentoOitivaReconhecimento,
+  TipoDiligencia.AcompanhamentoFlagrante,
+  TipoDiligencia.ExtracaoCopiasDP,
+  TipoDiligencia.AudienciaTJ,
+  TipoDiligencia.CopiasTJ,
+  TipoDiligencia.Outro,
+]
+
+export const TIPOS_DILIGENCIA_VTAL: TipoDiligencia[] = [
+  TipoDiligencia.PrisaoFlagrante,
+  TipoDiligencia.EngajamentoMP,
+  TipoDiligencia.RepresentacaoLegal,
+  TipoDiligencia.ProtocoloOficio,
+  TipoDiligencia.ConsultaProcessual,
+  TipoDiligencia.Relatorio,
+  TipoDiligencia.Reuniao,
+  TipoDiligencia.AudienciaCustodia,
+  TipoDiligencia.Outro,
+]
+
 // ─── BAT BRASIL ───────────────────────────────────────────────────────────────
 
 export const TIPOS_EVENTO_BAT = [
@@ -45,6 +72,30 @@ export function normalizarModoAssistenciaBat(valor: string): ModoAssistenciaBat 
   const k = valor.trim().toLowerCase()
   if (k === 'presencial') return 'Presencial'
   return 'Remota'
+}
+
+// ─── Operação e Segmento BAT ──────────────────────────────────────────────────
+
+export const OPERACOES_BAT = ['Próprio', 'Terceirizado'] as const
+export type OperacaoBat = typeof OPERACOES_BAT[number]
+
+export const SEGMENTOS_BAT = ['Last Mile', 'PSC', 'Redespacho'] as const
+export type SegmentoBat = typeof SEGMENTOS_BAT[number]
+
+export const SOBRA_MERCADORIA_OPS = ['Sim', 'Não', 'Não sabe informar'] as const
+export type SobraMercadoria = typeof SOBRA_MERCADORIA_OPS[number]
+
+export function normalizarOperacaoBat(valor: string): OperacaoBat {
+  const k = valor.trim().toLowerCase()
+  if (k === 'próprio' || k === 'proprio' || k === 'bat' || k === 'próprio') return 'Próprio'
+  return 'Terceirizado'
+}
+
+export function normalizarSegmentoBat(valor: string): SegmentoBat {
+  const k = valor.trim().toLowerCase()
+  if (k.includes('psc')) return 'PSC'
+  if (k.includes('redespacho') || k.includes('redesp')) return 'Redespacho'
+  return 'Last Mile'
 }
 
 // Campos booleanos BAT (motorista agredido, sobra de mercadoria, pesquisa)

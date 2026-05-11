@@ -151,16 +151,6 @@ export default function TriagemPage() {
               {pendentesCount} pendente{pendentesCount > 1 ? 's' : ''}
             </div>
           )}
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleImportar}
-            loading={importing}
-            title="Importa 5 demandas simuladas no modelo real do e-mail Security Incident Report. Ignora duplicatas por CCC."
-          >
-            <Download className="w-3.5 h-3.5" />
-            Importar simulados
-          </Button>
         </div>
       </div>
 
@@ -208,7 +198,7 @@ export default function TriagemPage() {
       {lista.length === 0 ? (
         <EmptyState
           title="Nenhum evento encontrado"
-          description="Ajuste os filtros ou clique em 'Importar simulados' para adicionar demandas de teste."
+          description="Nenhum evento encontrado com os filtros selecionados."
         />
       ) : filtro === 'todos' ? (
         <div className="space-y-6">

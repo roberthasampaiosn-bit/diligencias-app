@@ -39,6 +39,7 @@ export async function fetchDiligencias(): Promise<Diligencia[]> {
   const { data, error } = await supabase
     .from('diligencias')
     .select('*, ligacoes(*)')
+    .order('data_atendimento', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data as DiligenciaRow[]).map(toDiligencia)
@@ -106,6 +107,17 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('cicloFinalizado' in patch) row.ciclo_finalizado = patch.cicloFinalizado
   if ('eventoId' in patch) row.evento_id = patch.eventoId ?? null
   if ('observacaoInterna' in patch) row.observacao_interna = patch.observacaoInterna ?? null
+  if ('dataInformativo' in patch) row.data_informativo = patch.dataInformativo ?? null
+  if ('horaInformativo' in patch) row.hora_informativo = patch.horaInformativo ?? null
+  if ('horaEvento' in patch) row.hora_evento = patch.horaEvento ?? null
+  if ('dataLigacaoAdvogado' in patch) row.data_ligacao_advogado = patch.dataLigacaoAdvogado ?? null
+  if ('horaLigacaoAdvogado' in patch) row.hora_ligacao_advogado = patch.horaLigacaoAdvogado ?? null
+  if ('operacao' in patch) row.operacao = patch.operacao ?? null
+  if ('segmento' in patch) row.segmento = patch.segmento ?? null
+  if ('sobraMercadoria' in patch) row.sobra_mercadoria = patch.sobraMercadoria ?? null
+  if ('numeroBOProcesso' in patch) row.numero_bo_processo = patch.numeroBOProcesso ?? null
+  if ('regiaoGtsc' in patch) row.regiao_gtsc = patch.regiaoGtsc ?? null
+  if ('motoristaAgredido' in patch) row.motorista_agredido = patch.motoristaAgredido ?? null
   if ('dataAtendimento' in patch) row.data_atendimento = patch.dataAtendimento ?? null
   if ('macro' in patch) row.macro = patch.macro ?? null
   if ('localAtendimento' in patch) row.local_atendimento = patch.localAtendimento ?? null
@@ -166,6 +178,8 @@ export async function patchPesquisa(id: string, pp: Partial<Pesquisa>): Promise<
   if ('mensagemEnviada' in pp) row.pesquisa_mensagem_enviada = pp.mensagemEnviada ?? null
   if ('respostaVitima' in pp) row.pesquisa_resposta_vitima = pp.respostaVitima ?? null
   if ('dataCombinada' in pp) row.pesquisa_data_combinada = pp.dataCombinada ?? null
+  if ('horaEntrevista' in pp) row.pesquisa_hora_entrevista = pp.horaEntrevista ?? null
+  if ('entrevistador' in pp) row.pesquisa_entrevistador = pp.entrevistador ?? null
   if ('observacoes' in pp) row.pesquisa_observacoes = pp.observacoes ?? null
   if (Object.keys(row).length === 0) return
   const { error } = await supabase.from('diligencias').update(row).eq('id', id)

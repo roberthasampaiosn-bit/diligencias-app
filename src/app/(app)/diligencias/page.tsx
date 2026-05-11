@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, memo, Suspense, useTransition } from 'react'
+import { useState, useMemo, memo, useRef, useEffect, Suspense, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ClipboardList, Plus, MapPin } from 'lucide-react'
+import { ClipboardList, Plus, MapPin, SlidersHorizontal, X } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -13,6 +13,24 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency } from '@/lib/utils'
 import { Diligencia, StatusDiligencia, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
+
+// ── Ordenação inteligente ─────────────────────────────────────────────────────
+
+function prioridade(d: Diligencia): number {
+  if (d.status === StatusDiligencia.EmAndamento) return 0
+  if (d.status === StatusDiligencia.Realizada && !d.cicloFinalizado) return 1
+  return 2
+}
+
+function sortDiligencias(list: Diligencia[]): Diligencia[] {
+  return [...list].sort((a, b) => {
+    const pa = prioridade(a), pb = prioridade(b)
+    if (pa !== pb) return pa - pb
+    const da = a.dataAtendimento ?? a.createdAt.split('T')[0]
+    const db = b.dataAtendimento ?? b.createdAt.split('T')[0]
+    return db.localeCompare(da)
+  })
+}
 
 // ── Row memoizado ─────────────────────────────────────────────────────────────
 
@@ -55,6 +73,93 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
   )
 })
 
+// ── Filtros avançados (dropdown) ──────────────────────────────────────────────
+
+type FiltroStatus = 'todos' | StatusDiligencia | 'pendencia'
+type FiltroModo   = 'todos' | ModoDiligencia
+
+interface FiltrosAvancados {
+  status: FiltroStatus
+  modo: FiltroModo
+}
+
+function FiltrosDropdown({
+  filtros, onChange, onClear,
+}: {
+  filtros: FiltrosAvancados
+  onChange: (f: Partial<FiltrosAvancados>) => void
+  onClear: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const hasActive = filtros.status !== 'todos' || filtros.modo !== 'todos'
+
+  function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+    return (
+      <button
+        onClick={onClick}
+        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+          active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+      >
+        {label}
+      </button>
+    )
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+          hasActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+      >
+        <SlidersHorizontal className="w-3.5 h-3.5" />
+        Filtros
+        {hasActive && <span className="w-1.5 h-1.5 rounded-full bg-white/80 inline-block" />}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 z-30 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</p>
+            {hasActive && (
+              <button onClick={() => { onClear(); setOpen(false) }} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600">
+                <X className="w-3 h-3" /> Limpar
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Chip label="Todos" active={filtros.status === 'todos'} onClick={() => onChange({ status: 'todos' })} />
+            <Chip label="Em andamento" active={filtros.status === StatusDiligencia.EmAndamento} onClick={() => onChange({ status: StatusDiligencia.EmAndamento })} />
+            <Chip label="Realizada" active={filtros.status === StatusDiligencia.Realizada} onClick={() => onChange({ status: StatusDiligencia.Realizada })} />
+            <Chip label="Pendência documental" active={filtros.status === 'pendencia'} onClick={() => onChange({ status: 'pendencia' })} />
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Modo</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Chip label="Todos" active={filtros.modo === 'todos'} onClick={() => onChange({ modo: 'todos' })} />
+              <Chip label="Presencial" active={filtros.modo === ModoDiligencia.Presencial} onClick={() => onChange({ modo: ModoDiligencia.Presencial })} />
+              <Chip label="Remoto" active={filtros.modo === ModoDiligencia.Remoto} onClick={() => onChange({ modo: ModoDiligencia.Remoto })} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page Content ──────────────────────────────────────────────────────────────
 
 function DiligenciasContent() {
@@ -63,15 +168,26 @@ function DiligenciasContent() {
   const { advogadoMap } = useAdvogados()
   const [, startTransition] = useTransition()
   const [search, setSearch] = useState(searchParams.get('ccc') || '')
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | StatusDiligencia>('todos')
-  const [filtroModo, setFiltroModo] = useState<'todos' | ModoDiligencia>('todos')
   const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>('todas')
+  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: 'todos', modo: 'todos' })
+
+  function updateFiltro(partial: Partial<FiltrosAvancados>) {
+    startTransition(() => setFiltrosAvancados((f) => ({ ...f, ...partial })))
+  }
+
+  function clearFiltros() {
+    startTransition(() => setFiltrosAvancados({ status: 'todos', modo: 'todos' }))
+  }
 
   const lista = useMemo(() => {
     let l = diligencias
-    if (filtroStatus !== 'todos') l = l.filter((d) => d.status === filtroStatus)
-    if (filtroModo !== 'todos') l = l.filter((d) => d.modoDiligencia === filtroModo)
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
+    if (filtrosAvancados.status === 'pendencia') {
+      l = l.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
+    } else if (filtrosAvancados.status !== 'todos') {
+      l = l.filter((d) => d.status === filtrosAvancados.status)
+    }
+    if (filtrosAvancados.modo !== 'todos') l = l.filter((d) => d.modoDiligencia === filtrosAvancados.modo)
     if (search) {
       const q = search.toLowerCase()
       l = l.filter(
@@ -83,8 +199,8 @@ function DiligenciasContent() {
           d.cidade.toLowerCase().includes(q)
       )
     }
-    return l
-  }, [diligencias, search, filtroStatus, filtroModo, filtroEmpresa])
+    return sortDiligencias(l)
+  }, [diligencias, search, filtrosAvancados, filtroEmpresa])
 
   return (
     <div className="space-y-5">
@@ -107,34 +223,26 @@ function DiligenciasContent() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
             <SearchInput value={search} onChange={setSearch} placeholder="CCC, vítima, empresa..." className="sm:w-64" />
-            <div className="flex gap-1.5 flex-wrap">
-              {(['todos', StatusDiligencia.EmAndamento, StatusDiligencia.Realizada] as const).map((f) => (
-                <button key={f} onClick={() => startTransition(() => setFiltroStatus(f))}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroStatus === f ? (f === StatusDiligencia.EmAndamento ? 'bg-amber-500 text-white' : f === StatusDiligencia.Realizada ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white') : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  {f === 'todos' ? 'Todos' : f}
+            <div className="flex gap-1.5 flex-wrap items-center">
+              {/* Filtros rápidos de cliente */}
+              {(['todas', EmpresaCliente.BatBrasil, EmpresaCliente.VTAL] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => startTransition(() => setFiltroEmpresa(f))}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    filtroEmpresa === f
+                      ? f === EmpresaCliente.VTAL ? 'bg-purple-600 text-white'
+                        : f === EmpresaCliente.BatBrasil ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {f === 'todas' ? 'Todas' : f}
                 </button>
               ))}
-              <button
-                onClick={() => startTransition(() => setFiltroModo(filtroModo === ModoDiligencia.Presencial ? 'todos' : ModoDiligencia.Presencial))}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroModo === ModoDiligencia.Presencial ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                Presencial
-              </button>
-              <button
-                onClick={() => startTransition(() => setFiltroModo(filtroModo === ModoDiligencia.Remoto ? 'todos' : ModoDiligencia.Remoto))}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroModo === ModoDiligencia.Remoto ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                Remoto
-              </button>
-              <div className="w-px bg-slate-200 mx-0.5" />
-              <button
-                onClick={() => startTransition(() => setFiltroEmpresa(filtroEmpresa === EmpresaCliente.BatBrasil ? 'todas' : EmpresaCliente.BatBrasil))}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === EmpresaCliente.BatBrasil ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                BAT BRASIL
-              </button>
-              <button
-                onClick={() => startTransition(() => setFiltroEmpresa(filtroEmpresa === EmpresaCliente.VTAL ? 'todas' : EmpresaCliente.VTAL))}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroEmpresa === EmpresaCliente.VTAL ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                V.TAL
-              </button>
+              <div className="w-px bg-slate-200 h-5" />
+              {/* Filtros avançados */}
+              <FiltrosDropdown filtros={filtrosAvancados} onChange={updateFiltro} onClear={clearFiltros} />
             </div>
           </div>
         </CardHeader>

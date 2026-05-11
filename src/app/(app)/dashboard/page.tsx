@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   FileSearch, ClipboardList, CheckCircle2, MessageSquare,
   Trophy, ArrowRight, Search, CarFront, XCircle, DollarSign, Plus,
+  AlertCircle, Phone, CreditCard, FileX,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -16,7 +17,7 @@ import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency } from '@/lib/utils'
-import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia } from '@/types'
+import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia, StatusPesquisa } from '@/types'
 
 type Filtro = 'todos' | EmpresaCliente
 
@@ -24,7 +25,11 @@ function statsCliente(diligencias: ReturnType<typeof useDiligencias>['diligencia
   const mes = new Date()
   const mesStr = `${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, '0')}`
   const all = diligencias.filter((d) => d.empresaCliente === cliente)
-  const doMes = all.filter((d) => d.createdAt.startsWith(mesStr))
+  // Usa dataAtendimento (data real do evento) quando disponível; senão createdAt
+  const doMes = all.filter((d) => {
+    const data = d.dataAtendimento ?? d.createdAt.split('T')[0]
+    return data.startsWith(mesStr)
+  })
   const pendentes = all.filter((d) => d.status === StatusDiligencia.EmAndamento)
   const concluidas = all.filter((d) => d.cicloFinalizado)
   const valorTotal = all.reduce((s, d) => s + d.valorDiligencia, 0)
@@ -67,6 +72,14 @@ export default function DashboardPage() {
   const statsBat = useMemo(() => statsCliente(diligencias, EmpresaCliente.BatBrasil), [diligencias])
   const statsVtal = useMemo(() => statsCliente(diligencias, EmpresaCliente.VTAL), [diligencias])
 
+  const pendencias = useMemo(() => {
+    const emAndamento = diligencias.filter((d) => d.status === StatusDiligencia.EmAndamento)
+    const pesqPendentes = diligencias.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && d.modoDiligencia !== 'Remoto')
+    const pgtoPendente = diligencias.filter((d) => d.statusPagamento === StatusPagamento.Pendente && d.status === StatusDiligencia.Realizada)
+    const semCiclo = diligencias.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
+    return { emAndamento, pesqPendentes, pgtoPendente, semCiclo }
+  }, [diligencias])
+
   return (
     <div className="space-y-6">
       {/* Cabeçalho com filtro rápido */}
@@ -97,17 +110,76 @@ export default function DashboardPage() {
       {/* Stats gerais (aplicam o filtro) */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <StatCard title="Eventos novos" value={stats.eventosNovos} icon={FileSearch} color="blue" subtitle="Aguardando triagem" />
-        <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" />
-        <StatCard title="Realizadas" value={stats.diligenciasRealizadas} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
-        <StatCard title="Concluídas" value={stats.ciclosFinalizados} icon={Trophy} color="slate" subtitle="Processo finalizado" />
-        <StatCard title="Pesq. pendentes" value={stats.pesquisasPendentes} icon={MessageSquare} color="purple" subtitle="Aguardando resposta" />
+        <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Aguardando execução" />
+        <StatCard title="Realizadas em 2026" value={stats.diligenciasRealizadas} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
+        <StatCard title="Ciclos fechados 2026" value={stats.ciclosFinalizados} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
+        <StatCard title="Pesq. pendentes" value={stats.pesquisasPendentes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar" />
         <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />
       </div>
+
+      {/* Pendências do dia */}
+      {(pendencias.emAndamento.length > 0 || pendencias.pesqPendentes.length > 0 || pendencias.pgtoPendente.length > 0 || pendencias.semCiclo.length > 0) && (
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+            <AlertCircle className="w-4 h-4 text-amber-500" /> Pendências
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {pendencias.emAndamento.length > 0 && (
+              <Link href="/diligencias?status=Em andamento">
+                <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 hover:bg-amber-100 transition-colors cursor-pointer">
+                  <ClipboardList className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-amber-700 font-medium">Em andamento</p>
+                    <p className="text-xl font-bold text-amber-800">{pendencias.emAndamento.length}</p>
+                    <p className="text-xs text-amber-600">Aguardando execução</p>
+                  </div>
+                </div>
+              </Link>
+            )}
+            {pendencias.pesqPendentes.length > 0 && (
+              <Link href="/pesquisa">
+                <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl p-4 hover:bg-purple-100 transition-colors cursor-pointer">
+                  <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-purple-700 font-medium">Pesquisas pendentes</p>
+                    <p className="text-xl font-bold text-purple-800">{pendencias.pesqPendentes.length}</p>
+                    <p className="text-xs text-purple-600">Vítimas p/ contatar</p>
+                  </div>
+                </div>
+              </Link>
+            )}
+            {pendencias.pgtoPendente.length > 0 && (
+              <Link href="/financeiro">
+                <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 hover:bg-red-100 transition-colors cursor-pointer">
+                  <CreditCard className="w-5 h-5 text-red-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-red-700 font-medium">Pgto pendente</p>
+                    <p className="text-xl font-bold text-red-800">{pendencias.pgtoPendente.length}</p>
+                    <p className="text-xs text-red-600">Advogados a pagar</p>
+                  </div>
+                </div>
+              </Link>
+            )}
+            {pendencias.semCiclo.length > 0 && (
+              <Link href="/diligencias">
+                <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4 hover:bg-slate-100 transition-colors cursor-pointer">
+                  <FileX className="w-5 h-5 text-slate-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-700 font-medium">Ciclo aberto</p>
+                    <p className="text-xl font-bold text-slate-800">{pendencias.semCiclo.length}</p>
+                    <p className="text-xs text-slate-600">Docs/pgto a fechar</p>
+                  </div>
+                </div>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Totais financeiros */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Total pago — Diligências</p>
+          <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Total pago em 2026 — Diligências</p>
           <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(stats.valorTotalPago)}</p>
           <p className="text-xs text-emerald-600 mt-1">
             {filtro === 'todos' ? 'Acumulado · todas as diligências' : `Acumulado · ${filtro}`}
@@ -136,15 +208,15 @@ export default function DashboardPage() {
                 <p className="font-semibold text-slate-800">{statsBat.doMes}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Pendentes</p>
+                <p className="text-xs text-slate-500">Em andamento</p>
                 <p className="font-semibold text-amber-700">{statsBat.pendentes}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Concluídas</p>
+                <p className="text-xs text-slate-500">Ciclos fechados</p>
                 <p className="font-semibold text-emerald-700">{statsBat.concluidas}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Valor total</p>
+                <p className="text-xs text-slate-500">Total pago em 2026</p>
                 <p className="font-semibold text-slate-800">{formatCurrency(statsBat.valorTotal)}</p>
               </div>
             </div>
@@ -166,15 +238,15 @@ export default function DashboardPage() {
                 <p className="font-semibold text-slate-800">{statsVtal.doMes}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Pendentes</p>
+                <p className="text-xs text-slate-500">Em andamento</p>
                 <p className="font-semibold text-amber-700">{statsVtal.pendentes}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Concluídas</p>
+                <p className="text-xs text-slate-500">Ciclos fechados</p>
                 <p className="font-semibold text-emerald-700">{statsVtal.concluidas}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Valor total</p>
+                <p className="text-xs text-slate-500">Total pago em 2026</p>
                 <p className="font-semibold text-slate-800">{formatCurrency(statsVtal.valorTotal)}</p>
               </div>
             </div>

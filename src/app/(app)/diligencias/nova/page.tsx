@@ -17,7 +17,7 @@ import {
   ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente, normalizeEmpresa,
 } from '@/types'
 import { cleanPhone, toTitleCase, normalizarCccBat, validarCccBat } from '@/lib/utils'
-import { TIPOS_EVENTO_BAT, MACROS_VTAL } from '@/lib/constants'
+import { TIPOS_EVENTO_BAT, MACROS_VTAL, TIPOS_DILIGENCIA_BAT, TIPOS_DILIGENCIA_VTAL, OPERACOES_BAT, SEGMENTOS_BAT, SOBRA_MERCADORIA_OPS } from '@/lib/constants'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
 
@@ -51,14 +51,25 @@ function FormBatBrasil() {
     empresa: empresaParam,
     cidade: '',
     uf: '',
-    tipoEvento: TipoEvento.Assalto,
-    tipoDiligencia: TipoDiligencia.Oitiva,
+    tipoEvento: TipoEvento.Roubo,
+    dataInformativo: '',
+    horaInformativo: '',
+    horaEvento: '',
+    tipoDiligencia: TipoDiligencia.RegistroBO,
     tipoDiligenciaDescricao: '',
     modoDiligencia: modoParam === 'remoto' ? ModoDiligencia.Remoto : ModoDiligencia.Presencial,
     advogadoId: '',
     valorDiligencia: '',
     observacoes: '',
     dpRegistrou: '',
+    operacao: '',
+    segmento: '',
+    sobraMercadoria: '',
+    numeroBOProcesso: '',
+    regiaoGtsc: '',
+    motoristaAgredido: '',
+    dataLigacaoAdvogado: '',
+    horaLigacaoAdvogado: '',
   })
 
   const [autoFilled, setAutoFilled] = useState(false)
@@ -95,6 +106,13 @@ function FormBatBrasil() {
       empresa: evento.empresa ? normalizeEmpresa(evento.empresa) : prev.empresa,
       cidade: evento.cidade || prev.cidade,
       uf: (evento.uf && UFS.includes(evento.uf)) ? evento.uf : prev.uf,
+      dataInformativo: evento.dataRecebimento || prev.dataInformativo,
+      horaInformativo: evento.horaRecebimento || prev.horaInformativo,
+      horaEvento: evento.horaEvento || prev.horaEvento,
+      operacao: evento.operacao || prev.operacao,
+      segmento: evento.segmento || prev.segmento,
+      regiaoGtsc: evento.gtsc || prev.regiaoGtsc,
+      motoristaAgredido: evento.motoristaAgredido ? 'Sim' : prev.motoristaAgredido,
     }))
     setAutoFilled(true)
   }, [evento, autoFilled])
@@ -210,6 +228,17 @@ function FormBatBrasil() {
         valorDiligencia: form.valorDiligencia ? parseFloat(form.valorDiligencia) : 0,
         observacoes: form.observacoes,
         dpRegistrou: form.dpRegistrou,
+        dataInformativo: form.dataInformativo || undefined,
+        horaInformativo: form.horaInformativo || undefined,
+        horaEvento: form.horaEvento || undefined,
+        operacao: form.operacao || undefined,
+        segmento: form.segmento || undefined,
+        sobraMercadoria: form.sobraMercadoria || undefined,
+        numeroBOProcesso: form.numeroBOProcesso || undefined,
+        regiaoGtsc: form.regiaoGtsc || undefined,
+        motoristaAgredido: form.motoristaAgredido || undefined,
+        dataLigacaoAdvogado: form.dataLigacaoAdvogado || undefined,
+        horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: StatusDiligencia.EmAndamento,
         statusPagamento: StatusPagamento.Pendente,
         cicloFinalizado: false,
@@ -258,8 +287,11 @@ function FormBatBrasil() {
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
-          <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={Object.values(TipoDiligencia).map((v) => ({ value: v, label: v }))} />
-          <Select label="Modo" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
+          <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => set('horaEvento', e.target.value)} placeholder="HH:MM" />
+          <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
+          <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={TIPOS_DILIGENCIA_BAT.map((v) => ({ value: v, label: v }))} />
+          <Select label="Operação" value={form.operacao} onChange={(e) => set('operacao', e.target.value)} options={OPERACOES_BAT.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
+          <Select label="Segmento" value={form.segmento} onChange={(e) => set('segmento', e.target.value)} options={SEGMENTOS_BAT.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
           {form.tipoDiligencia === TipoDiligencia.Outro && (
             <div className="sm:col-span-2">
               <Input label="Descrição do tipo (Outro)" value={form.tipoDiligenciaDescricao} onChange={(e) => set('tipoDiligenciaDescricao', e.target.value)} placeholder="Descreva o tipo de diligência" />
@@ -284,6 +316,16 @@ function FormBatBrasil() {
           <div className="sm:col-span-2">
             <Input label="DP que registrou" value={form.dpRegistrou} onChange={(e) => set('dpRegistrou', e.target.value)} placeholder="Opcional" />
           </div>
+          <Input label="Número do BO / Processo" value={form.numeroBOProcesso} onChange={(e) => set('numeroBOProcesso', e.target.value)} placeholder="Ex: BO nº 123/2026" />
+          <Select label="Sobra de mercadoria" value={form.sobraMercadoria} onChange={(e) => set('sobraMercadoria', e.target.value)} options={SOBRA_MERCADORIA_OPS.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Ligação do Advogado</CardTitle></CardHeader>
+        <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Data da ligação" type="date" value={form.dataLigacaoAdvogado} onChange={(e) => set('dataLigacaoAdvogado', e.target.value)} />
+          <Input label="Horário da ligação" value={form.horaLigacaoAdvogado} onChange={(e) => set('horaLigacaoAdvogado', e.target.value)} placeholder="HH:MM" />
         </CardBody>
       </Card>
 
@@ -354,7 +396,7 @@ function FormVTAL() {
     dataAtendimento: '',
     uf: '',
     cidade: '',
-    tipoDiligencia: TipoDiligencia.Oitiva,
+    tipoDiligencia: TipoDiligencia.PrisaoFlagrante,
     tipoDiligenciaDescricao: '',
     macro: '',
     observacoes: '',
@@ -463,7 +505,7 @@ function FormVTAL() {
           <Input label="Data de atendimento" type="date" value={form.dataAtendimento} onChange={(e) => set('dataAtendimento', e.target.value)} />
           <Select label="UF" value={form.uf} onChange={(e) => set('uf', e.target.value)} options={UFS.map((u) => ({ value: u, label: u }))} error={errors.uf} placeholder="Selecione" />
           <Input label="Cidade" value={form.cidade} onChange={(e) => set('cidade', e.target.value)} error={errors.cidade} />
-          <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={Object.values(TipoDiligencia).map((v) => ({ value: v, label: v }))} />
+          <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={TIPOS_DILIGENCIA_VTAL.map((v) => ({ value: v, label: v }))} />
           <Select label="Modo de atendimento" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
           <Select label="Status" value={form.status} onChange={(e) => set('status', e.target.value)} options={Object.values(StatusDiligencia).map((v) => ({ value: v, label: v }))} />
           {form.tipoDiligencia === TipoDiligencia.Outro && (

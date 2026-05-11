@@ -20,24 +20,34 @@ export enum ModoDiligencia {
 }
 
 export enum TipoDiligencia {
-  Acompanhamento = 'Acompanhamento',
-  Oitiva = 'Oitiva',
-  Levantamento = 'Levantamento',
-  Pericia = 'Perícia',
-  Audiencia = 'Audiência',
-  Aditamento = 'Aditamento',
-  Protocolo = 'Protocolo',
-  DiligenciaDP = 'Diligência em DP',
+  // BAT BRASIL — Delegacia / Tribunal
+  RegistroBO = 'Registro de BO na DP',
+  AditamentoBO = 'Aditamento de BO',
+  DepoimentoOitivaReconhecimento = 'Depoimento / Oitiva / Reconhecimento na DP',
+  AcompanhamentoFlagrante = 'Acompanhamento de flagrante',
+  ExtracaoCopiasDP = 'Extração de cópias na DP',
+  AudienciaTJ = 'Audiência no TJ',
+  CopiasTJ = 'Cópias de processo no TJ',
+  // V.TAL
+  PrisaoFlagrante = 'Prisão em flagrante',
+  EngajamentoMP = 'Engajamento com MP / Juízo',
+  RepresentacaoLegal = 'Representação legal',
+  ProtocoloOficio = 'Protocolo / Ofício',
   ConsultaProcessual = 'Consulta processual',
+  Relatorio = 'Relatório',
+  Reuniao = 'Reunião',
+  AudienciaCustodia = 'Audiência de custódia',
+  // Geral
   Outro = 'Outro',
 }
 
 export enum TipoEvento {
-  Agressao = 'Agressão',
-  Assalto = 'Assalto',
-  Acidente = 'Acidente',
-  Ameaca = 'Ameaça',
+  Roubo = 'Roubo',
+  Tentativa = 'Tentativa',
+  FatoSuspeito = 'Fato suspeito',
   Furto = 'Furto',
+  AcidenteSemVitima = 'Acidente sem vítima',
+  AcidenteComVitima = 'Acidente com vítima',
   Outro = 'Outro',
 }
 
@@ -152,6 +162,8 @@ export interface Pesquisa {
   mensagemEnviada?: string
   respostaVitima?: string
   dataCombinada?: string
+  horaEntrevista?: string
+  entrevistador?: string
   historicoLigacoes: Ligacao[]
   observacoes?: string
 }
@@ -192,6 +204,19 @@ export interface Diligencia {
   statusAssinaturaContrato?: 'pendente' | 'assinado'
   statusAssinaturaRecibo?: 'pendente' | 'assinado'
   tipoDiligenciaDescricao?: string  // preenchido quando tipoDiligencia === 'Outro'
+  // Data/hora do informativo (email recebido)
+  dataInformativo?: string
+  horaInformativo?: string
+  // Campos BAT — evento / ligação / operação
+  horaEvento?: string
+  dataLigacaoAdvogado?: string
+  horaLigacaoAdvogado?: string
+  operacao?: string
+  segmento?: string
+  sobraMercadoria?: string
+  numeroBOProcesso?: string
+  regiaoGtsc?: string
+  motoristaAgredido?: string
   // Campos específicos V.TAL (opcionais para BAT BRASIL)
   dataAtendimento?: string
   macro?: string

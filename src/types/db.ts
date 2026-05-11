@@ -69,6 +69,22 @@ export interface DiligenciaRow {
   avaliacao_contratar_novamente: boolean | null
   avaliacao_data: string | null
   observacao_interna: string | null
+  // Data/hora do informativo (email recebido)
+  data_informativo?: string | null
+  hora_informativo?: string | null
+  // Campos BAT — evento / ligação / operação
+  hora_evento?: string | null
+  data_ligacao_advogado?: string | null
+  hora_ligacao_advogado?: string | null
+  operacao?: string | null
+  segmento?: string | null
+  sobra_mercadoria?: string | null
+  numero_bo_processo?: string | null
+  regiao_gtsc?: string | null
+  motorista_agredido?: string | null
+  // Campos de pesquisa — entrevistador e hora
+  pesquisa_entrevistador?: string | null
+  pesquisa_hora_entrevista?: string | null
   // Campos específicos V.TAL
   data_atendimento?: string | null
   macro?: string | null

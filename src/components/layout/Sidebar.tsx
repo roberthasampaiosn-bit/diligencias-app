@@ -60,8 +60,7 @@ export const Sidebar = memo(function Sidebar({ open, onClose }: SidebarProps) {
               <Scale className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-white font-semibold text-sm leading-tight">Diligências</p>
-              <p className="text-slate-400 text-xs">Jurídicas</p>
+              <p className="text-white font-semibold text-sm leading-tight">ARodrigues</p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-white transition-colors">

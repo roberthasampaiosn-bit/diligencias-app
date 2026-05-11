@@ -8,7 +8,7 @@ const geist = Geist({
 })
 
 export const metadata: Metadata = {
-  title: 'Diligências Jurídicas',
+  title: 'ARodrigues',
   description: 'Sistema de gestão de diligências jurídicas',
 }
 
