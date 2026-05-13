@@ -99,7 +99,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // 4. Extrair campos do email
   const ccc                 = extractField(text, 'ID do evento')
-  const dataEvento          = extractField(text, 'Data')           // já vem YYYY-MM-DD
+  const dataEvento          = extractField(text, 'Data')    
+  function normalizeDate(value: string): string {
+  if (!value) return ''
+
+  const trimmed = value.trim()
+
+  // já está no formato 2026-05-13
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed
+  }
+
+  // converte 13/05/2026 para 2026-05-13
+  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+
+  if (br) {
+    const [, dia, mes, ano] = br
+    return `${ano}-${mes}-${dia}`
+  }
+
+  return trimmed
+}       // já vem YYYY-MM-DD
   const horaEvento          = extractField(text, 'Hora')           // HH:MM
   const tipoOperador        = extractField(text, 'Tipo de Operador')
   const empresa             = extractField(text, 'Nome da Empresa')
@@ -154,7 +174,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // 6. Inserir evento na triagem
   const row = {
     ccc,
-    data_evento:          dataEvento,
+    data_evento:          normalizeDate(dataEvento),
     hora_evento:          horaEvento,
     data_informativo:     dataInformativo,
     hora_informativo:     horaInformativo,
