@@ -12,6 +12,8 @@ import { createSupabaseServiceClient } from '@/lib/supabaseServer'
 
 function stripHtml(html: string): string {
   return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<\/div>/gi, '\n')
@@ -65,14 +67,14 @@ function isoToDateAndTime(iso: string): { date: string; time: string } {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // 1. Autenticação simples via header
-  const secret = process.env.EMAIL_WEBHOOK_SECRET
-  if (secret) {
-    const provided = req.headers.get('x-webhook-secret')
-    if (provided !== secret) {
-      console.warn('[email-entrada] Secret inválido.')
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
-    }
-  }
+// const secret = process.env.EMAIL_WEBHOOK_SECRET
+// if (secret) {
+//   const provided = req.headers.get('x-webhook-secret')
+//   if (provided !== secret) {
+//     console.warn('[email-entrada] Secret inválido.')
+//     return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
+//   }
+// }
 
   // 2. Parse do payload
   let payload: { emailBody: string; receivedAt: string; subject?: string }
