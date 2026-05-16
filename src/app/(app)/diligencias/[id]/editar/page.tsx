@@ -30,6 +30,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
 
   const [form, setForm] = useState(() => original ? {
     ccc: original.ccc,
+    dataAtendimento: original.dataAtendimento || '',
     vitima: original.vitima,
     telefoneVitima: original.telefoneVitima,
     cargo: original.cargo,
@@ -138,6 +139,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     try {
       await updateDiligencia(id, {
         ccc: form.ccc,
+        dataAtendimento: form.dataAtendimento || undefined,
         vitima: form.vitima,
         telefoneVitima: cleanPhone(form.telefoneVitima),
         cargo: form.cargo,
@@ -201,6 +203,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
             error={errors.ccc}
             placeholder={form.empresaCliente === EmpresaCliente.BatBrasil ? 'BR-2026030019' : undefined}
           />
+          <Input label="Data de atendimento" type="date" value={form.dataAtendimento} onChange={(e) => set('dataAtendimento', e.target.value)} />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)}
             options={form.empresaCliente === EmpresaCliente.BatBrasil
               ? TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))
