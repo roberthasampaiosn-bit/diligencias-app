@@ -3,7 +3,7 @@
 import {
   createContext, useContext, useState, useCallback, useEffect, ReactNode,
 } from 'react'
-import { fetchEventos, patchEvento, insertEvento } from '@/services/eventosDB'
+import { fetchEventos, patchEvento, insertEvento, deleteEvento } from '@/services/eventosDB'
 import { Evento, StatusEvento, TipoOperador } from '@/types'
 import { useToast } from './ToastContext'
 
@@ -18,7 +18,7 @@ export interface EventosContextValue {
   loading: boolean
   error: string | null
   processarEvento: (eventoId: string, diligenciaId: string) => void
-  arquivarEvento: (eventoId: string) => void
+  deletarEvento: (eventoId: string) => void
   importarSimulados: () => Promise<ImportResult>
 }
 
@@ -685,12 +685,10 @@ export function EventosProvider({ children }: { children: ReactNode }) {
       .catch((err) => { console.error(err); addToast('error', 'Não foi possível atualizar o evento.') })
   }, [addToast])
 
-  const arquivarEvento = useCallback((eventoId: string) => {
-    setEventos((prev) =>
-      prev.map((e) => e.id === eventoId ? { ...e, statusEvento: StatusEvento.Arquivado } : e)
-    )
-    patchEvento(eventoId, { status_evento: StatusEvento.Arquivado })
-      .catch((err) => { console.error(err); addToast('error', 'Não foi possível arquivar o evento.') })
+  const deletarEvento = useCallback((eventoId: string) => {
+    setEventos((prev) => prev.filter((e) => e.id !== eventoId))
+    deleteEvento(eventoId)
+      .catch((err) => { console.error(err); addToast('error', 'Não foi possível excluir o evento.') })
   }, [addToast])
 
   const importarSimulados = useCallback(async (): Promise<ImportResult> => {
@@ -717,7 +715,7 @@ export function EventosProvider({ children }: { children: ReactNode }) {
   }, [eventos])
 
   return (
-    <EventosContext.Provider value={{ eventos, loading, error, processarEvento, arquivarEvento, importarSimulados }}>
+    <EventosContext.Provider value={{ eventos, loading, error, processarEvento, deletarEvento, importarSimulados }}>
       {children}
     </EventosContext.Provider>
   )

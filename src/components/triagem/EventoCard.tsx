@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import Link from 'next/link'
-import { Phone, Archive, Plus, ExternalLink, AlertTriangle, Clock } from 'lucide-react'
+import { Phone, Trash2, Plus, ExternalLink, AlertTriangle, Clock } from 'lucide-react'
 import { useEventos } from '@/context/EventosContext'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -23,7 +23,13 @@ interface EventoCardProps {
 }
 
 export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinalizada = false, antigo = false }: EventoCardProps) {
-  const { arquivarEvento } = useEventos()
+  const { deletarEvento } = useEventos()
+
+  function handleDeletar() {
+    if (confirm(`Excluir o evento ${e.ccc} da triagem?\nEsta ação não pode ser desfeita.`)) {
+      deletarEvento(e.id)
+    }
+  }
   const nivel = (Math.min(e.nivelAgressao, 3) as 1 | 2 | 3)
   const cfg = nivelConfig[nivel] ?? nivelConfig[1]
   const isPendente = e.statusEvento === StatusEvento.Pendente
@@ -110,8 +116,8 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
               </Button>
             </a>
           )}
-          <Button size="sm" variant="ghost" onClick={() => arquivarEvento(e.id)} className="text-slate-400 ml-auto">
-            <Archive className="w-3.5 h-3.5" />
+          <Button size="sm" variant="ghost" onClick={handleDeletar} className="text-red-400 hover:text-red-600 ml-auto">
+            <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
       )}

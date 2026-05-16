@@ -6,7 +6,7 @@ import {
 import { applyUpdate } from '@/services/diligenciaService'
 import {
   fetchDiligencias, insertDiligencia, patchDiligencia,
-  patchPesquisa, patchAnexo, insertLigacao, uploadArquivoAnexo,
+  patchPesquisa, patchAnexo, insertLigacao, uploadArquivoAnexo, removerAnexoDB,
 } from '@/services/diligenciasDB'
 import {
   Diligencia, Pesquisa, Ligacao, Anexos, AvaliacaoAdvogado,
@@ -25,6 +25,7 @@ export interface DiligenciasContextValue {
   finalizarCiclo: (id: string, avaliacao: AvaliacaoAdvogado) => void
   atualizarAnexo: (id: string, campo: keyof Anexos, valor: string) => void
   uploadAnexo: (id: string, campo: keyof Anexos, file: File) => Promise<string>
+  removerAnexo: (id: string, campo: keyof Anexos) => Promise<void>
   registrarWhatsApp: (id: string, mensagem: string) => void
   registrarLigacao: (id: string, ligacao: Omit<Ligacao, 'id'>) => Promise<void>
   agendarRetorno: (id: string, data: string) => void
@@ -128,6 +129,15 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     return publicUrl
   }, [])
 
+  const removerAnexo = useCallback(async (id: string, campo: keyof Anexos): Promise<void> => {
+    setDiligencias((prev) =>
+      prev.map((d) =>
+        d.id === id ? applyUpdate(d, { anexos: { ...d.anexos, [campo]: undefined } }) : d
+      )
+    )
+    await removerAnexoDB(id, campo)
+  }, [])
+
   const registrarWhatsApp = useCallback((id: string, mensagem: string) => {
     const pp = {
       dataEnvioWhatsApp: new Date().toISOString().split('T')[0],
@@ -193,7 +203,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     <DiligenciasContext.Provider value={{
       diligencias, loading, error,
       createDiligencia, updateDiligencia, marcarRealizada, marcarPago, finalizarCiclo,
-      atualizarAnexo, uploadAnexo, registrarWhatsApp, registrarLigacao, agendarRetorno,
+      atualizarAnexo, uploadAnexo, removerAnexo, registrarWhatsApp, registrarLigacao, agendarRetorno,
       marcarRespondida, encerrarSemResposta, atualizarPesquisa,
     }}>
       {children}

@@ -20,6 +20,11 @@ export async function patchEvento(
   if (error) throw error
 }
 
+export async function deleteEvento(id: string): Promise<void> {
+  const { error } = await supabase.from('eventos').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function insertEvento(
   e: Omit<Evento, 'id' | 'createdAt'>,
 ): Promise<Evento> {

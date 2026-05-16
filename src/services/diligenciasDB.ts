@@ -207,6 +207,22 @@ export async function patchAnexo(
   if (error) throw error
 }
 
+export async function removerAnexoDB(id: string, campo: keyof Anexos): Promise<void> {
+  const colMap: Record<keyof Anexos, string> = {
+    contratoGerado: 'anexo_contrato_gerado',
+    contratoAssinado: 'anexo_contrato_assinado',
+    reciboGerado: 'anexo_recibo_gerado',
+    reciboAssinado: 'anexo_recibo_assinado',
+    comprovantePagamento: 'anexo_comprovante_pagamento',
+    comprovanteServico: 'anexo_comprovante_servico',
+  }
+  const { error } = await supabase
+    .from('diligencias')
+    .update({ [colMap[campo]]: null })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function insertLigacao(
   diligenciaId: string,
   ligacao: Omit<Ligacao, 'id'>,
