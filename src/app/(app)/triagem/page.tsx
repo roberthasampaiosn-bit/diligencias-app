@@ -14,7 +14,6 @@ const filtros = [
   { key: 'todos', label: 'Todos' },
   { key: StatusEvento.Pendente, label: 'Pendentes' },
   { key: StatusEvento.Criado, label: 'Diligência criada' },
-  { key: StatusEvento.Arquivado, label: 'Arquivados' },
 ]
 
 interface ImportMsg { tipo: 'success' | 'warn' | 'error'; texto: string }
@@ -97,11 +96,10 @@ export default function TriagemPage() {
       const sa = statusOrder[effectiveStatus(a, finalizadosSet)] ?? 3
       const sb = statusOrder[effectiveStatus(b, finalizadosSet)] ?? 3
       if (sa !== sb) return sa - sb
-      if (effectiveStatus(a, finalizadosSet) === StatusEvento.Pendente) {
-        if (b.nivelAgressao !== a.nivelAgressao) return b.nivelAgressao - a.nivelAgressao
-        return new Date(b.dataEvento).getTime() - new Date(a.dataEvento).getTime()
-      }
-      return new Date(b.dataEvento).getTime() - new Date(a.dataEvento).getTime()
+      // Dentro do mesmo grupo: mais antigo primeiro (ordem de chegada)
+      const ta = new Date(`${a.dataRecebimento}T${a.horaRecebimento || '00:00'}:00`).getTime()
+      const tb = new Date(`${b.dataRecebimento}T${b.horaRecebimento || '00:00'}:00`).getTime()
+      return ta - tb
     })
 
     return list
@@ -141,7 +139,7 @@ export default function TriagemPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Triagem de Eventos</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Eventos recebidos por e-mail — ordenados por criticidade
+            Eventos recebidos por e-mail — ordenados por ordem de chegada
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

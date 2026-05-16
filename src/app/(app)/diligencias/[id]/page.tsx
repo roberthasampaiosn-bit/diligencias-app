@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
-  ExternalLink, Plus, Upload, Download, Star, Package, Send,
+  ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -51,7 +51,7 @@ function etapaAtual(d: Diligencia): number {
 
 export default function DiligenciaDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
-  const { diligencias, marcarRealizada, marcarPago, finalizarCiclo, uploadAnexo, updateDiligencia, atualizarAnexo } = useDiligencias()
+  const { diligencias, marcarRealizada, marcarPago, finalizarCiclo, uploadAnexo, removerAnexo, updateDiligencia, atualizarAnexo } = useDiligencias()
   const { advogadoMap } = useAdvogados()
   const { addToast } = useToast()
 
@@ -102,14 +102,28 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const linkContratoZap = d.linkAssinaturaAdvogadoContrato ?? null
   const linkReciboZap = d.linkAssinaturaAdvogadoRecibo ?? null
 
-  const whatsappVitima = buildWhatsAppUrl(d.telefoneVitima, buildPesquisaMessage(d.vitima, d.tipoEvento))
+  const whatsappVitima = buildWhatsAppUrl(d.telefoneVitima, buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente))
   const isRemoto = d.modoDiligencia === 'Remoto'
   const podeFinalizar = d.status === StatusDiligencia.Realizada
     && (isRemoto || d.statusPagamento === StatusPagamento.Pago)
     && !d.cicloFinalizado
 
   const advPhone = adv ? (adv.whatsapp || adv.telefone).replace(/\D/g, '') : ''
-  const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(`Olá ${adv.nomeCompleto.split(' ')[0]}, tudo bem? Referente à diligência ${d.ccc}.`)}` : '#'
+  const primeiroNomeAdv = adv ? adv.nomeCompleto.split(' ')[0] : ''
+  const msgFinanceiro = adv ? [
+    `Olá Dr.(a) ${primeiroNomeAdv}, tudo bem?`,
+    '',
+    'Meu nome é Roberta, sou do financeiro do escritório ARodrigues.',
+    '',
+    'A Dra. Anne já nos repassou alguns dos seus dados em relação à diligência solicitada. Estou entrando em contato para dar seguimento à parte administrativa e de pagamento.',
+    '',
+    'Vou encaminhar o contrato para assinatura e, por gentileza, peço que confirme seus dados e me informe também a chave Pix ou os dados bancários para pagamento.',
+    '',
+    'Fico à disposição.',
+    '',
+    'Obrigada',
+  ].join('\n') : ''
+  const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(msgFinanceiro)}` : '#'
 
   // Pendência documental (presencial): falta contrato assinado, recibo assinado ou comprovante pgto
   const pendenciasDocumentais = !isRemoto ? [
@@ -136,6 +150,18 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     if (!input) return
     input.value = ''   // permite re-selecionar o mesmo arquivo
     input.click()
+  }
+
+  async function handleRemoverAnexo(campo: keyof Anexos, label: string) {
+    if (!confirm(`Remover o arquivo "${label}"? Esta ação não pode ser desfeita.`)) return
+    setUploadState((s) => ({ ...s, [campo]: 'uploading' }))
+    try {
+      await removerAnexo(id, campo)
+      setUploadState((s) => ({ ...s, [campo]: 'idle' }))
+    } catch (err) {
+      console.error('[remover anexo]', err)
+      setUploadState((s) => ({ ...s, [campo]: 'error' }))
+    }
   }
 
   const handleFileChange = useCallback(async (campo: keyof Anexos, file: File | undefined) => {
@@ -478,6 +504,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <CardBody className="space-y-3">
             <DR label="CCC" value={<span className="font-mono text-blue-700">{d.ccc}</span>} />
             {d.dataAtendimento && <DR label="Data do evento" value={formatDate(d.dataAtendimento)} />}
+            {!d.dataAtendimento && d.dataInformativo && <DR label="Data do informativo" value={formatDate(d.dataInformativo)} />}
             <DR label="Tipo de evento" value={d.tipoEvento} />
             <DR label="Tipo de diligência" value={d.tipoDiligencia} />
             <DR label="Modo" value={d.modoDiligencia} />
@@ -500,7 +527,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               {adv.cpf && <DR label="CPF" value={formatCPF(adv.cpf)} />}
               <DR label="OAB" value={adv.oab} />
               <DR label="WhatsApp" value={
-                <a href={`https://wa.me/55${(adv.whatsapp || adv.telefone).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline">
+                <a href={whatsappAdv} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline">
                   <MessageCircle className="w-3.5 h-3.5" />{formatPhone(adv.whatsapp || adv.telefone)}
                 </a>
               } />
@@ -680,7 +707,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                       <p className="text-xs text-slate-400 mt-0.5">{item.descricao}</p>
                     )}
 
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-2">
                       <button
                         disabled={uploading}
                         onClick={() => handleUpload(item.campo)}
@@ -693,6 +720,15 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                         <Upload className="w-3 h-3 inline mr-1" />
                         {uploading ? 'Enviando...' : valor ? 'Substituir' : 'Anexar'}
                       </button>
+                      {valor && !uploading && (
+                        <button
+                          onClick={() => handleRemoverAnexo(item.campo, item.label)}
+                          className="text-xs font-medium px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                          title="Remover arquivo"
+                        >
+                          <Trash2 className="w-3 h-3 inline" />
+                        </button>
+                      )}
                     </div>
                   </div>
 

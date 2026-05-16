@@ -261,79 +261,90 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const pw = doc.internal.pageSize.getWidth()
   setupDoc(doc)
 
-  const M    = 15
-  const lh10 = 6
-  const lh9  = 5.5
-  const BLUE: [number, number, number] = [30, 64, 175]
-  const TW   = pw - M - M
+  const M  = 25       // margens laterais (≈ 1,25 polegadas, igual ao .docx)
+  const TW = pw - M - M
+  const LH = 6.5
+  const DARK: [number, number, number] = [20, 20, 20]
 
-  // ── Título (linha única, como no modelo Word) ─────────────────────────────
-  doc.setFontSize(13)
+  // ── Título ────────────────────────────────────────────────────────────────
+  doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...BLUE)
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 22, { align: 'center' })
-  doc.setTextColor(0)
+  doc.setTextColor(...DARK)
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 30, { align: 'center' })
 
-  let y = 38
+  let y = 50
 
-  // ── Parágrafo principal ───────────────────────────────────────────────────
+  // ── Parágrafo principal (cada frase em linha própria, igual ao .docx) ─────
   const dataServico = diligencia.dataAtendimento
     ? formatDate(diligencia.dataAtendimento)
-    : formatDate(hoje())
-  const descricaoServico = diligencia.tipoDiligencia || 'diligência jurídica'
+    : '____/____/________'
+  const tipo = diligencia.tipoDiligencia || '___________________________'
 
-  // CCC é número interno — não aparece no recibo
-  const paragrafo1 = doc.splitTextToSize(
-    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '___________________________'}, inscrito(a) no CPF nº ${advogado.cpf || '___________________'}, declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88, a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), referente à prestação de serviços profissionais realizados de forma AUTÔNOMA, sem vínculo empregatício, no dia ${dataServico} para ${descricaoServico}.`,
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...DARK)
+
+  const l1 = doc.splitTextToSize(
+    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${advogado.cpf || '_______________________'},`,
     TW,
   )
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(20)
-  doc.text(paragrafo1, M, y, { align: 'justify', maxWidth: TW })
-  y += paragrafo1.length * lh10 + 10
+  doc.text(l1, M, y)
+  y += l1.length * LH
+
+  const l2 = doc.splitTextToSize(
+    'declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88,',
+    TW,
+  )
+  doc.text(l2, M, y)
+  y += l2.length * LH
+
+  const l3 = doc.splitTextToSize(
+    `a importância de R$ ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}),`,
+    TW,
+  )
+  doc.text(l3, M, y)
+  y += l3.length * LH
+
+  doc.text('referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,', M, y)
+  y += LH
+
+  const l5 = doc.splitTextToSize(
+    `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`,
+    TW,
+  )
+  doc.text(l5, M, y)
+  y += l5.length * LH + LH * 1.5
 
   // ── Declaração fiscal ─────────────────────────────────────────────────────
-  const paragrafo2 = doc.splitTextToSize(
-    'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos, contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil, não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.',
+  doc.text('Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos,', M, y)
+  y += LH
+  const l7 = doc.splitTextToSize(
+    'contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil,',
     TW,
   )
-  doc.setFontSize(10)
-  doc.setTextColor(20)
-  doc.text(paragrafo2, M, y, { align: 'justify', maxWidth: TW })
-  y += paragrafo2.length * lh10 + 10
+  doc.text(l7, M, y)
+  y += l7.length * LH
+  doc.text('não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.', M, y)
+  y += LH * 2.5
 
-  // ── Dados de pagamento ────────────────────────────────────────────────────
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(20)
+  // ── Forma de pagamento ────────────────────────────────────────────────────
   doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y)
-  y += lh10 + 4
-  doc.text(`Chave PIX: ${advogado.chavePix || '___________________________'}`, M, y)
-  y += lh10 + 14
+  y += LH
+  doc.text(`Chave PIX: ${advogado.chavePix || '_______________________________'}`, M, y)
+  y += LH * 2.5
 
-  // ── Local e data ──────────────────────────────────────────────────────────
-  doc.text(`São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
-  y += 28
+  // ── Local e data (campo em branco, igual ao .docx) ────────────────────────
+  doc.text('Local e data: _______________________________', M, y)
+  y += LH * 3
 
-  // ── Assinatura — bloco separado visualmente ───────────────────────────────
-  doc.setFontSize(10)
+  // ── Assinatura ────────────────────────────────────────────────────────────
   doc.text('Assinatura do prestador de serviço: ________________________________', M, y)
-  y += 18
+  y += LH * 2.5
 
-  doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '___________________________'}`, M, y)
-  y += lh9 + 7
-  doc.text(`CPF: ${advogado.cpf || '___________________'}`, M, y)
-  if (advogado.oab) {
-    y += lh9 + 7
-    doc.text(`OAB nº: ${advogado.oab.toUpperCase()}`, M, y)
-  }
-  if (advogado.endereco) {
-    y += lh9 + 7
-    doc.text(`Endereço: ${toProperCase(advogado.endereco)}`, M, y)
-  }
-
-  // (sem rodapé — modelo Word não possui)
+  // ── Identificação ─────────────────────────────────────────────────────────
+  doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}`, M, y)
+  y += LH
+  doc.text(`CPF: ${advogado.cpf || '_______________________________'}`, M, y)
 
   const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
   const ref = diligencia.ccc ? diligencia.ccc.replace(/\//g, '-') : hoje()

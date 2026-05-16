@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { exportarExcelEstilizado } from '@/lib/excel'
 import { Diligencia, StatusDiligencia, StatusPagamento, StatusPesquisa, ModoDiligencia, EmpresaCliente } from '@/types'
 
 // ─── helpers de data ──────────────────────────────────────────────────────────
@@ -101,16 +102,13 @@ export default function RelatoriosPage() {
   async function exportarExcel() {
     setExportando(true)
     try {
-      const XLSX = await import('xlsx')
-
-      // Filtra por período; cada aba já separa por cliente
       const porPeriodo = diligencias.filter((d) => {
         const data = d.dataAtendimento ?? d.createdAt.split('T')[0]
         return data >= dataInicio && data <= dataFim
       })
 
       const bat   = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.BatBrasil)
-      const batCC = bat.filter((d) => d.valorDiligencia > 0)  // com custo
+      const batCC = bat.filter((d) => d.valorDiligencia > 0)
       const vtal  = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.VTAL)
 
       function dateBR(s?: string) {
@@ -118,132 +116,88 @@ export default function RelatoriosPage() {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s
       }
-
-      function ano(d: Diligencia)   { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[0]) : '' }
-      function mes(d: Diligencia)   { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[1]) : '' }
-      function dia(d: Diligencia)   { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[2]) : '' }
+      function ano(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[0]) : '' }
+      function mes(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[1]) : '' }
+      function dia(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[2]) : '' }
       function dataFmt(d: Diligencia) {
         if (!d.dataAtendimento) return ''
-        const [y, m, dd] = d.dataAtendimento.split('-')
-        return `${m}/${dd}/${y}`
+        const [y, mm, dd] = d.dataAtendimento.split('-')
+        return `${mm}/${dd}/${y}`
       }
 
-      // ── Aba 1: BAT — Suporte Jurídico Remoto (todas as diligências BAT) ──────
-      const dadosSJR = bat.map((d) => ({
-        'CCC':                                d.ccc,
-        'Vítima':                             d.vitima,
-        'Telefone':                           d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
-        'Cargo':                              d.cargo ?? '',
-        'Ano':                                ano(d),
-        'Mês':                                mes(d),
-        'Dia':                                dia(d),
-        'Tipo de evento':                     d.tipoEvento,
-        'horário evento':                     d.horaEvento ?? '',
-        'Data envio informativo':             dateBR(d.dataInformativo),
-        'horário envio informativo':          d.horaInformativo ?? '',
-        'Assistencia jurídica colaborador':   d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
-        'Data ligação do advogado':           dateBR(d.dataLigacaoAdvogado),
-        'horário ligação advogado':           d.horaLigacaoAdvogado ?? '',
-        'Advogado':                           advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
-        'UF':                                 d.uf,
-        'Região GTSC':                        d.regiaoGtsc ?? '',
-        'Cidade':                             d.cidade,
-        'Operação':                           d.operacao ?? '',
-        'Empresa':                            d.empresa,
-        'Segmento':                           d.segmento ?? '',
-        'Motorista agredido':                 d.motoristaAgredido ?? '',
-        'DP que registrou':                   d.dpRegistrou ?? '',
-        'Observação':                         d.observacoes ?? '',
-        'Sobra de mercadoria':                d.sobraMercadoria ?? '',
-        'Boletim':                            d.numeroBOProcesso ?? '',
-        'Pesquisa':                           d.pesquisa.status,
-        'Entrevistador':                      d.pesquisa.entrevistador ?? '',
-        'Observações':                        d.pesquisa.observacoes ?? '',
-        'Data entrevista':                    d.pesquisa.dataCombinada ? formatDate(d.pesquisa.dataCombinada) : '',
-        'Hora entrevista':                    d.pesquisa.horaEntrevista ?? '',
-      }))
+      // ── Aba 1: BAT — Suporte Jurídico ────────────────────────────────────────
+      const headersSJR = [
+        'CCC','Vítima','Telefone','Cargo','Ano','Mês','Dia','Tipo de evento',
+        'Horário evento','Data envio informativo','Horário envio informativo',
+        'Assistência jurídica','Data ligação advogado','Horário ligação advogado',
+        'Advogado','UF','Região GTSC','Cidade','Operação','Empresa','Segmento',
+        'Motorista agredido','DP que registrou','Observação','Sobra mercadoria',
+        'Boletim','Pesquisa','Entrevistador','Observações pesquisa','Data entrevista','Hora entrevista',
+      ]
+      const linhasSJR = bat.map((d) => [
+        d.ccc, d.vitima,
+        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+        d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
+        d.horaEvento ?? '', dateBR(d.dataInformativo), d.horaInformativo ?? '',
+        d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
+        dateBR(d.dataLigacaoAdvogado), d.horaLigacaoAdvogado ?? '',
+        advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
+        d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
+        d.segmento ?? '', d.motoristaAgredido ?? '', d.dpRegistrou ?? '',
+        d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
+        d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
+        d.pesquisa.dataCombinada ? formatDate(d.pesquisa.dataCombinada) : '',
+        d.pesquisa.horaEntrevista ?? '',
+      ])
 
-      // ── Aba 2: BAT — Diligências com custo (presencial/advogado acionado) ────
-      const dadosSCBase = batCC.map((d) => ({
-        'Ano':                                                   ano(d),
-        'Mês':                                                   mes(d),
-        'Dia':                                                   dia(d),
-        'Data':                                                  dataFmt(d),
-        'Região GTSC':                                           '',
-        'UF':                                                    d.uf,
-        'Cidade':                                                d.cidade,
-        'Operação':                                              '',
-        'Tipo de diligência':                                    d.tipoDiligencia,
-        'Observação':                                            d.observacoes ?? '',
-        'ID CCC (Quando aplicável)':                             d.ccc,
-        'Número do Processo/Boletim de Ocorrência/Inquérito Policial': d.numeroBOProcesso ?? '',
-        'Local de atendimento':                                  d.localAtendimento ?? '',
-        'Modo de atendimento':                                   d.modoDiligencia,
-        'Nome do Advogado':                                      advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
-        'Telefone':                                              d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
-        'Valor pago correspondente':                             d.valorDiligencia,
-        'Valor adv acionante':                                   '',
-      }))
+      // ── Aba 2: BAT — Com Custo ───────────────────────────────────────────────
+      const headersSC = [
+        'Ano','Mês','Dia','Data','Região GTSC','UF','Cidade','Operação',
+        'Tipo de diligência','Observação','ID CCC',
+        'Nº Processo/BO/Inquérito','Local de atendimento','Modo de atendimento',
+        'Nome do Advogado','Telefone','Valor pago correspondente','Valor adv acionante',
+      ]
+      const linhasSC = batCC.map((d) => [
+        ano(d), mes(d), dia(d), dataFmt(d), '', d.uf, d.cidade, '',
+        d.tipoDiligencia, d.observacoes ?? '', d.ccc,
+        d.numeroBOProcesso ?? '', d.localAtendimento ?? '', d.modoDiligencia,
+        advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
+        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+        d.valorDiligencia, '',
+      ])
 
       // ── Aba 3: V.TAL ─────────────────────────────────────────────────────────
+      const headersVTAL = [
+        'Seq.','Ano','Mês','Dia','Data','UF','Cidade','Tipo de diligência',
+        'Macros','Observação','Nº Processo/BO/Inquérito','Local de atendimento',
+        'Resultado da demanda','Status','Modo de atendimento',
+        'Nome do Advogado','Centro de Custo','Valor',
+      ]
       let seq = 1
-      const dadosVTAL = vtal.map((d) => ({
-        'Seq.':                                                  seq++,
-        'Ano':                                                   ano(d),
-        'Mês':                                                   mes(d),
-        'Dia':                                                   dia(d),
-        'Data':                                                  dataFmt(d),
-        'UF':                                                    d.uf,
-        'Cidade':                                                d.cidade,
-        'Tipo de diligência':                                    d.tipoDiligencia,
-        'Macros':                                                d.macro ?? '',
-        'Observação':                                            d.observacoes ?? '',
-        'Número do Processo/Boletim de Ocorrência/Inquérito Policial': d.numeroBOProcesso ?? '',
-        'Local de atendimento':                                  d.localAtendimento ?? '',
-        'Resultado da demanda':                                  d.resultadoDemanda ?? '',
-        'Status':                                                d.status,
-        'Modo de atendimento':                                   d.modoDiligencia,
-        'Nome do Advogado':                                      advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
-        'Centro de Custo':                                       d.centroCusto ?? '',
-        'Valor':                                                 d.valorDiligencia,
-      }))
+      const linhasVTAL = vtal.map((d) => [
+        seq++, ano(d), mes(d), dia(d), dataFmt(d), d.uf, d.cidade, d.tipoDiligencia,
+        d.macro ?? '', d.observacoes ?? '', d.numeroBOProcesso ?? '',
+        d.localAtendimento ?? '', d.resultadoDemanda ?? '', d.status, d.modoDiligencia,
+        advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
+        d.centroCusto ?? '', d.valorDiligencia,
+      ])
 
-      const wb = XLSX.utils.book_new()
-
-      const wsSJR = XLSX.utils.json_to_sheet(dadosSJR)
-      wsSJR['!cols'] = [
-        { wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 18 },
-        { wch: 6  }, { wch: 6  }, { wch: 6  }, { wch: 22 },
-        { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
-        { wch: 18 }, { wch: 16 }, { wch: 28 }, { wch: 6  },
-        { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 25 },
-        { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 30 },
-        { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 },
-        { wch: 30 }, { wch: 14 }, { wch: 10 },
-      ]
-      XLSX.utils.book_append_sheet(wb, wsSJR, 'BAT - Suporte Jurídico')
-
-      const wsSCBase = XLSX.utils.json_to_sheet(dadosSCBase)
-      wsSCBase['!cols'] = [
-        { wch: 6  }, { wch: 6  }, { wch: 6  }, { wch: 12 },
-        { wch: 14 }, { wch: 6  }, { wch: 18 }, { wch: 14 },
-        { wch: 30 }, { wch: 30 }, { wch: 18 }, { wch: 40 },
-        { wch: 22 }, { wch: 14 }, { wch: 28 }, { wch: 16 },
-        { wch: 16 }, { wch: 14 },
-      ]
-      XLSX.utils.book_append_sheet(wb, wsSCBase, 'BAT - Com Custo')
-
-      const wsVTAL = XLSX.utils.json_to_sheet(dadosVTAL)
-      wsVTAL['!cols'] = [
-        { wch: 6  }, { wch: 6  }, { wch: 6  }, { wch: 6  },
-        { wch: 12 }, { wch: 6  }, { wch: 18 }, { wch: 28 },
-        { wch: 22 }, { wch: 30 }, { wch: 40 }, { wch: 22 },
-        { wch: 25 }, { wch: 14 }, { wch: 14 }, { wch: 28 },
-        { wch: 14 }, { wch: 10 },
-      ]
-      XLSX.utils.book_append_sheet(wb, wsVTAL, 'V.TAL')
-
-      XLSX.writeFile(wb, `diligencias_${dataInicio}_${dataFim}.xlsx`)
+      await exportarExcelEstilizado([
+        {
+          nome: 'BAT - Suporte Jurídico', headers: headersSJR, linhas: linhasSJR, tema: 'bat',
+          widths: [18,30,16,18,6,6,6,22,10,18,18,14,18,16,28,6,14,18,14,25,14,12,22,30,12,12,14,14,30,14,10],
+        },
+        {
+          nome: 'BAT - Com Custo', headers: headersSC, linhas: linhasSC, tema: 'bat',
+          widths: [6,6,6,12,14,6,18,14,30,30,18,40,22,14,28,16,20,14],
+          colsMoeda: [16],
+        },
+        {
+          nome: 'V.TAL', headers: headersVTAL, linhas: linhasVTAL, tema: 'vtal',
+          widths: [6,6,6,6,12,6,18,28,22,30,40,22,25,14,14,28,14,14],
+          colsMoeda: [17],
+        },
+      ], `diligencias_${dataInicio}_${dataFim}.xlsx`)
     } finally {
       setExportando(false)
     }

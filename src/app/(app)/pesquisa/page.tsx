@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition } from 'react'
 import Link from 'next/link'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
-  PhoneOff, Clock, AlertCircle,
+  PhoneOff, Clock, AlertCircle, ExternalLink,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -17,6 +17,20 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone } from '@/lib/utils'
 import { StatusPesquisa, StatusDiligencia, ResultadoLigacao, Diligencia, Pesquisa } from '@/types'
+
+const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
+
+function buildFormUrl(ccc: string, vitima: string, cargo: string, empresa: string, cidade: string): string {
+  const prefill = [
+    { questionId: 'r57941ac9a944418990fe4c493b4a5f9b', answer1: ccc },
+    { questionId: 'r033279bf00d84258be50cabd13d8a57e', answer1: vitima },
+    { questionId: 'r7f32f2ff079b45d7bea0828936a1eebd', answer1: cargo },
+    { questionId: 'r3affcd6ad3a843e1920677451b58b0cd', answer1: empresa },
+    { questionId: 'rfc20581426304081bd6c393fa7c59765', answer1: cidade },
+  ]
+  const ifq = btoa(unescape(encodeURIComponent(JSON.stringify(prefill))))
+  return `${FORMS_BASE_URL}&ifq=${ifq}`
+}
 
 const FILTROS = [
   { key: 'pendentes', label: 'Pendentes' },
@@ -159,7 +173,7 @@ export default function PesquisaPage() {
   }
 
   function handleEnviarWhatsApp(d: Diligencia) {
-    const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento)
+    const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente)
     registrarWhatsApp(d.id, mensagem)
     window.open(buildWhatsAppUrl(d.telefoneVitima, mensagem), '_blank')
   }
@@ -386,6 +400,15 @@ export default function PesquisaPage() {
                             <PhoneOff className="w-3.5 h-3.5" /> Encerrar
                           </button>
                         </div>
+                        {/* Linha 4: Abrir formulário de entrevista */}
+                        <a
+                          href={buildFormUrl(d.ccc, d.vitima, d.cargo, d.empresa, d.cidade)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> Abrir formulário de entrevista
+                        </a>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between pt-1 border-t border-slate-100">

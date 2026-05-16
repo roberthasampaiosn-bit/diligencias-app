@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +12,20 @@ import { Modal } from '@/components/ui/Modal'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone } from '@/lib/utils'
 import { StatusPesquisa, ResultadoLigacao, Pesquisa } from '@/types'
+
+const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
+
+function buildFormUrl(ccc: string, vitima: string, cargo: string, empresa: string, cidade: string): string {
+  const prefill = [
+    { questionId: 'r57941ac9a944418990fe4c493b4a5f9b', answer1: ccc },
+    { questionId: 'r033279bf00d84258be50cabd13d8a57e', answer1: vitima },
+    { questionId: 'r7f32f2ff079b45d7bea0828936a1eebd', answer1: cargo },
+    { questionId: 'r3affcd6ad3a843e1920677451b58b0cd', answer1: empresa },
+    { questionId: 'rfc20581426304081bd6c393fa7c59765', answer1: cidade },
+  ]
+  const ifq = btoa(unescape(encodeURIComponent(JSON.stringify(prefill))))
+  return `${FORMS_BASE_URL}&ifq=${ifq}`
+}
 
 interface Params { id: string }
 
@@ -78,8 +92,18 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
     )
   }
 
-  const whatsappUrl = buildWhatsAppUrl(diligencia.telefoneVitima, buildPesquisaMessage(diligencia.vitima, diligencia.tipoEvento))
+  const whatsappUrl = buildWhatsAppUrl(diligencia.telefoneVitima, buildPesquisaMessage(diligencia.vitima, diligencia.tipoEvento, diligencia.empresaCliente))
   const hasRetornoAgendado = !!pesquisa.dataCombinada
+
+  const [copied, setCopied] = useState<string | null>(null)
+  function copyField(label: string, value: string) {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(label)
+      setTimeout(() => setCopied(null), 1500)
+    })
+  }
+
+  const formUrl = buildFormUrl(diligencia.ccc, diligencia.vitima, diligencia.cargo, diligencia.empresa, diligencia.cidade)
 
   function setPesquisa(patch: Partial<Pesquisa>) {
     setLocalPesquisa((prev) => ({ ...(prev ?? diligencia!.pesquisa), ...patch }))
@@ -163,6 +187,48 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
           </Button>
         </a>
       </div>
+
+      {/* Card Entrevista Plataforma 6S */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Entrevista Plataforma 6S</CardTitle>
+            <a href={formUrl} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="primary">
+                <ExternalLink className="w-3.5 h-3.5" /> Abrir formulário
+              </Button>
+            </a>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <p className="text-xs text-slate-500 mb-3">Dados da 1ª página — clique para copiar cada campo:</p>
+          <div className="space-y-2">
+            {([
+              ['ID evento',     diligencia.ccc],
+              ['Nome completo', diligencia.vitima],
+              ['Cargo',         diligencia.cargo],
+              ['Empresa',       diligencia.empresa],
+              ['Localidade',    diligencia.cidade],
+            ] as [string, string][]).map(([label, value]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => copyField(label, value)}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left group"
+              >
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
+                  <p className="text-sm font-medium text-slate-700 truncate">{value || '—'}</p>
+                </div>
+                <ClipboardCopy className={`w-3.5 h-3.5 flex-shrink-0 transition-colors ${copied === label ? 'text-emerald-500' : 'text-slate-300 group-hover:text-blue-400'}`} />
+              </button>
+            ))}
+          </div>
+          {copied && (
+            <p className="text-xs text-emerald-600 text-center mt-2">"{copied}" copiado!</p>
+          )}
+        </CardBody>
+      </Card>
 
       {/* Banner retorno agendado */}
       {hasRetornoAgendado && (

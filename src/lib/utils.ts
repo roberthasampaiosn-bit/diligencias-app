@@ -89,9 +89,14 @@ export function getGreeting(): string {
   return 'Boa noite'
 }
 
-export function getFirstNames(fullName: string, count: 2 | 3 = 2): string {
-  const names = fullName.trim().split(' ')
-  return names.slice(0, count).join(' ')
+const NAME_PARTICLES = new Set(['de', 'da', 'do', 'dos', 'das', 'e', 'a', 'o', 'di', 'du'])
+
+export function getFirstNames(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length <= 2) return parts.join(' ')
+  // Se o 2º nome for partícula (de, da, do…), inclui o 3º para não ficar incompleto
+  if (NAME_PARTICLES.has(parts[1].toLowerCase())) return parts.slice(0, 3).join(' ')
+  return parts.slice(0, 2).join(' ')
 }
 
 export function numberToWords(value: number): string {
@@ -182,10 +187,20 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/55${digits}?text=${encoded}`
 }
 
-export function buildPesquisaMessage(vitima: string, tipoEvento: string): string {
+export function buildPesquisaMessage(vitima: string, tipoEvento: string, empresaCliente?: string): string {
   const greeting = getGreeting()
-  const firstName = getFirstNames(vitima, 2)
-  return `${greeting}, ${firstName}! Tudo bem?\n\nMeu nome é Ana Rodrigues, sou advogada e estou entrando em contato a respeito do evento de ${tipoEvento.toLowerCase()} ocorrido.\n\nGostaria de conversar brevemente para entender como você está e como posso ajudá-lo(a). Você tem disponibilidade?\n\nAguardo seu retorno. Obrigada!`
+  const nome = getFirstNames(vitima)
+  const empresa = empresaCliente?.includes('V.TAL') ? 'V.TAL' : 'BAT'
+  const tipo = tipoEvento ? tipoEvento.toLowerCase() : 'sinistro'
+
+  return [
+    `${greeting}, ${nome}! Tudo bem?`,
+    `Meu nome é Roberta e falo em nome da ${empresa} para a realização de uma pesquisa pós-sinistro (${tipo}).`,
+    'Essa pesquisa é muito importante, pois tem como objetivo avaliar todo o atendimento prestado, contribuindo diretamente para melhorias contínuas no programa.',
+    'A participação é rápida e será realizada por meio de uma breve ligação telefônica.',
+    'Poderia, por gentileza, me informar o melhor dia e horário para entrarmos em contato?',
+    'Agradeço desde já pela sua colaboração!',
+  ].join('\n\n')
 }
 
 // ─── CCC BAT BRASIL ───────────────────────────────────────────────────────────
