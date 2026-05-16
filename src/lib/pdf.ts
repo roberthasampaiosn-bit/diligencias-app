@@ -283,74 +283,45 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   // Dois parágrafos vazios abaixo do título (igual ao .docx)
   let y = 52
 
-  // ── Parágrafo principal — cada <w:br/> do .docx vira nova linha no PDF ────
+  // ── Dados dinâmicos ───────────────────────────────────────────────────────
   const dataServico = diligencia.dataAtendimento
     ? formatDate(diligencia.dataAtendimento)
     : '____/____/________'
-  const tipo        = diligencia.tipoDiligencia || '___________________________'
-  const cpf         = formatarCPF(advogado.cpf || '')
+  const tipo = diligencia.tipoDiligencia || '___________________________'
+  const cpf  = formatarCPF(advogado.cpf || '')
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...DARK)
 
-  const l1 = doc.splitTextToSize(
+  // ── Parágrafo 1 — texto corrido justificado ────────────────────────────────
+  const para1 = [
     `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf},`,
-    TW,
-  )
-  doc.text(l1, M, y); y += l1.length * LH
-
-  const l2 = doc.splitTextToSize(
-    'declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88,',
-    TW,
-  )
-  doc.text(l2, M, y); y += l2.length * LH
-
-  // formatCurrency já retorna "R$ X,XX" — sem prefixo adicional
-  const l3 = doc.splitTextToSize(
+    `declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88,`,
     `a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}),`,
-    TW,
-  )
-  doc.text(l3, M, y); y += l3.length * LH
-
-  const l4 = doc.splitTextToSize(
-    'referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,',
-    TW,
-  )
-  doc.text(l4, M, y); y += l4.length * LH
-
-  const l5 = doc.splitTextToSize(
+    `referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,`,
     `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`,
-    TW,
-  )
-  doc.text(l5, M, y); y += l5.length * LH + LH  // 1 linha em branco entre parágrafos
+  ].join(' ')
+  const lines1 = doc.splitTextToSize(para1, TW)
+  doc.text(lines1, M, y, { align: 'justify', maxWidth: TW })
+  y += lines1.length * LH + LH  // 1 linha em branco
 
-  // ── Declaração fiscal ─────────────────────────────────────────────────────
-  const l6 = doc.splitTextToSize(
-    'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos,',
-    TW,
-  )
-  doc.text(l6, M, y); y += l6.length * LH
-
-  const l7 = doc.splitTextToSize(
-    'contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil,',
-    TW,
-  )
-  doc.text(l7, M, y); y += l7.length * LH
-
-  const l8 = doc.splitTextToSize(
-    'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.',
-    TW,
-  )
-  doc.text(l8, M, y); y += l8.length * LH + LH * 2  // 2 linhas em branco
+  // ── Parágrafo 2 — declaração fiscal justificada ───────────────────────────
+  const para2 =
+    'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos, ' +
+    'contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil, ' +
+    'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.'
+  const lines2 = doc.splitTextToSize(para2, TW)
+  doc.text(lines2, M, y, { align: 'justify', maxWidth: TW })
+  y += lines2.length * LH + LH * 2  // 2 linhas em branco
 
   // ── Forma de pagamento ────────────────────────────────────────────────────
   doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y); y += LH
   doc.text(`Chave PIX: ${advogado.chavePix || '_______________________________'}`, M, y)
   y += LH * 2  // 1 linha em branco
 
-  // ── Local e data ──────────────────────────────────────────────────────────
-  doc.text('Local e data: _______________________________', M, y)
+  // ── Local e data — São Paulo + data de hoje por extenso ───────────────────
+  doc.text(`Local e data: São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
   y += LH * 3  // espaço para assinatura
 
   // ── Assinatura ────────────────────────────────────────────────────────────
