@@ -91,6 +91,8 @@ export interface DiligenciaRow {
   local_atendimento?: string | null
   resultado_demanda?: string | null
   centro_custo?: string | null
+  // Dispensar documentos
+  dispensar_documentos?: boolean | null
   // ZapSign — assinatura digital
   zapsign_document_id_contrato?: string | null
   zapsign_document_id_recibo?: string | null

@@ -38,6 +38,7 @@ export enum TipoDiligencia {
   Reuniao = 'Reunião',
   AudienciaCustodia = 'Audiência de custódia',
   // Geral
+  AssistenciaJuridicaRemota = 'Assistência Jurídica Remota',
   Outro = 'Outro',
 }
 
@@ -219,6 +220,7 @@ export interface Diligencia {
   motoristaAgredido?: string
   // Campos específicos V.TAL (opcionais para BAT BRASIL)
   dataAtendimento?: string
+  dispensarDocumentos?: boolean
   macro?: string
   localAtendimento?: string
   resultadoDemanda?: string

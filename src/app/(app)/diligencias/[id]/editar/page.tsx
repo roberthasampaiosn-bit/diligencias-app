@@ -218,8 +218,24 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
               : Object.values(TipoEvento).map((v) => ({ value: v, label: v }))} />
           <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)}
             options={Object.values(TipoDiligencia).map((v) => ({ value: v, label: v }))} />
-          <Select label="Modo" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)}
-            options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
+          <Select
+            label="Modo"
+            value={form.modoDiligencia}
+            onChange={(e) => {
+              const modo = e.target.value
+              setForm((prev) => {
+                if (!prev) return prev
+                const tipoAtual = prev.tipoDiligencia
+                const novoTipo = modo === ModoDiligencia.Remoto
+                  ? TipoDiligencia.AssistenciaJuridicaRemota
+                  : tipoAtual === TipoDiligencia.AssistenciaJuridicaRemota
+                    ? (prev.empresaCliente === EmpresaCliente.VTAL ? TipoDiligencia.PrisaoFlagrante : TipoDiligencia.RegistroBO)
+                    : tipoAtual
+                return { ...prev, modoDiligencia: modo, tipoDiligencia: novoTipo }
+              })
+            }}
+            options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))}
+          />
           {form.tipoDiligencia === TipoDiligencia.Outro && (
             <div className="sm:col-span-2">
               <Input label="Descrição do tipo (Outro)" value={form.tipoDiligenciaDescricao} onChange={(e) => set('tipoDiligenciaDescricao', e.target.value)} placeholder="Descreva o tipo de diligência" />

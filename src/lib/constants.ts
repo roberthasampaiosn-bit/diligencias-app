@@ -10,6 +10,7 @@ export const TIPOS_DILIGENCIA_BAT: TipoDiligencia[] = [
   TipoDiligencia.ExtracaoCopiasDP,
   TipoDiligencia.AudienciaTJ,
   TipoDiligencia.CopiasTJ,
+  TipoDiligencia.AssistenciaJuridicaRemota,
   TipoDiligencia.Outro,
 ]
 
@@ -22,6 +23,7 @@ export const TIPOS_DILIGENCIA_VTAL: TipoDiligencia[] = [
   TipoDiligencia.Relatorio,
   TipoDiligencia.Reuniao,
   TipoDiligencia.AudienciaCustodia,
+  TipoDiligencia.AssistenciaJuridicaRemota,
   TipoDiligencia.Outro,
 ]
 

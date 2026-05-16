@@ -127,7 +127,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(msgFinanceiro)}` : '#'
 
   // Pendência documental (presencial): falta contrato assinado, recibo assinado ou comprovante pgto
-  const pendenciasDocumentais = !isRemoto ? [
+  // Ignorado se d.dispensarDocumentos === true
+  const pendenciasDocumentais = !isRemoto && !d.dispensarDocumentos ? [
     !d.anexos.contratoAssinado && 'contrato assinado',
     !d.anexos.reciboAssinado && 'recibo assinado',
     !d.anexos.comprovantePagamento && 'comprovante de pagamento',
@@ -580,29 +581,43 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               <CardTitle>Documentos e Comprovantes</CardTitle>
               <span className="text-xs text-slate-400">({totalDocs}/{itensUpload.length} anexados)</span>
             </div>
-            {totalDocs > 0 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowDownloads((v) => !v)}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  {showDownloads ? 'Ocultar links' : 'Links individuais'}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleBaixarPDF}
-                  disabled={pdfLoading}
-                >
-                  {pdfLoading
-                    ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Gerando PDF...</>
-                    : <><Download className="w-3.5 h-3.5" /> Baixar PDF final</>
-                  }
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => updateDiligencia(id, { dispensarDocumentos: !d.dispensarDocumentos })}
+                className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-colors border ${
+                  d.dispensarDocumentos
+                    ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                }`}
+                title="Marcar que esta diligência não tem documentos a anexar"
+              >
+                {d.dispensarDocumentos ? 'Sem documentos (ativo)' : 'Sem documentos'}
+              </button>
+              {totalDocs > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowDownloads((v) => !v)}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    {showDownloads ? 'Ocultar links' : 'Links individuais'}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleBaixarPDF}
+                    disabled={pdfLoading}
+                  >
+                    {pdfLoading
+                      ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Gerando PDF...</>
+                      : <><Download className="w-3.5 h-3.5" /> Baixar PDF final</>
+                    }
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardBody>

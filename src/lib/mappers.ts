@@ -141,6 +141,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     linkAssinaturaAdvogadoRecibo: row.link_assinatura_advogado_recibo ?? undefined,
     statusAssinaturaContrato: (row.status_assinatura_contrato as 'pendente' | 'assinado') ?? undefined,
     statusAssinaturaRecibo: (row.status_assinatura_recibo as 'pendente' | 'assinado') ?? undefined,
+    dispensarDocumentos: row.dispensar_documentos ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -214,6 +215,7 @@ export function fromDiligencia(
     ...(d.linkAssinaturaAdvogadoRecibo != null && { link_assinatura_advogado_recibo: d.linkAssinaturaAdvogadoRecibo }),
     ...(d.statusAssinaturaContrato != null && { status_assinatura_contrato: d.statusAssinaturaContrato }),
     ...(d.statusAssinaturaRecibo != null && { status_assinatura_recibo: d.statusAssinaturaRecibo }),
+    ...(d.dispensarDocumentos != null && { dispensar_documentos: d.dispensarDocumentos }),
   } as Omit<DiligenciaRow, 'id' | 'created_at' | 'updated_at' | 'ligacoes'>
 }
 

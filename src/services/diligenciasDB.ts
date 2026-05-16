@@ -130,6 +130,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('linkAssinaturaAdvogadoRecibo' in patch) row.link_assinatura_advogado_recibo = patch.linkAssinaturaAdvogadoRecibo ?? null
   if ('statusAssinaturaContrato' in patch) row.status_assinatura_contrato = patch.statusAssinaturaContrato ?? null
   if ('statusAssinaturaRecibo' in patch) row.status_assinatura_recibo = patch.statusAssinaturaRecibo ?? null
+  if ('dispensarDocumentos' in patch) row.dispensar_documentos = patch.dispensarDocumentos ?? null
 
   if ('pesquisa' in patch && patch.pesquisa) {
     const p = patch.pesquisa

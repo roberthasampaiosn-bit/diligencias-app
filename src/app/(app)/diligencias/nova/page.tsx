@@ -55,7 +55,7 @@ function FormBatBrasil() {
     dataInformativo: '',
     horaInformativo: '',
     horaEvento: '',
-    tipoDiligencia: TipoDiligencia.RegistroBO,
+    tipoDiligencia: modoParam === 'remoto' ? TipoDiligencia.AssistenciaJuridicaRemota : TipoDiligencia.RegistroBO,
     tipoDiligenciaDescricao: '',
     modoDiligencia: modoParam === 'remoto' ? ModoDiligencia.Remoto : ModoDiligencia.Presencial,
     advogadoId: '',
@@ -103,9 +103,16 @@ function FormBatBrasil() {
       vitima: evento.nomeVitima || prev.vitima,
       telefoneVitima: evento.telefoneVitima || prev.telefoneVitima,
       cargo: evento.cargoVitima || prev.cargo,
-      empresa: evento.empresa ? normalizeEmpresa(evento.empresa) : prev.empresa,
+      empresa: evento.empresa || prev.empresa,
       cidade: evento.cidade || prev.cidade,
       uf: (evento.uf && UFS.includes(evento.uf)) ? evento.uf : prev.uf,
+      tipoEvento: (() => {
+        if (!evento.tipoEvento) return prev.tipoEvento
+        const match = Object.values(TipoEvento).find(
+          (v) => v.toLowerCase() === evento.tipoEvento.toLowerCase()
+        )
+        return (match as TipoEvento) ?? prev.tipoEvento
+      })(),
       dataInformativo: evento.dataRecebimento || prev.dataInformativo,
       horaInformativo: evento.horaRecebimento || prev.horaInformativo,
       horaEvento: evento.horaEvento || prev.horaEvento,
@@ -288,7 +295,18 @@ function FormBatBrasil() {
           <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
           <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => set('horaEvento', e.target.value)} placeholder="HH:MM" />
-          <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
+          <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => {
+            const modo = e.target.value
+            setForm((prev) => ({
+              ...prev,
+              modoDiligencia: modo,
+              tipoDiligencia: modo === ModoDiligencia.Remoto
+                ? TipoDiligencia.AssistenciaJuridicaRemota
+                : prev.tipoDiligencia === TipoDiligencia.AssistenciaJuridicaRemota
+                  ? TipoDiligencia.RegistroBO
+                  : prev.tipoDiligencia,
+            }))
+          }} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
           <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={TIPOS_DILIGENCIA_BAT.map((v) => ({ value: v, label: v }))} />
           <Select label="Operação" value={form.operacao} onChange={(e) => set('operacao', e.target.value)} options={OPERACOES_BAT.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
           <Select label="Segmento" value={form.segmento} onChange={(e) => set('segmento', e.target.value)} options={SEGMENTOS_BAT.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
@@ -506,7 +524,18 @@ function FormVTAL() {
           <Select label="UF" value={form.uf} onChange={(e) => set('uf', e.target.value)} options={UFS.map((u) => ({ value: u, label: u }))} error={errors.uf} placeholder="Selecione" />
           <Input label="Cidade" value={form.cidade} onChange={(e) => set('cidade', e.target.value)} error={errors.cidade} />
           <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={TIPOS_DILIGENCIA_VTAL.map((v) => ({ value: v, label: v }))} />
-          <Select label="Modo de atendimento" value={form.modoDiligencia} onChange={(e) => set('modoDiligencia', e.target.value)} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
+          <Select label="Modo de atendimento" value={form.modoDiligencia} onChange={(e) => {
+            const modo = e.target.value
+            setForm((prev) => ({
+              ...prev,
+              modoDiligencia: modo,
+              tipoDiligencia: modo === ModoDiligencia.Remoto
+                ? TipoDiligencia.AssistenciaJuridicaRemota
+                : prev.tipoDiligencia === TipoDiligencia.AssistenciaJuridicaRemota
+                  ? TipoDiligencia.PrisaoFlagrante
+                  : prev.tipoDiligencia,
+            }))
+          }} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
           <Select label="Status" value={form.status} onChange={(e) => set('status', e.target.value)} options={Object.values(StatusDiligencia).map((v) => ({ value: v, label: v }))} />
           {form.tipoDiligencia === TipoDiligencia.Outro && (
             <div className="sm:col-span-2">
