@@ -20,7 +20,7 @@ export interface DiligenciasContextValue {
   error: string | null
   createDiligencia: (data: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Diligencia>
   updateDiligencia: (id: string, patch: Partial<Diligencia>) => Promise<void>
-  marcarRealizada: (id: string) => void
+  marcarRealizada: (id: string, dataAtendimento?: string) => void
   marcarPago: (id: string) => Promise<void>
   finalizarCiclo: (id: string, avaliacao: AvaliacaoAdvogado) => void
   atualizarAnexo: (id: string, campo: keyof Anexos, valor: string) => void
@@ -83,9 +83,11 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     }
   }, [patchD, addToast])
 
-  const marcarRealizada = useCallback((id: string) => {
-    patchD(id, { status: StatusDiligencia.Realizada })
-    patchDiligencia(id, { status: StatusDiligencia.Realizada })
+  const marcarRealizada = useCallback((id: string, dataAtendimento?: string) => {
+    const patch: Partial<Diligencia> = { status: StatusDiligencia.Realizada }
+    if (dataAtendimento) patch.dataAtendimento = dataAtendimento
+    patchD(id, patch)
+    patchDiligencia(id, patch)
       .then(() => addToast('success', 'Diligência marcada como realizada.'))
       .catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
   }, [patchD, addToast])

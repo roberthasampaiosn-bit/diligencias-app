@@ -58,6 +58,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [gerandoContrato, setGerandoContrato] = useState(false)
   const [gerandoRecibo, setGerandoRecibo] = useState(false)
   const [modalRealizada, setModalRealizada] = useState(false)
+  const [dataRealizacao, setDataRealizacao] = useState(() => new Date().toISOString().split('T')[0])
   const [modalPago, setModalPago] = useState(false)
   const [modalFinalizar, setModalFinalizar] = useState(false)
   const [modalPendencia, setModalPendencia] = useState(false)
@@ -938,9 +939,18 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
       <Modal open={modalRealizada} onClose={() => setModalRealizada(false)} title="Confirmar realização" size="sm">
         <div className="p-5 space-y-4">
           <p className="text-sm text-slate-600">Confirma que a diligência foi <strong>realizada</strong>?</p>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Data de realização</label>
+            <input
+              type="date"
+              value={dataRealizacao}
+              onChange={(e) => setDataRealizacao(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalRealizada(false)}>Cancelar</Button>
-            <Button variant="success" size="sm" onClick={() => { marcarRealizada(id); setModalRealizada(false) }}>Confirmar</Button>
+            <Button variant="success" size="sm" onClick={() => { marcarRealizada(id, dataRealizacao || undefined); setModalRealizada(false) }}>Confirmar</Button>
           </div>
         </div>
       </Modal>

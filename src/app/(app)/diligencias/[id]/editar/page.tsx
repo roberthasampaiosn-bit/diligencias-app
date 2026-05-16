@@ -42,6 +42,10 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     tipoDiligencia: original.tipoDiligencia,
     tipoDiligenciaDescricao: original.tipoDiligenciaDescricao || '',
     modoDiligencia: original.modoDiligencia,
+    dataInformativo: original.dataInformativo || '',
+    horaInformativo: original.horaInformativo || '',
+    dataLigacaoAdvogado: original.dataLigacaoAdvogado || '',
+    horaLigacaoAdvogado: original.horaLigacaoAdvogado || '',
     advogadoId: original.advogadoId,
     valorDiligencia: String(original.valorDiligencia),
     observacoes: original.observacoes || '',
@@ -155,6 +159,10 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         valorDiligencia: form.valorDiligencia ? parseFloat(form.valorDiligencia) : 0,
         observacoes: form.observacoes,
         dpRegistrou: form.dpRegistrou,
+        dataInformativo: form.dataInformativo || undefined,
+        horaInformativo: form.horaInformativo || undefined,
+        dataLigacaoAdvogado: form.dataLigacaoAdvogado || undefined,
+        horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: form.status as StatusDiligencia,
         statusPagamento: form.statusPagamento as StatusPagamento,
       })
@@ -217,6 +225,16 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
               <Input label="Descrição do tipo (Outro)" value={form.tipoDiligenciaDescricao} onChange={(e) => set('tipoDiligenciaDescricao', e.target.value)} placeholder="Descreva o tipo de diligência" />
             </div>
           )}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Datas e Horários</CardTitle></CardHeader>
+        <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Data do informativo" type="date" value={form.dataInformativo} onChange={(e) => set('dataInformativo', e.target.value)} />
+          <Input label="Hora do informativo" type="time" value={form.horaInformativo} onChange={(e) => set('horaInformativo', e.target.value)} />
+          <Input label="Data ligação c/ advogado" type="date" value={form.dataLigacaoAdvogado} onChange={(e) => set('dataLigacaoAdvogado', e.target.value)} />
+          <Input label="Hora ligação c/ advogado" type="time" value={form.horaLigacaoAdvogado} onChange={(e) => set('horaLigacaoAdvogado', e.target.value)} />
         </CardBody>
       </Card>
 
