@@ -278,7 +278,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...BLUE)
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 49, { align: 'center' })
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', M, 49)
 
   let y = 67   // 18mm de gap após título
 
