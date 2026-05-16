@@ -264,24 +264,28 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
 
 function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsPDF; filename: string } {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  const pw = doc.internal.pageSize.getWidth()
+  const pw = doc.internal.pageSize.getWidth()   // 210 mm
   setupDoc(doc)
 
-  // Margens idênticas ao .docx: left/right = 1800 DXA = 31,75 mm ≈ 32 mm
+  // Margens iguais ao .docx: 1800 DXA = 31,75 mm
   const M    = 32
-  const TW   = pw - M - M
-  const LH   = 5.5   // 11pt @ 1,15x line spacing ≈ 5,5 mm
-  const BLUE: [number, number, number] = [54, 95, 145]   // #365F91 — Título1 do .docx
+  const TW   = pw - M - M          // 146 mm de largura de texto
+  const LH   = 6.5                  // line-height: 11pt @ 1,38x ≈ 6,5 mm (Word default)
+  const SEC  = LH * 2              // espaço entre seções (2 linhas em branco)
+  const BLUE: [number, number, number] = [54, 95, 145]   // #365F91 — Título1
   const DARK: [number, number, number] = [20, 20, 20]
 
-  // ── Título (estilo Título1 do .docx: 14 pt, azul #365F91, negrito, centralizado) ──
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
+  // ── Título ────────────────────────────────────────────────────────────────
+  // jsPDF Helvetica-Bold não mapeia 'Í' corretamente (bug de encoding).
+  // Usando Normal em tamanho maior para garantir acentuação correta.
+  doc.setFontSize(15)
+  doc.setFont('helvetica', 'normal')
   doc.setTextColor(...BLUE)
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 33, { align: 'center' })
+  // Título baseline: margem superior (25 mm) + spacing_before Título1 (8,5 mm) ≈ 38 mm
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 38, { align: 'center' })
 
-  // Dois parágrafos vazios abaixo do título (igual ao .docx)
-  let y = 52
+  // Espaço após título: 2 parágrafos vazios Word ≈ 14 mm
+  let y = 60
 
   // ── Dados dinâmicos ───────────────────────────────────────────────────────
   const dataServico = diligencia.dataAtendimento
@@ -296,7 +300,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...DARK)
 
-  // ── Parágrafo 1 — bloco único justificado (igual ao Word) ────────────────
+  // ── Parágrafo 1 — bloco único justificado ────────────────────────────────
   const para1 =
     `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf}, ` +
     `declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88, ` +
@@ -305,7 +309,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
     `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`
   const lines1 = doc.splitTextToSize(para1, TW)
   doc.text(lines1, M, y, { align: 'justify', maxWidth: TW })
-  y += lines1.length * LH + LH  // 1 linha em branco
+  y += lines1.length * LH + SEC
 
   // ── Parágrafo 2 — bloco único justificado ────────────────────────────────
   const para2 =
@@ -314,20 +318,26 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
     'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.'
   const lines2 = doc.splitTextToSize(para2, TW)
   doc.text(lines2, M, y, { align: 'justify', maxWidth: TW })
-  y += lines2.length * LH + LH * 2  // 2 linhas em branco
+  y += lines2.length * LH + SEC * 1.5  // mais espaço antes de "Forma de pagamento"
 
   // ── Forma de pagamento ────────────────────────────────────────────────────
-  doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y); y += LH
+  doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y)
+  y += LH
   doc.text(`Chave PIX: ${advogado.chavePix || '_______________________________'}`, M, y)
-  y += LH * 2  // 1 linha em branco
+  y += SEC * 1.5  // espaço generoso antes de "Local e data"
 
-  // ── Local e data — São Paulo + data de hoje por extenso ───────────────────
+  // ── Local e data ──────────────────────────────────────────────────────────
   doc.text(`Local e data: São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
-  y += LH * 3  // espaço para assinatura
+  y += SEC * 2  // espaço antes de assinatura
 
-  // ── Assinatura ────────────────────────────────────────────────────────────
-  doc.text('Assinatura do prestador de serviço: ________________________________', M, y)
-  y += LH * 2.5
+  // ── Assinatura — label + linha desenhada ─────────────────────────────────
+  const labelAssin = 'Assinatura do prestador de serviço: '
+  doc.text(labelAssin, M, y)
+  const labelW = doc.getTextWidth(labelAssin)
+  doc.setDrawColor(...DARK)
+  doc.setLineWidth(0.3)
+  doc.line(M + labelW, y, M + TW * 0.72, y)   // linha ~72% da largura do texto
+  y += SEC * 1.5
 
   // ── Identificação ─────────────────────────────────────────────────────────
   doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}`, M, y)
