@@ -31,6 +31,12 @@ function setupDoc(doc: jsPDF) {
   doc.setFont('helvetica')
 }
 
+function formatarCPF(cpf: string): string {
+  const d = cpf.replace(/\D/g, '')
+  if (d.length !== 11) return cpf
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+}
+
 function rodape(doc: jsPDF, pageWidth: number, pageHeight: number, page: number) {
   doc.setFontSize(8)
   doc.setTextColor(150)
@@ -261,81 +267,91 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const pw = doc.internal.pageSize.getWidth()
   setupDoc(doc)
 
-  const M  = 25       // margens laterais (≈ 1,25 polegadas, igual ao .docx)
-  const TW = pw - M - M
-  const LH = 6.5
+  // Margens idênticas ao .docx: left/right = 1800 DXA = 31,75 mm ≈ 32 mm
+  const M    = 32
+  const TW   = pw - M - M
+  const LH   = 5.5   // 11pt @ 1,15x line spacing ≈ 5,5 mm
+  const BLUE: [number, number, number] = [54, 95, 145]   // #365F91 — Título1 do .docx
   const DARK: [number, number, number] = [20, 20, 20]
 
-  // ── Título ────────────────────────────────────────────────────────────────
+  // ── Título (estilo Título1 do .docx: 14 pt, azul #365F91, negrito, centralizado) ──
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...DARK)
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 30, { align: 'center' })
+  doc.setTextColor(...BLUE)
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 33, { align: 'center' })
 
-  let y = 50
+  // Dois parágrafos vazios abaixo do título (igual ao .docx)
+  let y = 52
 
-  // ── Parágrafo principal (cada frase em linha própria, igual ao .docx) ─────
+  // ── Parágrafo principal — cada <w:br/> do .docx vira nova linha no PDF ────
   const dataServico = diligencia.dataAtendimento
     ? formatDate(diligencia.dataAtendimento)
     : '____/____/________'
-  const tipo = diligencia.tipoDiligencia || '___________________________'
+  const tipo        = diligencia.tipoDiligencia || '___________________________'
+  const cpf         = formatarCPF(advogado.cpf || '')
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...DARK)
 
   const l1 = doc.splitTextToSize(
-    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${advogado.cpf || '_______________________'},`,
+    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf},`,
     TW,
   )
-  doc.text(l1, M, y)
-  y += l1.length * LH
+  doc.text(l1, M, y); y += l1.length * LH
 
   const l2 = doc.splitTextToSize(
     'declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88,',
     TW,
   )
-  doc.text(l2, M, y)
-  y += l2.length * LH
+  doc.text(l2, M, y); y += l2.length * LH
 
+  // formatCurrency já retorna "R$ X,XX" — sem prefixo adicional
   const l3 = doc.splitTextToSize(
-    `a importância de R$ ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}),`,
+    `a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}),`,
     TW,
   )
-  doc.text(l3, M, y)
-  y += l3.length * LH
+  doc.text(l3, M, y); y += l3.length * LH
 
-  doc.text('referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,', M, y)
-  y += LH
+  const l4 = doc.splitTextToSize(
+    'referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,',
+    TW,
+  )
+  doc.text(l4, M, y); y += l4.length * LH
 
   const l5 = doc.splitTextToSize(
     `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`,
     TW,
   )
-  doc.text(l5, M, y)
-  y += l5.length * LH + LH * 1.5
+  doc.text(l5, M, y); y += l5.length * LH + LH  // 1 linha em branco entre parágrafos
 
   // ── Declaração fiscal ─────────────────────────────────────────────────────
-  doc.text('Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos,', M, y)
-  y += LH
+  const l6 = doc.splitTextToSize(
+    'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos,',
+    TW,
+  )
+  doc.text(l6, M, y); y += l6.length * LH
+
   const l7 = doc.splitTextToSize(
     'contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil,',
     TW,
   )
-  doc.text(l7, M, y)
-  y += l7.length * LH
-  doc.text('não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.', M, y)
-  y += LH * 2.5
+  doc.text(l7, M, y); y += l7.length * LH
+
+  const l8 = doc.splitTextToSize(
+    'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.',
+    TW,
+  )
+  doc.text(l8, M, y); y += l8.length * LH + LH * 2  // 2 linhas em branco
 
   // ── Forma de pagamento ────────────────────────────────────────────────────
-  doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y)
-  y += LH
+  doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y); y += LH
   doc.text(`Chave PIX: ${advogado.chavePix || '_______________________________'}`, M, y)
-  y += LH * 2.5
+  y += LH * 2  // 1 linha em branco
 
-  // ── Local e data (campo em branco, igual ao .docx) ────────────────────────
+  // ── Local e data ──────────────────────────────────────────────────────────
   doc.text('Local e data: _______________________________', M, y)
-  y += LH * 3
+  y += LH * 3  // espaço para assinatura
 
   // ── Assinatura ────────────────────────────────────────────────────────────
   doc.text('Assinatura do prestador de serviço: ________________________________', M, y)
@@ -344,10 +360,10 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   // ── Identificação ─────────────────────────────────────────────────────────
   doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}`, M, y)
   y += LH
-  doc.text(`CPF: ${advogado.cpf || '_______________________________'}`, M, y)
+  doc.text(`CPF: ${cpf}`, M, y)
 
   const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
-  const ref = diligencia.ccc ? diligencia.ccc.replace(/\//g, '-') : hoje()
+  const ref     = diligencia.ccc ? diligencia.ccc.replace(/\//g, '-') : hoje()
   const filename = `recibo_${nomeAdv}_${ref}_${hoje()}.pdf`
   return { doc, filename }
 }
