@@ -30,7 +30,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
 
   const [form, setForm] = useState(() => original ? {
     ccc: original.ccc,
-    dataAtendimento: original.dataAtendimento || '',
+    dataAtendimento: original.dataAtendimento || original.createdAt.split('T')[0],
     vitima: original.vitima,
     telefoneVitima: original.telefoneVitima,
     cargo: original.cargo,
