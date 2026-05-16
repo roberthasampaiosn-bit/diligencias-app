@@ -146,6 +146,6 @@ export function buildWhatsAppAdriana(
   const telefone = (
     process.env.NEXT_PUBLIC_ZAPSIGN_TELEFONE_ADRIANA ?? ''
   ).replace(/\D/g, '')
-  const msg = `Ana, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${signUrl}`
+  const msg = `Adriana, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${signUrl}`
   return `https://wa.me/55${telefone}?text=${encodeURIComponent(msg)}`
 }

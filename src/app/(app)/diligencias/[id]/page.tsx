@@ -371,12 +371,12 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             <FileText className="w-3.5 h-3.5" /> Gerar recibo
           </Button>
         )}
-        {!isRemoto && d.anexos.contratoGerado && !d.statusAssinaturaContrato && (
+        {!isRemoto && d.anexos.contratoGerado && d.statusAssinaturaContrato !== 'assinado' && (
           <Button variant="secondary" size="sm" loading={enviandoContratoZap} onClick={handleEnviarContratoZapSign}>
             <Send className="w-3.5 h-3.5" /> Enviar contrato p/ assinatura
           </Button>
         )}
-        {!isRemoto && d.anexos.reciboGerado && !d.statusAssinaturaRecibo && (
+        {!isRemoto && d.anexos.reciboGerado && d.statusAssinaturaRecibo !== 'assinado' && (
           <Button variant="secondary" size="sm" loading={enviandoReciboZap} onClick={handleEnviarReciboZapSign}>
             <Send className="w-3.5 h-3.5" /> Enviar recibo p/ assinatura
           </Button>

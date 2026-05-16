@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import { Diligencia, StatusDiligencia, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
 
 // ── Ordenação inteligente ─────────────────────────────────────────────────────
@@ -22,13 +22,15 @@ function prioridade(d: Diligencia): number {
   return 2
 }
 
+function dataDiligencia(d: Diligencia): string {
+  return d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
+}
+
 function sortDiligencias(list: Diligencia[]): Diligencia[] {
   return [...list].sort((a, b) => {
     const pa = prioridade(a), pb = prioridade(b)
     if (pa !== pb) return pa - pb
-    const da = a.dataAtendimento ?? a.createdAt.split('T')[0]
-    const db = b.dataAtendimento ?? b.createdAt.split('T')[0]
-    return db.localeCompare(da)
+    return dataDiligencia(b).localeCompare(dataDiligencia(a))
   })
 }
 
@@ -50,6 +52,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
         <p className="font-medium text-slate-800 truncate max-w-[180px]">{d.vitima}</p>
         <p className="text-xs text-slate-400">{d.tipoEvento}</p>
       </td>
+      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{(d.dataAtendimento || d.dataInformativo) ? formatDate(d.dataAtendimento ?? d.dataInformativo!) : '—'}</td>
       <td className="px-4 py-3"><EmpresaBadge empresaCliente={d.empresaCliente} /></td>
       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{d.cidade}/{d.uf}</td>
       <td className="px-4 py-3">
@@ -77,10 +80,12 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
 
 type FiltroStatus = 'todos' | StatusDiligencia | 'pendencia'
 type FiltroModo   = 'todos' | ModoDiligencia
+type FiltroPeriodo = '30d' | 'todos'
 
 interface FiltrosAvancados {
   status: FiltroStatus
   modo: FiltroModo
+  periodo: FiltroPeriodo
 }
 
 function FiltrosDropdown({
@@ -101,7 +106,7 @@ function FiltrosDropdown({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const hasActive = filtros.status !== 'todos' || filtros.modo !== 'todos'
+  const hasActive = filtros.status !== 'todos' || filtros.modo !== 'todos' || filtros.periodo !== '30d'
 
   function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
     return (
@@ -154,6 +159,14 @@ function FiltrosDropdown({
               <Chip label="Remoto" active={filtros.modo === ModoDiligencia.Remoto} onClick={() => onChange({ modo: ModoDiligencia.Remoto })} />
             </div>
           </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Período</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Chip label="Últimos 30 dias" active={filtros.periodo === '30d'} onClick={() => onChange({ periodo: '30d' })} />
+              <Chip label="Todas" active={filtros.periodo === 'todos'} onClick={() => onChange({ periodo: 'todos' })} />
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -169,18 +182,24 @@ function DiligenciasContent() {
   const [, startTransition] = useTransition()
   const [search, setSearch] = useState(searchParams.get('ccc') || '')
   const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>('todas')
-  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: 'todos', modo: 'todos' })
+  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: 'todos', modo: 'todos', periodo: '30d' })
 
   function updateFiltro(partial: Partial<FiltrosAvancados>) {
     startTransition(() => setFiltrosAvancados((f) => ({ ...f, ...partial })))
   }
 
   function clearFiltros() {
-    startTransition(() => setFiltrosAvancados({ status: 'todos', modo: 'todos' }))
+    startTransition(() => setFiltrosAvancados({ status: 'todos', modo: 'todos', periodo: '30d' }))
   }
 
   const lista = useMemo(() => {
     let l = diligencias
+    if (filtrosAvancados.periodo === '30d') {
+      const corte = new Date()
+      corte.setDate(corte.getDate() - 30)
+      const corteStr = corte.toISOString().split('T')[0]
+      l = l.filter((d) => dataDiligencia(d) >= corteStr)
+    }
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (filtrosAvancados.status === 'pendencia') {
       l = l.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
@@ -207,7 +226,10 @@ function DiligenciasContent() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Diligências</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{diligencias.length} diligências cadastradas</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {lista.length} exibidas
+            {filtrosAvancados.periodo === '30d' && <span className="text-slate-400"> · últimos 30 dias · <button className="underline hover:text-slate-600" onClick={() => updateFiltro({ periodo: 'todos' })}>ver todas ({diligencias.length})</button></span>}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Link href="/diligencias/nova?cliente=bat">
@@ -283,7 +305,7 @@ function DiligenciasContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['CCC', 'Vítima', 'Cliente', 'Cidade/UF', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
+                    {['CCC', 'Vítima', 'Data', 'Cliente', 'Cidade/UF', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
