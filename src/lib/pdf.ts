@@ -287,33 +287,37 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const dataServico = diligencia.dataAtendimento
     ? formatDate(diligencia.dataAtendimento)
     : '____/____/________'
-  const tipo = diligencia.tipoDiligencia || '___________________________'
+  const tipo = diligencia.tipoDiligencia === 'Outro' && diligencia.tipoDiligenciaDescricao
+    ? diligencia.tipoDiligenciaDescricao
+    : diligencia.tipoDiligencia || '___________________________'
   const cpf  = formatarCPF(advogado.cpf || '')
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...DARK)
 
-  // ── Parágrafo 1 — texto corrido justificado ────────────────────────────────
-  const para1 = [
-    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf},`,
-    `declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88,`,
-    `a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}),`,
-    `referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,`,
-    `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`,
-  ].join(' ')
-  const lines1 = doc.splitTextToSize(para1, TW)
-  doc.text(lines1, M, y, { align: 'justify', maxWidth: TW })
-  y += lines1.length * LH + LH  // 1 linha em branco
+  // Renderiza uma frase com suas próprias quebras de linha.
+  // Frases curtas (1 linha) ficam à esquerda — igual ao <w:br/> do Word.
+  // Frases longas que precisam de 2+ linhas ficam justificadas (exceto última linha).
+  function frase(texto: string) {
+    const ls = doc.splitTextToSize(texto, TW)
+    doc.text(ls, M, y, { align: 'justify', maxWidth: TW })
+    y += ls.length * LH
+  }
 
-  // ── Parágrafo 2 — declaração fiscal justificada ───────────────────────────
-  const para2 =
-    'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos, ' +
-    'contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil, ' +
-    'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.'
-  const lines2 = doc.splitTextToSize(para2, TW)
-  doc.text(lines2, M, y, { align: 'justify', maxWidth: TW })
-  y += lines2.length * LH + LH * 2  // 2 linhas em branco
+  // ── Parágrafo 1 — cada <w:br/> do modelo vira uma chamada frase() ─────────
+  frase(`Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf},`)
+  frase('declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88,')
+  frase(`a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}),`)
+  frase('referente à prestação de serviços profissionais realizados de forma AUTÔNOMA,')
+  frase(`sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`)
+  y += LH  // linha em branco entre parágrafos
+
+  // ── Parágrafo 2 — declaração fiscal ───────────────────────────────────────
+  frase('Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos,')
+  frase('contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil,')
+  frase('não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.')
+  y += LH * 2  // 2 linhas em branco
 
   // ── Forma de pagamento ────────────────────────────────────────────────────
   doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y); y += LH
