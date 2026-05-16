@@ -267,25 +267,20 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const pw = doc.internal.pageSize.getWidth()   // 210 mm
   setupDoc(doc)
 
-  // Margens iguais ao .docx: 1800 DXA = 31,75 mm
-  const M    = 32
-  const TW   = pw - M - M          // 146 mm de largura de texto
-  const LH   = 6.5                  // line-height: 11pt @ 1,38x ≈ 6,5 mm (Word default)
-  const SEC  = LH * 2              // espaço entre seções (2 linhas em branco)
-  const BLUE: [number, number, number] = [54, 95, 145]   // #365F91 — Título1
+  const M    = 25.4          // ~1 polegada — equivalente ao padrão Word (2,54 cm)
+  const TW   = pw - M - M    // ~159 mm de largura de texto
+  const LH   = 5.5           // 11pt × 1,15 espaçamento ≈ 5,5 mm (Word padrão)
+  const SEC  = 8             // espaço entre seções (≈ 1 linha em branco)
+  const BLUE: [number, number, number] = [54, 95, 145]   // #365F91
   const DARK: [number, number, number] = [20, 20, 20]
 
   // ── Título ────────────────────────────────────────────────────────────────
-  // jsPDF Helvetica-Bold não mapeia 'Í' corretamente (bug de encoding).
-  // Usando Normal em tamanho maior para garantir acentuação correta.
-  doc.setFontSize(15)
-  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(14)
+  doc.setFont('times', 'bold')
   doc.setTextColor(...BLUE)
-  // Título baseline: margem superior (25 mm) + spacing_before Título1 (8,5 mm) ≈ 38 mm
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 38, { align: 'center' })
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 28, { align: 'center' })
 
-  // Espaço após título: 2 parágrafos vazios Word ≈ 14 mm
-  let y = 60
+  let y = 40   // ~12 mm após o título
 
   // ── Dados dinâmicos ───────────────────────────────────────────────────────
   const dataServico = diligencia.dataAtendimento
@@ -297,10 +292,10 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const cpf  = formatarCPF(advogado.cpf || '')
 
   doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   doc.setTextColor(...DARK)
 
-  // ── Parágrafo 1 — bloco único justificado ────────────────────────────────
+  // ── Parágrafo 1 ───────────────────────────────────────────────────────────
   const para1 =
     `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf}, ` +
     `declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88, ` +
@@ -311,37 +306,46 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   doc.text(lines1, M, y, { align: 'justify', maxWidth: TW })
   y += lines1.length * LH + SEC
 
-  // ── Parágrafo 2 — bloco único justificado ────────────────────────────────
+  // ── Parágrafo 2 ───────────────────────────────────────────────────────────
   const para2 =
     'Declaro ainda que sou o(a) único(a) responsável pelo recolhimento de tributos, ' +
     'contribuições previdenciárias e declaração deste valor junto à Receita Federal do Brasil, ' +
     'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.'
   const lines2 = doc.splitTextToSize(para2, TW)
   doc.text(lines2, M, y, { align: 'justify', maxWidth: TW })
-  y += lines2.length * LH + SEC * 1.5  // mais espaço antes de "Forma de pagamento"
+  y += lines2.length * LH + SEC
 
   // ── Forma de pagamento ────────────────────────────────────────────────────
   doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y)
   y += LH
-  doc.text(`Chave PIX: ${advogado.chavePix || '_______________________________'}`, M, y)
-  y += SEC * 1.5  // espaço generoso antes de "Local e data"
+  if (advogado.chavePix) {
+    doc.text(`Chave PIX: ${advogado.chavePix}`, M, y)
+  } else {
+    const labelPix = 'Chave PIX: '
+    doc.text(labelPix, M, y)
+    const lw = doc.getTextWidth(labelPix)
+    doc.setDrawColor(...DARK)
+    doc.setLineWidth(0.3)
+    doc.line(M + lw, y, M + TW * 0.55, y)
+  }
+  y += SEC
 
   // ── Local e data ──────────────────────────────────────────────────────────
   doc.text(`Local e data: São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
-  y += SEC * 2  // espaço antes de assinatura
+  y += SEC * 2.2   // espaço antes da assinatura
 
-  // ── Assinatura — label + linha desenhada ─────────────────────────────────
+  // ── Assinatura ────────────────────────────────────────────────────────────
   const labelAssin = 'Assinatura do prestador de serviço: '
   doc.text(labelAssin, M, y)
   const labelW = doc.getTextWidth(labelAssin)
   doc.setDrawColor(...DARK)
   doc.setLineWidth(0.3)
-  doc.line(M + labelW, y, M + TW * 0.72, y)   // linha ~72% da largura do texto
-  y += SEC * 1.5
+  doc.line(M + labelW, y, M + TW * 0.75, y)
+  y += LH * 2.5
 
-  // ── Identificação ─────────────────────────────────────────────────────────
+  // ── Identificação final ───────────────────────────────────────────────────
   doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}`, M, y)
-  y += LH
+  y += LH + 2
   doc.text(`CPF: ${cpf}`, M, y)
 
   const nomeAdv = advogado.nomeCompleto.split(' ')[0].toLowerCase()
