@@ -272,8 +272,21 @@ export default function PesquisaPage() {
 
                 return (
                   <div key={d.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
-                    {/* Status */}
-                    <StatusPesquisaBadge status={d.pesquisa.status} />
+                    {/* Status + indicador WA */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusPesquisaBadge status={d.pesquisa.status} />
+                      {d.pesquisa.dataEnvioWhatsApp ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
+                          <MessageCircle className="w-3 h-3" />
+                          WA enviado · {formatDate(d.pesquisa.dataEnvioWhatsApp)}
+                        </span>
+                      ) : isPendente && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">
+                          <MessageCircle className="w-3 h-3" />
+                          Sem WA
+                        </span>
+                      )}
+                    </div>
 
                     {/* Dados principais */}
                     <div>
@@ -373,9 +386,14 @@ export default function PesquisaPage() {
                           </button>
                           <button
                             onClick={() => handleEnviarWhatsApp(d)}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                            className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                              d.pesquisa.dataEnvioWhatsApp
+                                ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                            }`}
                           >
-                            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            {d.pesquisa.dataEnvioWhatsApp ? 'Reenviar WA' : 'WhatsApp'}
                           </button>
                         </div>
                         {/* Linha 2: Agendar retorno */}
