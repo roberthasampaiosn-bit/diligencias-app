@@ -267,8 +267,8 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const pw = doc.internal.pageSize.getWidth()   // 210 mm
   setupDoc(doc)
 
-  const M    = 35            // ~35mm cada lado (Word padrão)
-  const TW   = pw - M - M    // 140mm de largura de texto
+  const M    = 30            // margem lateral
+  const TW   = pw - M - M    // 150mm de largura de texto
   const LH   = 5.8           // line-height corpo
   const SEC  = 10            // espaço entre seções
   const BLUE: [number, number, number] = [54, 95, 145]   // #365F91
@@ -278,9 +278,9 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...BLUE)
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 62, { align: 'center' })
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 49, { align: 'center' })
 
-  let y = 85   // ~23mm de gap após título (replicando espaço generoso do Word)
+  let y = 67   // 18mm de gap após título
 
   // ── Dados dinâmicos ───────────────────────────────────────────────────────
   const dataServico = diligencia.dataAtendimento
@@ -291,7 +291,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
     : diligencia.tipoDiligencia || '___________________________'
   const cpf  = formatarCPF(advogado.cpf || '')
 
-  doc.setFontSize(11)
+  doc.setFontSize(11.5)
   doc.setFont('times', 'normal')
   doc.setTextColor(...DARK)
 
@@ -332,7 +332,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
 
   // ── Local e data ──────────────────────────────────────────────────────────
   doc.text(`Local e data: São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
-  y += SEC * 3    // ~30mm antes da assinatura (gap grande do Word)
+  y += SEC * 2    // ~20mm antes da assinatura
 
   // ── Assinatura ────────────────────────────────────────────────────────────
   const labelAssin = 'Assinatura do prestador de serviço: '
@@ -340,8 +340,8 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const labelW = doc.getTextWidth(labelAssin)
   doc.setDrawColor(...DARK)
   doc.setLineWidth(0.3)
-  doc.line(M + labelW, y, M + labelW + 55, y)   // ~55mm de linha
-  y += SEC * 2.5  // ~25mm antes de Nome/CPF (gap grande do Word)
+  doc.line(M + labelW, y, M + labelW + 55, y)
+  y += LH * 2    // ~12mm antes de Nome/CPF
 
   // ── Identificação final ───────────────────────────────────────────────────
   doc.text(`Nome completo: ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}`, M, y)
