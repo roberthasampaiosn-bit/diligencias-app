@@ -267,20 +267,20 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const pw = doc.internal.pageSize.getWidth()   // 210 mm
   setupDoc(doc)
 
-  const M    = 25.4          // ~1 polegada — equivalente ao padrão Word (2,54 cm)
-  const TW   = pw - M - M    // ~159 mm de largura de texto
-  const LH   = 5.5           // 11pt × 1,15 espaçamento ≈ 5,5 mm (Word padrão)
-  const SEC  = 8             // espaço entre seções (≈ 1 linha em branco)
+  const M    = 31            // margens laterais
+  const TW   = pw - M - M    // ~148 mm de largura de texto
+  const LH   = 6.0           // line-height corpo
+  const SEC  = 11            // espaço entre seções
   const BLUE: [number, number, number] = [54, 95, 145]   // #365F91
   const DARK: [number, number, number] = [20, 20, 20]
 
   // ── Título ────────────────────────────────────────────────────────────────
-  doc.setFontSize(14)
-  doc.setFont('times', 'bold')
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
   doc.setTextColor(...BLUE)
-  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 28, { align: 'center' })
+  doc.text('RECIBO DE PRESTAÇÃO DE SERVIÇOS – ADVOGADO - PESSOA FÍSICA', pw / 2, 42, { align: 'center' })
 
-  let y = 40   // ~12 mm após o título
+  let y = 58   // espaço generoso após título
 
   // ── Dados dinâmicos ───────────────────────────────────────────────────────
   const dataServico = diligencia.dataAtendimento
@@ -332,7 +332,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
 
   // ── Local e data ──────────────────────────────────────────────────────────
   doc.text(`Local e data: São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
-  y += SEC * 2.2   // espaço antes da assinatura
+  y += SEC * 2.8   // espaço antes da assinatura
 
   // ── Assinatura ────────────────────────────────────────────────────────────
   const labelAssin = 'Assinatura do prestador de serviço: '
@@ -340,7 +340,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const labelW = doc.getTextWidth(labelAssin)
   doc.setDrawColor(...DARK)
   doc.setLineWidth(0.3)
-  doc.line(M + labelW, y, M + TW * 0.75, y)
+  doc.line(M + labelW, y, M + labelW + 48, y)   // linha fixa de 48mm após o label
   y += LH * 2.5
 
   // ── Identificação final ───────────────────────────────────────────────────
