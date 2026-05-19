@@ -38,7 +38,7 @@ export enum TipoDiligencia {
   Reuniao = 'Reunião',
   AudienciaCustodia = 'Audiência de custódia',
   // Geral
-  AssistenciaJuridicaRemota = 'Assistência Jurídica Remota',
+  AssistenciaJuridicaRemota = 'Suporte Jurídico Remoto',
   Outro = 'Outro',
 }
 
@@ -235,11 +235,14 @@ export interface DashboardStats {
   eventosNovos: number
   diligenciasEmAndamento: number
   diligenciasRealizadas: number
+  diligenciasRealizadasMes: number
   pesquisasPendentes: number
   pesquisasConcluidas: number
   ciclosFinalizados: number
+  ciclosFinalizadosMes: number
   totalDiligencias: number
   valorTotalPago: number
+  valorTotalPagoMes: number
 }
 
 // ─── Financeiro Stats ─────────────────────────────────────────────────────────
