@@ -299,7 +299,7 @@ function FormBatBrasil() {
             const modo = e.target.value
             setForm((prev) => ({
               ...prev,
-              modoDiligencia: modo,
+              modoDiligencia: modo as ModoDiligencia,
               tipoDiligencia: modo === ModoDiligencia.Remoto
                 ? TipoDiligencia.AssistenciaJuridicaRemota
                 : prev.tipoDiligencia === TipoDiligencia.AssistenciaJuridicaRemota
@@ -528,7 +528,7 @@ function FormVTAL() {
             const modo = e.target.value
             setForm((prev) => ({
               ...prev,
-              modoDiligencia: modo,
+              modoDiligencia: modo as ModoDiligencia,
               tipoDiligencia: modo === ModoDiligencia.Remoto
                 ? TipoDiligencia.AssistenciaJuridicaRemota
                 : prev.tipoDiligencia === TipoDiligencia.AssistenciaJuridicaRemota
