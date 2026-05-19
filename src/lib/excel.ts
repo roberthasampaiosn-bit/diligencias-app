@@ -25,7 +25,7 @@ function borderFino(color: string): ExcelJS.Border {
 
 function applyHeader(cell: ExcelJS.Cell, headerColor: string) {
   cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } }
-  cell.font   = { bold: true, color: { argb: PALETA.white }, size: 10, name: 'Calibri' }
+  cell.font   = { bold: true, color: { argb: PALETA.white }, size: 11, name: 'Calibri' }
   cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
   const b = borderFino(headerColor)
   cell.border = { top: b, bottom: b, left: b, right: b }
@@ -33,7 +33,7 @@ function applyHeader(cell: ExcelJS.Cell, headerColor: string) {
 
 function applyData(cell: ExcelJS.Cell, altRow: boolean, altColor: string) {
   cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: altRow ? altColor : PALETA.white } }
-  cell.font      = { size: 10, name: 'Calibri' }
+  cell.font      = { size: 11, name: 'Calibri' }
   cell.alignment = { vertical: 'middle' }
   const b = borderFino(PALETA.border)
   cell.border    = { top: b, bottom: b, left: b, right: b }
@@ -49,6 +49,8 @@ export interface AbaExcel {
   tema:        'bat' | 'vtal'
   /** Índices das colunas (0-based) que devem ser formatadas como moeda BR */
   colsMoeda?:  number[]
+  /** Linha de resumo exibida acima do cabeçalho (ex: "Total: 12 | Período: 01/05 – 31/05") */
+  resumo?:     string
 }
 
 export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string) {
@@ -67,6 +69,19 @@ export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string
     // Larguras de coluna
     ws.columns = aba.widths.map((w, i) => ({ key: `c${i}`, width: w }))
 
+    // Linha de resumo (opcional) — aparece acima do cabeçalho
+    let dataRowOffset = 0
+    if (aba.resumo) {
+      const rRow = ws.addRow([aba.resumo])
+      rRow.height = 20
+      ws.mergeCells(1, 1, 1, aba.headers.length)
+      const rCell = rRow.getCell(1)
+      rCell.font = { bold: true, size: 11, name: 'Calibri', color: { argb: cores.header } }
+      rCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: aba.tema === 'bat' ? 'FFE8F0FE' : 'FFF3E8FF' } }
+      rCell.alignment = { vertical: 'middle', horizontal: 'left' }
+      dataRowOffset = 1
+    }
+
     // Linha de cabeçalho
     const hRow = ws.addRow(aba.headers)
     hRow.height = 32
@@ -84,13 +99,14 @@ export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string
       })
     })
 
-    // Congelar cabeçalho
-    ws.views = [{ state: 'frozen', ySplit: 1 }]
+    // Congelar cabeçalho (considera linha de resumo se presente)
+    ws.views = [{ state: 'frozen', ySplit: 1 + dataRowOffset }]
 
-    // Auto-filtro em toda a linha de cabeçalho
+    // Auto-filtro na linha de cabeçalho
+    const hRowNum = 1 + dataRowOffset
     ws.autoFilter = {
-      from: { row: 1, column: 1 },
-      to:   { row: 1, column: aba.headers.length },
+      from: { row: hRowNum, column: 1 },
+      to:   { row: hRowNum, column: aba.headers.length },
     }
   }
 

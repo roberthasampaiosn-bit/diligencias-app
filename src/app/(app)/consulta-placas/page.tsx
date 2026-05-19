@@ -40,6 +40,7 @@ function ConsultaPlacasContent() {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [exportando, setExportando] = useState(false)
+  const [exportFiltro, setExportFiltro] = useState<'todas' | 'localizadas'>('todas')
 
   const mesAtual = useMemo(() => {
     const d = new Date()
@@ -76,19 +77,29 @@ function ConsultaPlacasContent() {
   async function exportarExcel() {
     setExportando(true)
     try {
+      const paraExportar = exportFiltro === 'localizadas'
+        ? lista.filter((c) => c.resultado === 'Localizada')
+        : lista
+      const linhas = [...paraExportar].reverse()
+
+      const periodoLabel = dataInicio || dataFim
+        ? `Período: ${dataInicio ? formatDate(dataInicio) : '?'} até ${dataFim ? formatDate(dataFim) : '?'}   |   `
+        : ''
+      const filtroLabel = exportFiltro === 'localizadas' ? 'Localizadas' : 'Todas'
+      const resumo = `${periodoLabel}Total (${filtroLabel}): ${linhas.length}`
+
       await exportarExcelEstilizado([{
         nome: 'Consulta de Placas',
-        headers: ['Placa', 'Solicitante', 'Data', 'Resultado', 'Valor'],
-        linhas: lista.map((c) => [
+        headers: ['Placa', 'Solicitante', 'Data', 'Resultado'],
+        linhas: linhas.map((c) => [
           c.placa,
           c.solicitante,
           formatDate(c.dataConsulta),
           c.resultado ?? 'Sem resultado',
-          c.resultado === 'Localizada' && c.valor != null ? c.valor : '',
         ]),
-        widths: [15, 30, 15, 20, 15],
+        widths: [15, 30, 15, 22],
         tema: 'bat',
-        colsMoeda: [4],
+        resumo,
       }], `consulta-placas-${new Date().toISOString().slice(0, 10)}.xlsx`)
     } finally {
       setExportando(false)
@@ -187,15 +198,29 @@ function ConsultaPlacasContent() {
                   </button>
                 )}
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={exportarExcel}
-                disabled={exportando || lista.length === 0}
-              >
-                <Download className="w-3.5 h-3.5" />
-                {exportando ? 'Exportando...' : `Exportar Excel (${lista.length})`}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500">Exportar:</span>
+                {(['todas', 'localizadas'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setExportFiltro(f)}
+                    className={`px-2.5 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${
+                      exportFiltro === f ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f === 'todas' ? 'Todas' : 'Só localizadas'}
+                  </button>
+                ))}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={exportarExcel}
+                  disabled={exportando || lista.length === 0}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {exportando ? 'Exportando...' : 'Excel'}
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>

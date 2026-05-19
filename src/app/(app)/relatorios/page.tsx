@@ -69,6 +69,7 @@ export default function RelatoriosPage() {
   const [filtroSolicitante, setFiltroSolicitante] = useState('')
   const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>('todas')
   const [exportando, setExportando] = useState(false)
+  const [exportandoCliente, setExportandoCliente] = useState(false)
 
   function aplicarEstesMes() {
     const now = new Date()
@@ -184,22 +185,71 @@ export default function RelatoriosPage() {
 
       await exportarExcelEstilizado([
         {
-          nome: 'BAT - Suporte Jurídico', headers: headersSJR, linhas: linhasSJR, tema: 'bat',
+          nome: 'BAT - Suporte Jurídico', headers: headersSJR, linhas: [...linhasSJR].reverse(), tema: 'bat',
           widths: [18,30,16,18,6,6,6,22,10,18,18,14,18,16,28,6,14,18,14,25,14,12,22,30,12,12,14,14,30,14,10],
         },
         {
-          nome: 'BAT - Com Custo', headers: headersSC, linhas: linhasSC, tema: 'bat',
+          nome: 'BAT - Com Custo', headers: headersSC, linhas: [...linhasSC].reverse(), tema: 'bat',
           widths: [6,6,6,12,14,6,18,14,30,30,18,40,22,14,28,16,20,14],
           colsMoeda: [16],
         },
         {
-          nome: 'V.TAL', headers: headersVTAL, linhas: linhasVTAL, tema: 'vtal',
+          nome: 'V.TAL', headers: headersVTAL, linhas: [...linhasVTAL].reverse(), tema: 'vtal',
           widths: [6,6,6,6,12,6,18,28,22,30,40,22,25,14,14,28,14,14],
           colsMoeda: [17],
         },
       ], `diligencias_${dataInicio}_${dataFim}.xlsx`)
     } finally {
       setExportando(false)
+    }
+  }
+
+  async function exportarExcelBatCliente() {
+    setExportandoCliente(true)
+    try {
+      const porPeriodo = diligencias.filter((d) => {
+        const data = d.dataAtendimento ?? d.createdAt.split('T')[0]
+        return data >= dataInicio && data <= dataFim
+      })
+      const batCC = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.BatBrasil && d.valorDiligencia > 0)
+
+      function dateBR(s?: string) {
+        if (!s) return ''
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : s
+      }
+      function ano(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[0]) : '' }
+      function mes(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[1]) : '' }
+      function dia(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[2]) : '' }
+      function dataFmt(d: Diligencia) {
+        if (!d.dataAtendimento) return ''
+        const [y, mm, dd] = d.dataAtendimento.split('-')
+        return `${mm}/${dd}/${y}`
+      }
+
+      // Mesma estrutura da BAT - Com Custo, mas sem colunas de valor
+      const headersSC = [
+        'Ano','Mês','Dia','Data','Região GTSC','UF','Cidade','Operação',
+        'Tipo de diligência','Observação','ID CCC',
+        'Nº Processo/BO/Inquérito','Local de atendimento','Modo de atendimento',
+        'Nome do Advogado','Telefone',
+      ]
+      const linhasSC = batCC.map((d) => [
+        ano(d), mes(d), dia(d), dataFmt(d), '', d.uf, d.cidade, '',
+        d.tipoDiligencia, d.observacoes ?? '', d.ccc,
+        d.numeroBOProcesso ?? '', d.localAtendimento ?? '', d.modoDiligencia,
+        advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
+        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+      ])
+
+      await exportarExcelEstilizado([
+        {
+          nome: 'BAT - Com Custo', headers: headersSC, linhas: [...linhasSC].reverse(), tema: 'bat',
+          widths: [6,6,6,12,14,6,18,14,30,30,18,40,22,14,28,16],
+        },
+      ], `bat-cliente_${dataInicio}_${dataFim}.xlsx`)
+    } finally {
+      setExportandoCliente(false)
     }
   }
 
@@ -306,9 +356,15 @@ export default function RelatoriosPage() {
             <p className="text-sm text-slate-500 mt-0.5">Indicadores das diligências por período</p>
           </div>
         </div>
-        <Button variant="secondary" size="sm" loading={exportando} onClick={exportarExcel}>
-          <Download className="w-4 h-4" /> Exportar Excel
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="secondary" size="sm" loading={exportando} onClick={exportarExcel}>
+            <Download className="w-4 h-4" /> Exportar Excel
+          </Button>
+          <Button variant="secondary" size="sm" loading={exportandoCliente} onClick={exportarExcelBatCliente}
+            className="border-blue-300 text-blue-700 hover:bg-blue-50">
+            <Download className="w-4 h-4" /> BAT para cliente
+          </Button>
+        </div>
       </div>
 
       {/* Filtro de período */}

@@ -53,6 +53,9 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     dpRegistrou: original.dpRegistrou || '',
     status: original.status,
     statusPagamento: original.statusPagamento,
+    avaliacaoNota: original.avaliacao?.nota != null ? String(original.avaliacao.nota) : '',
+    avaliacaoObservacao: original.avaliacao?.observacao || '',
+    avaliacaoContratariaNovamente: original.avaliacao?.contratariaNovamente != null ? String(original.avaliacao.contratariaNovamente) : '',
   } : null)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -142,6 +145,16 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setSaving(true)
     try {
+      const avaliacao = form.avaliacaoNota
+        ? {
+            nota: Number(form.avaliacaoNota) as 1 | 2 | 3 | 4 | 5,
+            observacao: form.avaliacaoObservacao || undefined,
+            contratariaNovamente: form.avaliacaoContratariaNovamente !== ''
+              ? form.avaliacaoContratariaNovamente === 'true'
+              : undefined,
+          }
+        : original?.avaliacao
+
       await updateDiligencia(id, {
         ccc: form.ccc,
         dataAtendimento: form.dataAtendimento || undefined,
@@ -167,6 +180,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: form.status as StatusDiligencia,
         statusPagamento: form.statusPagamento as StatusPagamento,
+        avaliacao,
       })
       router.push(`/diligencias/${id}`)
     } catch {
@@ -330,6 +344,69 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
           <div className="sm:col-span-2">
             <Textarea label="Observações sobre o advogado" value={form.obsAdvogado} onChange={(e) => set('obsAdvogado', e.target.value)} placeholder="Notas sobre o desempenho ou comunicação do advogado (opcional)" />
           </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Avaliação do Advogado</CardTitle></CardHeader>
+        <CardBody className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-slate-700 mb-2">Nota (1 = ruim, 5 = excelente)</p>
+            <div className="flex gap-2">
+              {([1, 2, 3, 4, 5] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => set('avaliacaoNota', form.avaliacaoNota === String(n) ? '' : String(n))}
+                  className={`w-10 h-10 rounded-xl text-sm font-bold border-2 transition-colors ${
+                    form.avaliacaoNota === String(n)
+                      ? 'bg-amber-400 border-amber-500 text-white'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-amber-300'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+              {form.avaliacaoNota && (
+                <button
+                  type="button"
+                  onClick={() => { set('avaliacaoNota', ''); set('avaliacaoObservacao', ''); set('avaliacaoContratariaNovamente', '') }}
+                  className="text-xs text-slate-400 hover:text-slate-600 ml-1"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          </div>
+          {form.avaliacaoNota && (
+            <>
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">Contrataria novamente?</p>
+                <div className="flex gap-2">
+                  {[{ label: 'Sim', value: 'true' }, { label: 'Não', value: 'false' }].map(({ label, value }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => set('avaliacaoContratariaNovamente', form.avaliacaoContratariaNovamente === value ? '' : value)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
+                        form.avaliacaoContratariaNovamente === value
+                          ? value === 'true' ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-red-500 border-red-600 text-white'
+                          : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Textarea
+                label="Observação sobre a atuação"
+                value={form.avaliacaoObservacao}
+                onChange={(e) => set('avaliacaoObservacao', e.target.value)}
+                placeholder="Descreva o desempenho do advogado nesta diligência (opcional)"
+              />
+            </>
+          )}
         </CardBody>
       </Card>
 
