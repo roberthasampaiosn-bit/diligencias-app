@@ -227,25 +227,24 @@ export default function RelatoriosPage() {
         return `${mm}/${dd}/${y}`
       }
 
-      // Mesma estrutura da BAT - Com Custo, mas sem colunas de valor
+      // Mesma estrutura da BAT - Com Custo, mas sem colunas de valor nem telefone
       const headersSC = [
         'Ano','Mês','Dia','Data','Região GTSC','UF','Cidade','Operação',
         'Tipo de diligência','Observação','ID CCC',
         'Nº Processo/BO/Inquérito','Local de atendimento','Modo de atendimento',
-        'Nome do Advogado','Telefone',
+        'Nome do Advogado',
       ]
       const linhasSC = batCC.map((d) => [
         ano(d), mes(d), dia(d), dataFmt(d), '', d.uf, d.cidade, '',
         d.tipoDiligencia, d.observacoes ?? '', d.ccc,
         d.numeroBOProcesso ?? '', d.localAtendimento ?? '', d.modoDiligencia,
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
-        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
       ])
 
       await exportarExcelEstilizado([
         {
           nome: 'BAT - Com Custo', headers: headersSC, linhas: [...linhasSC].reverse(), tema: 'bat',
-          widths: [6,6,6,12,14,6,18,14,30,30,18,40,22,14,28,16],
+          widths: [6,6,6,12,14,6,18,14,30,30,18,40,22,14,28],
         },
       ], `bat-cliente_${dataInicio}_${dataFim}.xlsx`)
     } finally {
@@ -362,7 +361,7 @@ export default function RelatoriosPage() {
           </Button>
           <Button variant="secondary" size="sm" loading={exportandoCliente} onClick={exportarExcelBatCliente}
             className="border-blue-300 text-blue-700 hover:bg-blue-50">
-            <Download className="w-4 h-4" /> BAT para cliente
+            <Download className="w-4 h-4" /> Exportar para BAT
           </Button>
         </div>
       </div>
