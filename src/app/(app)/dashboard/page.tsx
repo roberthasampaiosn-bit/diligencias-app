@@ -25,16 +25,15 @@ function statsCliente(diligencias: ReturnType<typeof useDiligencias>['diligencia
   const mes = new Date()
   const mesStr = `${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, '0')}`
   const all = diligencias.filter((d) => d.empresaCliente === cliente)
-  // Usa dataAtendimento (data real do evento) quando disponível; senão createdAt
-  const doMes = all.filter((d) => {
-    const data = d.dataAtendimento ?? d.createdAt.split('T')[0]
-    return data.startsWith(mesStr)
-  })
+  const isMes = (d: typeof all[0]) => (d.dataAtendimento ?? d.createdAt.split('T')[0]).startsWith(mesStr)
+  const doMes = all.filter(isMes)
   const pendentes = all.filter((d) => d.status === StatusDiligencia.EmAndamento)
   const concluidas = all.filter((d) => d.cicloFinalizado)
   const valorTotal = all.reduce((s, d) => s + d.valorDiligencia, 0)
+  const pagas = all.filter((d) => d.statusPagamento === StatusPagamento.Pago)
+  const valorPagoMes = pagas.filter(isMes).reduce((s, d) => s + d.valorDiligencia, 0)
   const valorPendente = all.filter((d) => d.statusPagamento !== StatusPagamento.Pago).reduce((s, d) => s + d.valorDiligencia, 0)
-  return { total: all.length, doMes: doMes.length, pendentes: pendentes.length, concluidas: concluidas.length, valorTotal, valorPendente }
+  return { total: all.length, doMes: doMes.length, pendentes: pendentes.length, concluidas: concluidas.length, valorTotal, valorPagoMes, valorPendente }
 }
 
 export default function DashboardPage() {
@@ -111,8 +110,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <StatCard title="Eventos novos" value={stats.eventosNovos} icon={FileSearch} color="blue" subtitle="Aguardando triagem" />
         <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Aguardando execução" />
-        <StatCard title="Realizadas em 2026" value={stats.diligenciasRealizadas} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
-        <StatCard title="Ciclos fechados 2026" value={stats.ciclosFinalizados} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
+        <StatCard title="Realizadas este mês" value={stats.diligenciasRealizadasMes} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
+        <StatCard title="Ciclos fechados mês" value={stats.ciclosFinalizadosMes} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
         <StatCard title="Pesq. pendentes" value={stats.pesquisasPendentes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar" />
         <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />
       </div>
@@ -179,10 +178,10 @@ export default function DashboardPage() {
       {/* Totais financeiros */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Total pago em 2026 — Diligências</p>
-          <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(stats.valorTotalPago)}</p>
+          <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Pago este mês — Diligências</p>
+          <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(stats.valorTotalPagoMes)}</p>
           <p className="text-xs text-emerald-600 mt-1">
-            {filtro === 'todos' ? 'Acumulado · todas as diligências' : `Acumulado · ${filtro}`}
+            Acumulado 2026: {formatCurrency(stats.valorTotalPago)}{filtro !== 'todos' ? ` · ${filtro}` : ''}
           </p>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
@@ -216,8 +215,8 @@ export default function DashboardPage() {
                 <p className="font-semibold text-emerald-700">{statsBat.concluidas}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Total pago em 2026</p>
-                <p className="font-semibold text-slate-800">{formatCurrency(statsBat.valorTotal)}</p>
+                <p className="text-xs text-slate-500">Pago este mês</p>
+                <p className="font-semibold text-slate-800">{formatCurrency(statsBat.valorPagoMes)}</p>
               </div>
             </div>
             <div className="pt-1 border-t border-blue-200">
@@ -246,8 +245,8 @@ export default function DashboardPage() {
                 <p className="font-semibold text-emerald-700">{statsVtal.concluidas}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Total pago em 2026</p>
-                <p className="font-semibold text-slate-800">{formatCurrency(statsVtal.valorTotal)}</p>
+                <p className="text-xs text-slate-500">Pago este mês</p>
+                <p className="font-semibold text-slate-800">{formatCurrency(statsVtal.valorPagoMes)}</p>
               </div>
             </div>
             <div className="pt-1 border-t border-purple-200">
