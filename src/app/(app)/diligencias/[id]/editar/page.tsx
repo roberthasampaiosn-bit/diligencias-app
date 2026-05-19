@@ -49,6 +49,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     advogadoId: original.advogadoId,
     valorDiligencia: String(original.valorDiligencia),
     observacoes: original.observacoes || '',
+    obsAdvogado: original.obsAdvogado || '',
     dpRegistrou: original.dpRegistrou || '',
     status: original.status,
     statusPagamento: original.statusPagamento,
@@ -158,6 +159,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         advogadoId: form.advogadoId,
         valorDiligencia: form.valorDiligencia ? parseFloat(form.valorDiligencia) : 0,
         observacoes: form.observacoes,
+        obsAdvogado: form.obsAdvogado || undefined,
         dpRegistrou: form.dpRegistrou,
         dataInformativo: form.dataInformativo || undefined,
         horaInformativo: form.horaInformativo || undefined,
@@ -326,8 +328,15 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
 
           <Input label="Valor (R$)" type="number" step="0.01" value={form.valorDiligencia} onChange={(e) => set('valorDiligencia', e.target.value)} />
           <div className="sm:col-span-2">
-            <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} />
+            <Textarea label="Observações sobre o advogado" value={form.obsAdvogado} onChange={(e) => set('obsAdvogado', e.target.value)} placeholder="Notas sobre o desempenho ou comunicação do advogado (opcional)" />
           </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Observações da Diligência</CardTitle></CardHeader>
+        <CardBody>
+          <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Detalhes relevantes sobre o caso, ocorrência ou atendimento (opcional)" />
         </CardBody>
       </Card>
 

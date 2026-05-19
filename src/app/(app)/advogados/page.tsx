@@ -23,6 +23,26 @@ export default function AdvogadosPage() {
     [advogados, search],
   )
 
+  // Média de avaliação por advogado
+  const ratingMap = useMemo(() => {
+    const map = new Map<string, { sum: number; count: number }>()
+    for (const d of diligencias) {
+      if (d.avaliacao?.nota == null) continue
+      const cur = map.get(d.advogadoId) ?? { sum: 0, count: 0 }
+      map.set(d.advogadoId, { sum: cur.sum + d.avaliacao.nota, count: cur.count + 1 })
+    }
+    return map
+  }, [diligencias])
+
+  function ratingEmoji(advId: string): string {
+    const r = ratingMap.get(advId)
+    if (!r || r.count === 0) return ''
+    const avg = r.sum / r.count
+    if (avg <= 1.5) return '❌'
+    if (avg <= 3) return '⚠️'
+    return '⭐'
+  }
+
   // O(N+M): para cada advogado, busca a diligência paga mais recente
   const ultimoValorPago = useMemo(() => {
     const map = new Map<string, number | null>()
@@ -90,7 +110,7 @@ export default function AdvogadosPage() {
                 return (
                   <Link key={a.id} href={`/advogados/${a.id}`} className="block px-4 py-3.5 hover:bg-slate-50">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="font-semibold text-slate-800 text-sm">{a.nomeCompleto}</p>
+                      <p className="font-semibold text-slate-800 text-sm">{ratingEmoji(a.id) && <span className="mr-1">{ratingEmoji(a.id)}</span>}{a.nomeCompleto}</p>
                       <span className={`text-xs font-semibold whitespace-nowrap ${ultimoValor != null ? 'text-emerald-600' : 'text-slate-400'}`}>
                         {ultimoValor != null ? formatCurrency(ultimoValor) : 'Sem histórico'}
                       </span>
@@ -146,7 +166,7 @@ export default function AdvogadosPage() {
                         {/* Nome */}
                         <td className="px-4 py-3">
                           <Link href={`/advogados/${a.id}`} className="font-medium text-slate-800 hover:text-blue-600 hover:underline">
-                            {a.nomeCompleto}
+                            {ratingEmoji(a.id) && <span className="mr-1">{ratingEmoji(a.id)}</span>}{a.nomeCompleto}
                           </Link>
                         </td>
 

@@ -37,10 +37,17 @@ function FormBatBrasil() {
   const eventoId = searchParams.get('eventoId') || ''
   const modoParam = searchParams.get('modo') || ''
   const empresaParam = searchParams.get('empresa') || ''
+  const fromId = searchParams.get('fromId') || ''
+  const isDobrada = searchParams.get('dobrada') === 'true'
 
   const evento = useMemo(
     () => (eventoId ? eventos.find((e) => e.id === eventoId) ?? null : null),
     [eventos, eventoId]
+  )
+
+  const fromDiligencia = useMemo(
+    () => (fromId ? diligencias.find((d) => d.id === fromId) ?? null : null),
+    [diligencias, fromId]
   )
 
   const [form, setForm] = useState({
@@ -61,6 +68,7 @@ function FormBatBrasil() {
     advogadoId: '',
     valorDiligencia: '',
     observacoes: '',
+    obsAdvogado: '',
     dpRegistrou: '',
     operacao: '',
     segmento: '',
@@ -94,6 +102,36 @@ function FormBatBrasil() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Pré-preenche a partir de uma diligência existente (botões "Nova diligência" e "Dobrada")
+  useEffect(() => {
+    if (!fromDiligencia || autoFilled) return
+    const d = fromDiligencia
+    setForm((prev) => ({
+      ...prev,
+      ccc: d.ccc || prev.ccc,
+      vitima: d.vitima || prev.vitima,
+      telefoneVitima: d.telefoneVitima || prev.telefoneVitima,
+      cargo: d.cargo || prev.cargo,
+      empresa: d.empresa || prev.empresa,
+      cidade: d.cidade || prev.cidade,
+      uf: (d.uf && UFS.includes(d.uf)) ? d.uf : prev.uf,
+      tipoEvento: d.tipoEvento || prev.tipoEvento,
+      horaEvento: d.horaEvento || prev.horaEvento,
+      tipoDiligencia: d.tipoDiligencia || prev.tipoDiligencia,
+      modoDiligencia: d.modoDiligencia || prev.modoDiligencia,
+      advogadoId: d.advogadoId || prev.advogadoId,
+      valorDiligencia: d.valorDiligencia ? String(d.valorDiligencia) : prev.valorDiligencia,
+      operacao: d.operacao || prev.operacao,
+      segmento: d.segmento || prev.segmento,
+      regiaoGtsc: d.regiaoGtsc || prev.regiaoGtsc,
+      observacoes: isDobrada
+        ? `Diligência dobrada — referente à ${d.ccc}`
+        : (d.observacoes || prev.observacoes),
+    }))
+    setAutoFilled(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromDiligencia])
 
   useEffect(() => {
     if (!evento || autoFilled) return
@@ -182,6 +220,9 @@ function FormBatBrasil() {
       cidade: match.cidade || prev.cidade,
       uf: match.uf || prev.uf,
       tipoEvento: match.tipoEvento || prev.tipoEvento,
+      horaEvento: match.horaEvento || prev.horaEvento,
+      operacao: match.operacao || prev.operacao,
+      segmento: match.segmento || prev.segmento,
     }))
     setCccMatch(ccc)
   }
@@ -234,6 +275,7 @@ function FormBatBrasil() {
         advogadoId: form.advogadoId,
         valorDiligencia: form.valorDiligencia ? parseFloat(form.valorDiligencia) : 0,
         observacoes: form.observacoes,
+        obsAdvogado: form.obsAdvogado || undefined,
         dpRegistrou: form.dpRegistrou,
         dataInformativo: form.dataInformativo || undefined,
         horaInformativo: form.horaInformativo || undefined,
@@ -388,8 +430,15 @@ function FormBatBrasil() {
 
           <Input label="Valor (R$)" type="number" step="0.01" min="0" value={form.valorDiligencia} onChange={(e) => set('valorDiligencia', e.target.value)} placeholder="Opcional" />
           <div className="sm:col-span-2">
-            <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} />
+            <Textarea label="Observações sobre o advogado" value={form.obsAdvogado} onChange={(e) => set('obsAdvogado', e.target.value)} placeholder="Notas sobre o desempenho ou comunicação do advogado (opcional)" />
           </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Observações da Diligência</CardTitle></CardHeader>
+        <CardBody>
+          <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Detalhes relevantes sobre o caso, ocorrência ou atendimento (opcional)" />
         </CardBody>
       </Card>
 

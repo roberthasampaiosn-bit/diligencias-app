@@ -209,6 +209,8 @@ const REGEX_CCC_BAT = /^BR-\d{10}$/
 
 export function normalizarCccBat(valor: string): string {
   let v = valor.trim().toUpperCase().replace(/\s+/g, '')
+  // AIT e Outros são aceitos como estão
+  if (v.startsWith('AIT') || v === 'OUTROS') return v
   // Auto-inserir hífen se usuário digitou sem ele: BR2026030019 → BR-2026030019
   if (/^BR\d/.test(v)) {
     v = 'BR-' + v.slice(2)
@@ -220,6 +222,7 @@ export function normalizarCccBat(valor: string): string {
 export function validarCccBat(valor: string): string {
   const v = normalizarCccBat(valor)
   if (!v) return 'CCC obrigatório'
-  if (!REGEX_CCC_BAT.test(v)) return 'Formato esperado: BR-2026030019'
+  if (v.startsWith('AIT') || v === 'OUTROS') return ''
+  if (!REGEX_CCC_BAT.test(v)) return 'Formato esperado: BR-2026030019, AIT... ou Outros'
   return ''
 }

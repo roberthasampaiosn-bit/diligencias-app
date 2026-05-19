@@ -47,6 +47,7 @@ export interface DiligenciaRow {
   advogado_id: string
   valor_diligencia: number | null
   observacoes: string | null
+  obs_advogado?: string | null
   dp_registrou: string | null
   status: string
   status_pagamento: string

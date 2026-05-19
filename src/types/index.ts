@@ -187,6 +187,7 @@ export interface Diligencia {
   advogadoId: string
   valorDiligencia: number
   observacoes?: string
+  obsAdvogado?: string
   dpRegistrou?: string
   status: StatusDiligencia
   statusPagamento: StatusPagamento

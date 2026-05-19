@@ -511,7 +511,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             <DR label="Tipo de diligência" value={d.tipoDiligencia} />
             <DR label="Modo" value={d.modoDiligencia} />
             <DR label="Valor" value={<span className="font-semibold">{formatCurrency(d.valorDiligencia)}</span>} />
-            {d.observacoes && <DR label="Observações" value={d.observacoes} />}
+            {d.observacoes && <DR label="Observações da diligência" value={d.observacoes} />}
           </CardBody>
         </Card>
 
@@ -534,6 +534,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                 </a>
               } />
               <DR label="Pix" value={adv.chavePix} />
+              {d.obsAdvogado && <DR label="Obs. sobre o advogado" value={d.obsAdvogado} />}
               {d.avaliacao && (
                 <div className="pt-2 border-t border-slate-100">
                   <p className="text-xs font-medium text-slate-400 mb-1">Avaliação</p>
@@ -919,11 +920,16 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         </CardBody>
       </Card>
 
-      {/* Nova diligência CCC */}
-      <div className="pb-6">
-        <Link href={`/diligencias/nova?ccc=${d.ccc}&empresa=${encodeURIComponent(d.empresa)}`}>
+      {/* Nova diligência CCC / Diligência Dobrada */}
+      <div className="pb-6 flex flex-wrap gap-2">
+        <Link href={`/diligencias/nova?ccc=${d.ccc}&fromId=${d.id}`}>
           <Button variant="secondary" size="sm">
             <Plus className="w-3.5 h-3.5" /> Nova diligência para {d.ccc}
+          </Button>
+        </Link>
+        <Link href={`/diligencias/nova?ccc=${d.ccc}&fromId=${d.id}&dobrada=true`}>
+          <Button variant="secondary" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-50">
+            <Plus className="w-3.5 h-3.5" /> Registrar Diligência Dobrada
           </Button>
         </Link>
       </div>

@@ -2,13 +2,14 @@
 
 import { useState, useMemo, Suspense } from 'react'
 import Link from 'next/link'
-import { Plus, CarFront, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import { Plus, CarFront, CheckCircle2, XCircle, AlertTriangle, Download } from 'lucide-react'
 import { useConsultasPlacas } from '@/context/ConsultaPlacasContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ResultadoConsultaPlaca } from '@/types'
+import { exportarExcelEstilizado } from '@/lib/excel'
 
 function ResultadoBadge({ resultado }: { resultado?: ResultadoConsultaPlaca }) {
   if (!resultado) {
@@ -36,6 +37,9 @@ function ConsultaPlacasContent() {
   const { consultasPlacas } = useConsultasPlacas()
   const [search, setSearch] = useState('')
   const [filtroResultado, setFiltroResultado] = useState<'todos' | ResultadoConsultaPlaca>('todos')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
+  const [exportando, setExportando] = useState(false)
 
   const mesAtual = useMemo(() => {
     const d = new Date()
@@ -56,6 +60,8 @@ function ConsultaPlacasContent() {
     if (filtroResultado !== 'todos') {
       l = l.filter((c) => c.resultado === filtroResultado)
     }
+    if (dataInicio) l = l.filter((c) => c.dataConsulta >= dataInicio)
+    if (dataFim) l = l.filter((c) => c.dataConsulta <= dataFim)
     if (search) {
       const q = search.toLowerCase()
       l = l.filter((c) =>
@@ -65,7 +71,29 @@ function ConsultaPlacasContent() {
       )
     }
     return l
-  }, [consultasPlacas, search, filtroResultado])
+  }, [consultasPlacas, search, filtroResultado, dataInicio, dataFim])
+
+  async function exportarExcel() {
+    setExportando(true)
+    try {
+      await exportarExcelEstilizado([{
+        nome: 'Consulta de Placas',
+        headers: ['Placa', 'Solicitante', 'Data', 'Resultado', 'Valor'],
+        linhas: lista.map((c) => [
+          c.placa,
+          c.solicitante,
+          formatDate(c.dataConsulta),
+          c.resultado ?? 'Sem resultado',
+          c.resultado === 'Localizada' && c.valor != null ? c.valor : '',
+        ]),
+        widths: [15, 30, 15, 20, 15],
+        tema: 'bat',
+        colsMoeda: [4],
+      }], `consulta-placas-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } finally {
+      setExportando(false)
+    }
+  }
 
   // Stats apenas do mês atual
   const totais = useMemo(() => {
@@ -110,27 +138,64 @@ function ConsultaPlacasContent() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar por placa, solicitante ou data..."
-              className="sm:w-72"
-            />
-            <div className="flex gap-1.5 flex-wrap">
-              {(['todos', 'Localizada', 'Não localizada'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFiltroResultado(f)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${
-                    filtroResultado === f
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar por placa, solicitante ou data..."
+                className="sm:w-72"
+              />
+              <div className="flex gap-1.5 flex-wrap">
+                {(['todos', 'Localizada', 'Não localizada'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFiltroResultado(f)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${
+                      filtroResultado === f
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 whitespace-nowrap">De</span>
+                <input
+                  type="date"
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-xs text-slate-500 whitespace-nowrap">Até</span>
+                <input
+                  type="date"
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {(dataInicio || dataFim) && (
+                  <button
+                    onClick={() => { setDataInicio(''); setDataFim('') }}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={exportarExcel}
+                disabled={exportando || lista.length === 0}
+              >
+                <Download className="w-3.5 h-3.5" />
+                {exportando ? 'Exportando...' : `Exportar Excel (${lista.length})`}
+              </Button>
             </div>
           </div>
         </CardHeader>
