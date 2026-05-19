@@ -231,7 +231,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
                   : tipoAtual === TipoDiligencia.AssistenciaJuridicaRemota
                     ? (prev.empresaCliente === EmpresaCliente.VTAL ? TipoDiligencia.PrisaoFlagrante : TipoDiligencia.RegistroBO)
                     : tipoAtual
-                return { ...prev, modoDiligencia: modo, tipoDiligencia: novoTipo }
+                return { ...prev, modoDiligencia: modo as ModoDiligencia, tipoDiligencia: novoTipo }
               })
             }}
             options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))}
