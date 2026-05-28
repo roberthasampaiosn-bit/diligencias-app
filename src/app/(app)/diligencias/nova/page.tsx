@@ -212,6 +212,12 @@ function FormBatBrasil() {
     setErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
   }
 
+  function setHora(field: string, raw: string) {
+    const digits = raw.replace(/\D/g, '').slice(0, 4)
+    const value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits
+    set(field, value)
+  }
+
   function handleCccBlur() {
     const normalized = normalizarCccBat(form.ccc)
     if (normalized !== form.ccc) set('ccc', normalized)
@@ -344,7 +350,7 @@ function FormBatBrasil() {
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
-          <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => set('horaEvento', e.target.value)} placeholder="HH:MM" />
+          <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => setHora('horaEvento', e.target.value)} placeholder="HH:MM" />
           <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => {
             const modo = e.target.value
             setForm((prev) => ({
@@ -393,7 +399,7 @@ function FormBatBrasil() {
         <CardHeader><CardTitle>Ligação do Advogado</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Data da ligação" type="date" value={form.dataLigacaoAdvogado} onChange={(e) => set('dataLigacaoAdvogado', e.target.value)} />
-          <Input label="Horário da ligação" value={form.horaLigacaoAdvogado} onChange={(e) => set('horaLigacaoAdvogado', e.target.value)} placeholder="HH:MM" />
+          <Input label="Horário da ligação" value={form.horaLigacaoAdvogado} onChange={(e) => setHora('horaLigacaoAdvogado', e.target.value)} placeholder="HH:MM" />
         </CardBody>
       </Card>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useMemo, useState, useRef, useCallback } from 'react'
+import { use, useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Phone, MessageCircle, Edit, CheckCircle2,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
+import { useEventos } from '@/context/EventosContext'
 import { gerarPDFFinal } from '@/lib/pdfFinal'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoBase64Only, gerarReciboBase64Only } from '@/lib/pdf'
 import { useToast } from '@/context/ToastContext'
@@ -53,6 +54,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const { id } = use(params)
   const { diligencias, marcarRealizada, marcarPago, finalizarCiclo, uploadAnexo, removerAnexo, updateDiligencia, atualizarAnexo } = useDiligencias()
   const { advogadoMap } = useAdvogados()
+  const { eventos } = useEventos()
   const { addToast } = useToast()
 
   const [gerandoContrato, setGerandoContrato] = useState(false)
@@ -61,6 +63,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [dataRealizacao, setDataRealizacao] = useState(() => new Date().toISOString().split('T')[0])
   const [modalPago, setModalPago] = useState(false)
   const [modalFinalizar, setModalFinalizar] = useState(false)
+  const [modalFinalizarAnne, setModalFinalizarAnne] = useState(false)
   const [modalPendencia, setModalPendencia] = useState(false)
   const [showDownloads, setShowDownloads] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -88,6 +91,15 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
 
   const d = useMemo(() => diligencias.find((x) => x.id === id), [diligencias, id])
   const adv = d ? advogadoMap.get(d.advogadoId) : undefined
+  const eventoVinculado = useMemo(
+    () => d?.eventoId ? (eventos.find((e) => e.id === d.eventoId) ?? null) : null,
+    [eventos, d]
+  )
+  const isAnneCaroline = adv?.nomeCompleto.toLowerCase().includes('anne caroline') ?? false
+
+  useEffect(() => {
+    if (eventoVinculado?.dataEvento) setDataRealizacao(eventoVinculado.dataEvento)
+  }, [eventoVinculado])
 
   if (!d) {
     return (
@@ -432,6 +444,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         {podeFinalizar && (
           <Button variant="success" size="sm" onClick={() => {
             if (pendenciasDocumentais.length > 0) setModalPendencia(true)
+            else if (isAnneCaroline) setModalFinalizarAnne(true)
             else setModalFinalizar(true)
           }}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Finalizar ciclo
@@ -505,7 +518,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </CardHeader>
           <CardBody className="space-y-3">
             <DR label="CCC" value={<span className="font-mono text-blue-700">{d.ccc}</span>} />
-            {d.dataAtendimento && <DR label="Data do evento" value={formatDate(d.dataAtendimento)} />}
+            {eventoVinculado?.dataEvento && <DR label="Data do evento" value={formatDate(eventoVinculado.dataEvento)} />}
+            {d.dataAtendimento && <DR label="Data do atendimento" value={formatDate(d.dataAtendimento)} />}
             {!d.dataAtendimento && d.dataInformativo && <DR label="Data do informativo" value={formatDate(d.dataInformativo)} />}
             <DR label="Tipo de evento" value={d.tipoEvento} />
             <DR label="Tipo de diligência" value={d.tipoDiligencia} />
@@ -951,7 +965,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <p className="text-xs text-slate-500">Você pode voltar e anexar os documentos, ou concluir mesmo assim — a diligência ficará marcada com pendência documental.</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalPendencia(false)}>Voltar e anexar</Button>
-            <Button variant="warning" size="sm" onClick={() => { setModalPendencia(false); setModalFinalizar(true) }}>Concluir mesmo assim</Button>
+            <Button variant="warning" size="sm" onClick={() => { setModalPendencia(false); if (isAnneCaroline) setModalFinalizarAnne(true); else setModalFinalizar(true) }}>Concluir mesmo assim</Button>
           </div>
         </div>
       </Modal>
@@ -983,6 +997,17 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalPago(false)}>Cancelar</Button>
             <Button variant="primary" size="sm" onClick={() => { marcarPago(id); setModalPago(false) }}>Confirmar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal finalizar ciclo — Anne Caroline (sem avaliação) */}
+      <Modal open={modalFinalizarAnne} onClose={() => setModalFinalizarAnne(false)} title="Finalizar ciclo" size="sm">
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-600">Confirma a finalização do ciclo da diligência de <strong>{d.vitima}</strong>?</p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setModalFinalizarAnne(false)}>Cancelar</Button>
+            <Button variant="success" size="sm" onClick={() => { finalizarCiclo(id); setModalFinalizarAnne(false) }}>Finalizar ciclo</Button>
           </div>
         </div>
       </Modal>
