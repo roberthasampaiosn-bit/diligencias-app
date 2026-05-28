@@ -57,12 +57,7 @@ function NovoAdvogadoForm() {
     const e: Record<string, string> = {}
     if (!form.nomeCompleto) e.nomeCompleto = 'Campo obrigatório'
     if (form.cpf && !validarCPF(form.cpf)) e.cpf = 'CPF inválido'
-    if (!form.oab) e.oab = 'Campo obrigatório'
-    if (!form.endereco) e.endereco = 'Campo obrigatório'
-    if (!form.cidadePrincipal) e.cidadePrincipal = 'Campo obrigatório'
-    if (!form.uf) e.uf = 'Campo obrigatório'
-    if (!form.telefone) e.telefone = 'Campo obrigatório'
-    else {
+    if (form.telefone) {
       const d = cleanPhone(form.telefone)
       if (d.length < 10 || d.length > 11) e.telefone = 'Deve ter 10 ou 11 dígitos'
     }
@@ -75,7 +70,7 @@ function NovoAdvogadoForm() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setSaving(true)
     try {
-      const telefone = cleanPhone(form.telefone)
+      const telefone = form.telefone ? cleanPhone(form.telefone) : ''
       const novo = await createAdvogado({
         nomeCompleto: toTitleCase(form.nomeCompleto),
         cpf: form.cpf ? form.cpf.replace(/\D/g, '') : undefined,
@@ -85,7 +80,7 @@ function NovoAdvogadoForm() {
         uf: form.uf,
         cidadesAtendidas: cidadesAtendidas.map((c) => toTitleCase(c)),
         telefone,
-        whatsapp: telefone,
+        whatsapp: telefone || undefined,
         chavePix: form.chavePix || undefined,
         observacoes: form.observacoes || undefined,
       })
@@ -138,7 +133,7 @@ function NovoAdvogadoForm() {
             placeholder="000.000.000-00"
           />
           <Input
-            label="OAB nº"
+            label="OAB nº (opcional)"
             value={form.oab}
             onChange={(e) => set('oab', e.target.value)}
             error={errors.oab}
@@ -146,7 +141,7 @@ function NovoAdvogadoForm() {
             helper="Usado em contratos e recibos"
           />
           <div className="sm:col-span-2">
-            <Input label="Endereço completo" value={form.endereco} onChange={(e) => set('endereco', e.target.value)} error={errors.endereco} placeholder="Rua, número, bairro, cidade - UF, CEP" />
+            <Input label="Endereço completo (opcional)" value={form.endereco} onChange={(e) => set('endereco', e.target.value)} error={errors.endereco} placeholder="Rua, número, bairro, cidade - UF, CEP" />
           </div>
         </CardBody>
       </Card>
@@ -154,8 +149,8 @@ function NovoAdvogadoForm() {
       <Card>
         <CardHeader><CardTitle>Atuação</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Cidade principal" value={form.cidadePrincipal} onChange={(e) => set('cidadePrincipal', e.target.value)} error={errors.cidadePrincipal} />
-          <Select label="UF" value={form.uf} onChange={(e) => set('uf', e.target.value)} options={UFS.map((u) => ({ value: u, label: u }))} error={errors.uf} placeholder="Selecione" />
+          <Input label="Cidade principal (opcional)" value={form.cidadePrincipal} onChange={(e) => set('cidadePrincipal', e.target.value)} error={errors.cidadePrincipal} />
+          <Select label="UF (opcional)" value={form.uf} onChange={(e) => set('uf', e.target.value)} options={UFS.map((u) => ({ value: u, label: u }))} error={errors.uf} placeholder="Selecione" />
           <div className="sm:col-span-2">
             <p className="text-xs font-medium text-slate-600 mb-1.5">Cidades atendidas</p>
             <div className="flex gap-2 mb-2">
@@ -187,7 +182,7 @@ function NovoAdvogadoForm() {
         <CardHeader><CardTitle>Contato e Pagamento</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Input label="Telefone/WhatsApp" value={form.telefone} onChange={(e) => set('telefone', e.target.value)} error={errors.telefone} placeholder="11987654321" helper="Com DDD — usado para ligação e WhatsApp" />
+            <Input label="Telefone/WhatsApp (opcional)" value={form.telefone} onChange={(e) => set('telefone', e.target.value)} error={errors.telefone} placeholder="11987654321" helper="Com DDD — usado para ligação e WhatsApp" />
           </div>
           <div className="sm:col-span-2">
             <Input label="Chave Pix (opcional)" value={form.chavePix} onChange={(e) => set('chavePix', e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" />
