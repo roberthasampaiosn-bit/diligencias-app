@@ -182,6 +182,8 @@ export async function patchPesquisa(id: string, pp: Partial<Pesquisa>): Promise<
   if ('horaEntrevista' in pp) row.pesquisa_hora_entrevista = pp.horaEntrevista ?? null
   if ('entrevistador' in pp) row.pesquisa_entrevistador = pp.entrevistador ?? null
   if ('observacoes' in pp) row.pesquisa_observacoes = pp.observacoes ?? null
+  if ('tentativasWhatsApp' in pp) row.pesquisa_tentativas_whatsapp = pp.tentativasWhatsApp
+  if ('dataConclusao' in pp) row.pesquisa_data_conclusao = pp.dataConclusao ?? null
   if (Object.keys(row).length === 0) return
   const { error } = await supabase.from('diligencias').update(row).eq('id', id)
   if (error) throw error

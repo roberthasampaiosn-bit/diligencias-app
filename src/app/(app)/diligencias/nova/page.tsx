@@ -291,7 +291,7 @@ function FormBatBrasil() {
         status: StatusDiligencia.EmAndamento,
         statusPagamento: StatusPagamento.Pendente,
         cicloFinalizado: false,
-        pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [] },
+        pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
         anexos: {},
         eventoId: eventoId || undefined,
       })
@@ -542,7 +542,7 @@ function FormVTAL() {
         status: form.status as StatusDiligencia,
         statusPagamento: StatusPagamento.Pendente,
         cicloFinalizado: false,
-        pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [] },
+        pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
         anexos: {},
         dataAtendimento: form.dataAtendimento || undefined,
         macro: form.macro || undefined,

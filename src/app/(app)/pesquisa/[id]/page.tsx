@@ -48,6 +48,16 @@ function formatDataRetorno(s: string | undefined): string {
   return time ? `${d}/${m}/${y} às ${time}` : `${d}/${m}/${y}`
 }
 
+// Formata string ISO (YYYY-MM-DDTHH:MM:SS) para DD/MM/YYYY HH:MM
+function formatISOBR(s: string | undefined): string {
+  if (!s) return '-'
+  const [date, time] = s.split('T')
+  if (!date) return s
+  const [y, m, d] = date.split('-')
+  if (!y || !m || !d) return s
+  return time ? `${d}/${m}/${y} às ${time.slice(0, 5)}` : `${d}/${m}/${y}`
+}
+
 export default function PesquisaDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
   const { diligencias, atualizarPesquisa, registrarLigacao, marcarRespondida, encerrarSemResposta } = useDiligencias()
@@ -249,6 +259,33 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
           </div>
         </CardHeader>
         <CardBody className="space-y-4">
+          {/* Resumo de tentativas */}
+          {(() => {
+            const twa = Math.max(pesquisa.tentativasWhatsApp ?? 0, pesquisa.dataEnvioWhatsApp ? 1 : 0)
+            const nLig = pesquisa.historicoLigacoes.length
+            const total = twa + nLig
+            if (total === 0) return null
+            return (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                <span className="font-medium text-slate-600">
+                  {total} tentativa{total !== 1 ? 's' : ''} no total
+                </span>
+                <span className="text-slate-300">·</span>
+                <span>{nLig} por ligação</span>
+                <span className="text-slate-300">·</span>
+                <span>{twa} por WhatsApp</span>
+              </div>
+            )
+          })()}
+
+          {/* Data de conclusão */}
+          {pesquisa.dataConclusao && (
+            <div className="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+              <span className="font-medium text-slate-600">Concluído em: </span>
+              {formatISOBR(pesquisa.dataConclusao)}
+            </div>
+          )}
+
           {/* Botões de finalização — só aparecem se ainda Pendente */}
           {pesquisa.status === StatusPesquisa.Pendente && (
             <div className="flex gap-2 flex-wrap">

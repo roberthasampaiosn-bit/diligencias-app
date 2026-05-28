@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition } from 'react'
 import Link from 'next/link'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
-  PhoneOff, Clock, AlertCircle, ExternalLink,
+  PhoneOff, Clock, AlertCircle, ExternalLink, Download,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone } from '@/lib/utils'
 import { StatusPesquisa, StatusDiligencia, ResultadoLigacao, Diligencia, Pesquisa } from '@/types'
+import { AbaExcel, exportarExcelEstilizado } from '@/lib/excel'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
 
@@ -33,14 +34,58 @@ function buildFormUrl(ccc: string, vitima: string, cargo: string, empresa: strin
 }
 
 const FILTROS = [
-  { key: 'pendentes', label: 'Pendentes' },
+  { key: 'pendentes',  label: 'Pendentes'  },
   { key: 'concluidas', label: 'Concluídas' },
-  { key: 'todas', label: 'Todas' },
+  { key: 'todas',      label: 'Todas'      },
 ]
 
-interface ModalRetornoState { diligenciaId: string; vitima: string }
-interface ModalRespostaState { diligenciaId: string; vitima: string }
+const PERIODOS = [
+  { key: 'semana', label: 'Esta semana'   },
+  { key: 'mes',    label: 'Este mês'      },
+  { key: 'ano',    label: 'Este ano'      },
+  { key: 'custom', label: 'Personalizado' },
+  { key: '',       label: 'Todos'         },
+]
+
+interface ModalRetornoState    { diligenciaId: string; vitima: string }
+interface ModalRespostaState   { diligenciaId: string; vitima: string }
 interface ModalEncerramentoState { diligenciaId: string; vitima: string }
+
+// ─── Helpers de período / data ────────────────────────────────────────────────
+
+function periodoToRange(periodo: string): { ini: string; fim: string } | null {
+  const hoje = new Date()
+  const hojeStr = hoje.toISOString().split('T')[0]
+  if (periodo === 'semana') {
+    const dow = hoje.getDay()                         // 0 = Dom
+    const offset = dow === 0 ? -6 : 1 - dow          // recua até segunda-feira
+    const mon = new Date(hoje)
+    mon.setDate(hoje.getDate() + offset)
+    return { ini: mon.toISOString().split('T')[0], fim: hojeStr }
+  }
+  if (periodo === 'mes') return { ini: hojeStr.slice(0, 8) + '01', fim: hojeStr }
+  if (periodo === 'ano') return { ini: hojeStr.slice(0, 5) + '01-01', fim: hojeStr }
+  return null
+}
+
+function formatDateBR(s: string): string {
+  if (!s) return ''
+  const d = s.split('T')[0]
+  const parts = d.split('-')
+  if (parts.length !== 3) return s
+  return `${parts[2]}/${parts[1]}/${parts[0]}`
+}
+
+function formatDateTimeBR(s: string): string {
+  if (!s) return ''
+  const [date, time] = s.split('T')
+  if (!date) return ''
+  const parts = date.split('-')
+  if (parts.length !== 3) return s
+  return time
+    ? `${parts[2]}/${parts[1]}/${parts[0]} ${time.slice(0, 5)}`
+    : `${parts[2]}/${parts[1]}/${parts[0]}`
+}
 
 // ─── Ordenação ────────────────────────────────────────────────────────────────
 
@@ -56,9 +101,7 @@ function sortPesquisa(a: Diligencia, b: Diligencia): number {
   const aConc = a.pesquisa.status === StatusPesquisa.Concluida
   const bConc = b.pesquisa.status === StatusPesquisa.Concluida
   if (aConc !== bConc) return aConc ? 1 : -1
-  if (aConc) {
-    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  }
+  if (aConc) return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   const pa = getPendentePriority(a)
   const pb = getPendentePriority(b)
   if (pa !== pb) return pa - pb
@@ -81,9 +124,7 @@ function parseRetorno(dc: string | undefined): { text: string; variant: RetornoV
   const today = new Date().toISOString().split('T')[0]
   const [y, m, d] = datePart.split('-')
   const fmt = `${d}/${m}/${y}`
-  if (datePart < today) {
-    return { text: `Retorno atrasado: ${fmt} às ${timePart}`, variant: 'late' }
-  }
+  if (datePart < today) return { text: `Retorno atrasado: ${fmt} às ${timePart}`, variant: 'late' }
   return { text: `Retorno agendado para ${fmt} às ${timePart}`, variant: 'normal' }
 }
 
@@ -127,6 +168,11 @@ export default function PesquisaPage() {
   const [filtro, setFiltro] = useState('pendentes')
   const [, startTransition] = useTransition()
 
+  // Período / intervalo de datas
+  const [periodoFiltro, setPeriodoFiltro] = useState<string>('')
+  const [dataFiltroInicio, setDataFiltroInicio] = useState('')
+  const [dataFiltroFim, setDataFiltroFim] = useState('')
+
   // Modal: Agendar retorno
   const [modalRetorno, setModalRetorno] = useState<ModalRetornoState | null>(null)
   const [retornoData, setRetornoData] = useState('')
@@ -136,31 +182,52 @@ export default function PesquisaPage() {
   const [modalResposta, setModalResposta] = useState<ModalRespostaState | null>(null)
   const [textoResposta, setTextoResposta] = useState('')
 
-  // Modal: Encerrar
+  // Modal: Encerrar sem resposta
   const [modalEncerramento, setModalEncerramento] = useState<ModalEncerramentoState | null>(null)
   const [obsEncerramento, setObsEncerramento] = useState('')
+
+  // ── Dados filtrados ──────────────────────────────────────────────────────────
 
   const realizadas = useMemo(
     () => diligencias.filter((d) => d.status === StatusDiligencia.Realizada),
     [diligencias],
   )
 
+  const realizadasFiltradas = useMemo(() => {
+    let range: { ini: string; fim: string } | null = null
+    if (periodoFiltro === 'custom') {
+      if (dataFiltroInicio || dataFiltroFim) {
+        range = { ini: dataFiltroInicio || '2000-01-01', fim: dataFiltroFim || '9999-12-31' }
+      }
+    } else {
+      range = periodoToRange(periodoFiltro)
+    }
+    if (!range) return realizadas
+    const { ini, fim } = range
+    return realizadas.filter((d) => {
+      const ref = d.dataAtendimento ?? d.createdAt.split('T')[0]
+      return ref >= ini && ref <= fim
+    })
+  }, [realizadas, periodoFiltro, dataFiltroInicio, dataFiltroFim])
+
   const stats = useMemo(() => ({
-    total: realizadas.length,
-    pendentes: realizadas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente).length,
-    concluidas: realizadas.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida).length,
-  }), [realizadas])
+    total:     realizadasFiltradas.length,
+    pendentes: realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente).length,
+    concluidas: realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida).length,
+  }), [realizadasFiltradas])
 
   const lista = useMemo(() => {
-    let l = realizadas
-    if (filtro === 'pendentes') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
+    let l = realizadasFiltradas
+    if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
     else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     if (search) {
       const q = search.toLowerCase()
       l = l.filter((d) => d.vitima.toLowerCase().includes(q) || d.ccc.toLowerCase().includes(q))
     }
     return [...l].sort(sortPesquisa)
-  }, [realizadas, filtro, search])
+  }, [realizadasFiltradas, filtro, search])
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   function handleLigar(d: Diligencia) {
     window.open(`tel:${d.telefoneVitima}`)
@@ -182,24 +249,63 @@ export default function PesquisaPage() {
     if (!modalRetorno || !retornoHora) return
     const value = retornoData ? `${retornoData} ${retornoHora}` : retornoHora
     agendarRetorno(modalRetorno.diligenciaId, value)
-    setModalRetorno(null)
-    setRetornoData('')
-    setRetornoHora('')
+    setModalRetorno(null); setRetornoData(''); setRetornoHora('')
   }
 
   function handleSalvarResposta() {
     if (!modalResposta) return
     marcarRespondida(modalResposta.diligenciaId, textoResposta)
-    setModalResposta(null)
-    setTextoResposta('')
+    setModalResposta(null); setTextoResposta('')
   }
 
   function handleConfirmarEncerramento() {
     if (!modalEncerramento || !obsEncerramento.trim()) return
     encerrarSemResposta(modalEncerramento.diligenciaId, obsEncerramento.trim())
-    setModalEncerramento(null)
-    setObsEncerramento('')
+    setModalEncerramento(null); setObsEncerramento('')
   }
+
+  async function handleExportarPesquisas() {
+    const filename = `pesquisas_${new Date().toISOString().slice(0, 10)}.xlsx`
+    const linhas = lista.map((d) => {
+      const twa = Math.max(d.pesquisa.tentativasWhatsApp ?? 0, d.pesquisa.dataEnvioWhatsApp ? 1 : 0)
+      const nLig = d.pesquisa.historicoLigacoes.length
+      const total = twa + nLig
+      return [
+        d.empresaCliente,
+        d.ccc,
+        d.vitima,
+        `${d.cidade}/${d.uf}`,
+        d.telefoneVitima,
+        d.dataAtendimento ? formatDateBR(d.dataAtendimento) : '',
+        d.pesquisa.status,
+        d.pesquisa.respostaVitima || d.pesquisa.observacoes || '',
+        d.pesquisa.dataConclusao ? formatDateTimeBR(d.pesquisa.dataConclusao) : '',
+        total,
+        nLig,
+        twa,
+        d.pesquisa.observacoes ?? '',
+        d.pesquisa.entrevistador ?? '',
+        d.pesquisa.dataConclusao ? formatDateBR(d.pesquisa.dataConclusao) : '',
+      ]
+    })
+    const periodoLabel = PERIODOS.find((p) => p.key === periodoFiltro)?.label ?? ''
+    const aba: AbaExcel = {
+      nome: 'Pesquisas',
+      headers: [
+        'Cliente', 'CCC / ID Evento', 'Nome Pesquisado', 'Cidade/UF', 'Telefone',
+        'Data do Evento', 'Status', 'Resultado',
+        'Data/Hora do Contato', 'Total Tentativas', 'Por Ligação', 'Por WhatsApp',
+        'Observações', 'Responsável', 'Data de Conclusão',
+      ],
+      linhas,
+      widths: [15, 18, 25, 15, 15, 14, 14, 30, 18, 12, 12, 12, 30, 20, 16],
+      tema: 'bat',
+      resumo: `Total: ${lista.length} pesquisa${lista.length !== 1 ? 's' : ''}${periodoLabel && periodoLabel !== 'Todos' ? ` · ${periodoLabel}` : ''}`,
+    }
+    await exportarExcelEstilizado([aba], filename)
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-5">
@@ -213,9 +319,9 @@ export default function PesquisaPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: 'bg-slate-50 border-slate-200', text: 'text-slate-800' },
-          { label: 'Pendentes', value: stats.pendentes, color: 'bg-amber-50 border-amber-200', text: 'text-amber-800' },
-          { label: 'Concluídas', value: stats.concluidas, color: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800' },
+          { label: 'Total',      value: stats.total,     color: 'bg-slate-50 border-slate-200',   text: 'text-slate-800'  },
+          { label: 'Pendentes',  value: stats.pendentes, color: 'bg-amber-50 border-amber-200',   text: 'text-amber-800'  },
+          { label: 'Concluídas', value: stats.concluidas,color: 'bg-emerald-50 border-emerald-200',text:'text-emerald-800'},
         ].map((s) => (
           <div key={s.label} className={`border rounded-xl p-3 ${s.color}`}>
             <p className="text-xs text-slate-500">{s.label}</p>
@@ -227,12 +333,28 @@ export default function PesquisaPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar vítima, CCC..."
-              className="sm:w-64"
-            />
+
+            {/* Busca + botão exportar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar vítima, CCC..."
+                className="flex-1 min-w-0 sm:w-64"
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleExportarPesquisas}
+                disabled={lista.length === 0}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline ml-1">Exportar Excel</span>
+                <span className="sm:hidden ml-1">Excel</span>
+              </Button>
+            </div>
+
+            {/* Filtro de status */}
             <div className="flex flex-wrap gap-1.5">
               {FILTROS.map((f) => (
                 <button
@@ -248,6 +370,48 @@ export default function PesquisaPage() {
                 </button>
               ))}
             </div>
+
+            {/* Filtro de período */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
+                Período:
+              </span>
+              {PERIODOS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => startTransition(() => {
+                    setPeriodoFiltro(p.key)
+                    if (p.key !== 'custom') { setDataFiltroInicio(''); setDataFiltroFim('') }
+                  })}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    periodoFiltro === p.key
+                      ? 'bg-slate-700 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Inputs de data personalizada */}
+            {periodoFiltro === 'custom' && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <input
+                  type="date"
+                  value={dataFiltroInicio}
+                  onChange={(e) => setDataFiltroInicio(e.target.value)}
+                  className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <span className="text-slate-400 text-xs">até</span>
+                <input
+                  type="date"
+                  value={dataFiltroFim}
+                  onChange={(e) => setDataFiltroFim(e.target.value)}
+                  className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+            )}
           </div>
         </CardHeader>
 
@@ -261,17 +425,21 @@ export default function PesquisaPage() {
           <CardBody className="p-4">
             <div className="flex flex-col gap-3">
               {lista.map((d) => {
-                const retorno = parseRetorno(d.pesquisa.dataCombinada)
-                const ultima = getUltimaTentativa(d.pesquisa)
-                const isPendente = d.pesquisa.status === StatusPesquisa.Pendente
-                const temHistorico =
+                const retorno       = parseRetorno(d.pesquisa.dataCombinada)
+                const ultima        = getUltimaTentativa(d.pesquisa)
+                const isPendente    = d.pesquisa.status === StatusPesquisa.Pendente
+                const temHistorico  =
                   d.pesquisa.dataEnvioWhatsApp ||
                   d.pesquisa.historicoLigacoes.length > 0 ||
                   d.pesquisa.respostaVitima ||
                   (!d.pesquisa.respostaVitima && d.pesquisa.status === StatusPesquisa.Concluida && d.pesquisa.observacoes)
+                const twa           = Math.max(d.pesquisa.tentativasWhatsApp ?? 0, d.pesquisa.dataEnvioWhatsApp ? 1 : 0)
+                const nLig          = d.pesquisa.historicoLigacoes.length
+                const totalTentativas = twa + nLig
 
                 return (
                   <div key={d.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
+
                     {/* Status + indicador WA */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <StatusPesquisaBadge status={d.pesquisa.status} />
@@ -337,6 +505,21 @@ export default function PesquisaPage() {
                       <p className="text-xs text-slate-500">
                         <span className="font-medium text-slate-600">Última tentativa:</span>{' '}
                         {ultima.label}{ultima.dateStr ? ` — ${ultima.dateStr}` : ''}
+                      </p>
+                    )}
+
+                    {/* Contador de tentativas */}
+                    {totalTentativas > 0 && (
+                      <p className="text-xs text-slate-400">
+                        <span className="font-medium text-slate-500">
+                          {totalTentativas} tentativa{totalTentativas !== 1 ? 's' : ''}
+                        </span>
+                        {nLig > 0 && (
+                          <span> · <span className="font-medium">{nLig}</span> lig.</span>
+                        )}
+                        {twa > 0 && (
+                          <span> · <span className="font-medium">{twa}</span> WA</span>
+                        )}
                       </p>
                     )}
 
@@ -418,7 +601,7 @@ export default function PesquisaPage() {
                             <PhoneOff className="w-3.5 h-3.5" /> Encerrar
                           </button>
                         </div>
-                        {/* Linha 4: Abrir formulário de entrevista */}
+                        {/* Linha 4: Formulário de entrevista */}
                         <a
                           href={buildFormUrl(d.ccc, d.vitima, d.cargo, d.empresa, d.cidade)}
                           target="_blank"
@@ -481,8 +664,7 @@ export default function PesquisaPage() {
           )}
           <div className="flex gap-2 justify-end">
             <Button
-              variant="secondary"
-              size="sm"
+              variant="secondary" size="sm"
               onClick={() => { setModalRetorno(null); setRetornoData(''); setRetornoHora('') }}
             >
               Cancelar
@@ -518,7 +700,7 @@ export default function PesquisaPage() {
         </div>
       </Modal>
 
-      {/* Modal: Encerrar */}
+      {/* Modal: Encerrar sem resposta */}
       <Modal
         open={!!modalEncerramento}
         onClose={() => { setModalEncerramento(null); setObsEncerramento('') }}
@@ -539,15 +721,13 @@ export default function PesquisaPage() {
           />
           <div className="flex gap-2 justify-end">
             <Button
-              variant="secondary"
-              size="sm"
+              variant="secondary" size="sm"
               onClick={() => { setModalEncerramento(null); setObsEncerramento('') }}
             >
               Cancelar
             </Button>
             <Button
-              variant="danger"
-              size="sm"
+              variant="danger" size="sm"
               onClick={handleConfirmarEncerramento}
               disabled={!obsEncerramento.trim()}
             >

@@ -129,6 +129,7 @@ export interface Evento {
   gtsc: string
   modalidade?: 'presencial' | 'remota'
   statusEvento: StatusEvento
+  foiAtualizado?: boolean
   diligenciaId?: string
   createdAt: string
 }
@@ -167,6 +168,8 @@ export interface Pesquisa {
   entrevistador?: string
   historicoLigacoes: Ligacao[]
   observacoes?: string
+  tentativasWhatsApp: number
+  dataConclusao?: string
 }
 
 // ─── Diligência ───────────────────────────────────────────────────────────────

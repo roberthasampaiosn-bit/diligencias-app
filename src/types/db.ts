@@ -83,9 +83,11 @@ export interface DiligenciaRow {
   numero_bo_processo?: string | null
   regiao_gtsc?: string | null
   motorista_agredido?: string | null
-  // Campos de pesquisa — entrevistador e hora
+  // Campos de pesquisa — entrevistador, hora, tentativas e conclusão
   pesquisa_entrevistador?: string | null
   pesquisa_hora_entrevista?: string | null
+  pesquisa_tentativas_whatsapp?: number
+  pesquisa_data_conclusao?: string | null
   // Campos específicos V.TAL
   data_atendimento?: string | null
   macro?: string | null
@@ -142,6 +144,7 @@ export interface EventoRow {
   gtst: string
   modalidade?: string | null
   status_evento: string
+  foi_atualizado: boolean
   diligencia_id: string | null
   created_at: string
 }

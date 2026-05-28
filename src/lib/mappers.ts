@@ -104,6 +104,8 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
       entrevistador: row.pesquisa_entrevistador ?? undefined,
       observacoes: row.pesquisa_observacoes ?? undefined,
       historicoLigacoes: (row.ligacoes ?? []).map(toLigacao),
+      tentativasWhatsApp: row.pesquisa_tentativas_whatsapp ?? 0,
+      dataConclusao: row.pesquisa_data_conclusao ?? undefined,
     },
     anexos: {
       contratoGerado: row.anexo_contrato_gerado ?? undefined,
@@ -278,6 +280,7 @@ export function toEvento(row: EventoRow): Evento {
     gtsc: row.gtst,
     modalidade: (row.modalidade as 'presencial' | 'remota') ?? undefined,
     statusEvento: row.status_evento as StatusEvento,
+    foiAtualizado: row.foi_atualizado ?? false,
     diligenciaId: row.diligencia_id ?? undefined,
     createdAt: row.created_at,
   }

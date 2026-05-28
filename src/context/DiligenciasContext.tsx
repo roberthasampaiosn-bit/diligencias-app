@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  createContext, useContext, useState, useCallback, useEffect, ReactNode,
+  createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode,
 } from 'react'
 import { applyUpdate } from '@/services/diligenciaService'
 import {
@@ -36,11 +36,23 @@ export interface DiligenciasContextValue {
 
 const DiligenciasContext = createContext<DiligenciasContextValue | null>(null)
 
+// Retorna string ISO local (sem conversão UTC) para evitar drift de fuso horário.
+function localISOString(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+}
+
 export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const [diligencias, setDiligencias] = useState<Diligencia[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { addToast } = useToast()
+
+  // Ref sincronizado com o estado — permite leituras síncronas dentro de useCallback
+  // sem adicionar `diligencias` nas dependências e gerar loops.
+  const diligenciasRef = useRef<Diligencia[]>([])
+  useEffect(() => { diligenciasRef.current = diligencias }, [diligencias])
 
   useEffect(() => {
     fetchDiligencias()
@@ -141,9 +153,12 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const registrarWhatsApp = useCallback((id: string, mensagem: string) => {
+    const d = diligenciasRef.current.find((x) => x.id === id)
+    const novoCount = (d?.pesquisa.tentativasWhatsApp ?? 0) + 1
     const pp = {
       dataEnvioWhatsApp: new Date().toISOString().split('T')[0],
       mensagemEnviada: mensagem,
+      tentativasWhatsApp: novoCount,
     }
     patchP(id, pp)
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
@@ -178,13 +193,21 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   }, [patchP, addToast])
 
   const marcarRespondida = useCallback((id: string, resposta: string) => {
-    const pp: Partial<Pesquisa> = { status: StatusPesquisa.Concluida, respostaVitima: resposta || undefined }
+    const pp: Partial<Pesquisa> = {
+      status: StatusPesquisa.Concluida,
+      respostaVitima: resposta || undefined,
+      dataConclusao: localISOString(),
+    }
     patchP(id, pp)
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
   }, [patchP, addToast])
 
   const encerrarSemResposta = useCallback((id: string, observacao: string) => {
-    const pp: Partial<Pesquisa> = { status: StatusPesquisa.Concluida, observacoes: observacao }
+    const pp: Partial<Pesquisa> = {
+      status: StatusPesquisa.Concluida,
+      observacoes: observacao,
+      dataConclusao: localISOString(),
+    }
     patchP(id, pp)
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
   }, [patchP, addToast])

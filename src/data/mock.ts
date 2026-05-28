@@ -236,6 +236,7 @@ export const mockDiligencias: Diligencia[] = [
         },
       ],
       observacoes: 'Vítima colaborativa e satisfeita com o atendimento.',
+      tentativasWhatsApp: 0,
     },
     anexos: {
       contratoGerado: 'contrato-dil-001.pdf',
@@ -274,6 +275,7 @@ export const mockDiligencias: Diligencia[] = [
       dataEnvioWhatsApp: '2024-11-23',
       mensagemEnviada: 'Boa tarde, Marcos Antonio! Meu nome é Ana Rodrigues...',
       historicoLigacoes: [],
+      tentativasWhatsApp: 0,
     },
     anexos: {
       contratoGerado: 'contrato-dil-002.pdf',
@@ -307,6 +309,7 @@ export const mockDiligencias: Diligencia[] = [
     pesquisa: {
       status: StatusPesquisa.Pendente,
       historicoLigacoes: [],
+      tentativasWhatsApp: 0,
     },
     anexos: {
       contratoGerado: 'contrato-dil-003.pdf',
@@ -337,6 +340,7 @@ export const mockDiligencias: Diligencia[] = [
     pesquisa: {
       status: StatusPesquisa.Pendente,
       historicoLigacoes: [],
+      tentativasWhatsApp: 0,
     },
     anexos: {},
     createdAt: '2024-11-25T07:00:00Z',
@@ -377,6 +381,7 @@ export const mockDiligencias: Diligencia[] = [
           observacao: 'Pediu para ligar na quarta.',
         },
       ],
+      tentativasWhatsApp: 0,
     },
     anexos: {
       contratoGerado: 'contrato-dil-005.pdf',
@@ -411,6 +416,7 @@ export const mockDiligencias: Diligencia[] = [
     pesquisa: {
       status: StatusPesquisa.Pendente,
       historicoLigacoes: [],
+      tentativasWhatsApp: 0,
     },
     anexos: {},
     createdAt: '2024-11-26T14:00:00Z',
