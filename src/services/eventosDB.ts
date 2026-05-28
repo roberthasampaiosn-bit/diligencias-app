@@ -14,7 +14,7 @@ export async function fetchEventos(): Promise<Evento[]> {
 
 export async function patchEvento(
   id: string,
-  patch: { status_evento?: string; diligencia_id?: string | null },
+  patch: { status_evento?: string; diligencia_id?: string | null; foi_atualizado?: boolean },
 ): Promise<void> {
   const { error } = await supabase.from('eventos').update(patch).eq('id', id)
   if (error) throw error

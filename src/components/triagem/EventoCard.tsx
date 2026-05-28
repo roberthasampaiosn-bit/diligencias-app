@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import Link from 'next/link'
-import { Phone, Trash2, Plus, ExternalLink, AlertTriangle, Clock } from 'lucide-react'
+import { Phone, Trash2, Plus, ExternalLink, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
 import { useEventos } from '@/context/EventosContext'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -23,7 +23,7 @@ interface EventoCardProps {
 }
 
 export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinalizada = false, antigo = false }: EventoCardProps) {
-  const { deletarEvento } = useEventos()
+  const { deletarEvento, marcarRevisado } = useEventos()
 
   function handleDeletar() {
     if (confirm(`Excluir o evento ${e.ccc} da triagem?\nEsta ação não pode ser desfeita.`)) {
@@ -36,6 +36,7 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
   const isCriado = e.statusEvento === StatusEvento.Criado
   const isArquivado = e.statusEvento === StatusEvento.Arquivado
   const isFinalizado = isCriado && diligenciaFinalizada
+  const foiAtualizado = e.foiAtualizado
 
   return (
     <div className={cn(
@@ -50,6 +51,9 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
           {isCriado && !isFinalizado && <Badge variant="success">Diligência criada</Badge>}
           {isFinalizado && <Badge variant="slate">Ciclo finalizado</Badge>}
           {isArquivado && <Badge variant="slate">Arquivado</Badge>}
+          {foiAtualizado && (
+            <Badge variant="warning"><RefreshCw className="w-3 h-3" /> Dados atualizados</Badge>
+          )}
           {isPendente && antigo && (
             <Badge variant="slate"><Clock className="w-3 h-3" /> +24h</Badge>
           )}
@@ -116,6 +120,11 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
               </Button>
             </a>
           )}
+          {foiAtualizado && (
+            <Button size="sm" variant="ghost" onClick={() => marcarRevisado(e.id)} className="text-amber-600 hover:text-amber-800">
+              <RefreshCw className="w-3.5 h-3.5" /> Revisado
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={handleDeletar} className="text-red-400 hover:text-red-600 ml-auto">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
@@ -123,12 +132,17 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
       )}
 
       {isCriado && e.diligenciaId && (
-        <div className="pt-3 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
           <Link href={`/diligencias/${e.diligenciaId}`}>
             <Button size="sm" variant="ghost" className="text-blue-600">
               <ExternalLink className="w-3.5 h-3.5" /> Ver diligência
             </Button>
           </Link>
+          {foiAtualizado && (
+            <Button size="sm" variant="ghost" onClick={() => marcarRevisado(e.id)} className="text-amber-600 hover:text-amber-800">
+              <RefreshCw className="w-3.5 h-3.5" /> Marcar como revisado
+            </Button>
+          )}
         </div>
       )}
     </div>

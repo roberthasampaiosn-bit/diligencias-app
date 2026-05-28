@@ -81,7 +81,11 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     empresa: row.empresa,
     cidade: row.cidade,
     uf: row.uf,
-    tipoEvento: row.tipo_evento as TipoEvento,
+    tipoEvento: (() => {
+      const raw = (row.tipo_evento ?? '').trim()
+      const match = Object.values(TipoEvento).find((v) => v.toLowerCase() === raw.toLowerCase())
+      return (match ?? raw) as TipoEvento
+    })(),
     tipoDiligencia: row.tipo_diligencia as TipoDiligencia,
     tipoDiligenciaDescricao: row.tipo_diligencia_descricao ?? undefined,
     modoDiligencia: row.modo_diligencia as ModoDiligencia,

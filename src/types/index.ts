@@ -45,7 +45,7 @@ export enum TipoDiligencia {
 export enum TipoEvento {
   Roubo = 'Roubo',
   Tentativa = 'Tentativa',
-  FatoSuspeito = 'Fato suspeito',
+  FatoSuspeito = 'Fato Suspeito',
   Furto = 'Furto',
   AcidenteSemVitima = 'Acidente sem vítima',
   AcidenteComVitima = 'Acidente com vítima',

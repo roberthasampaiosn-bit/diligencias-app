@@ -159,16 +159,65 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const supabase = createSupabaseServiceClient()
 
-  // 5. Verificar duplicata pelo CCC
+  // 5. Verificar se já existe evento com este CCC
   const { data: existentes } = await supabase
     .from('eventos')
-    .select('id')
+    .select('id, classificacao_evento, nivel_agressao, motorista_agredido, nome_vitima, cargo_vitima, telefone_vitima, empresa, segmento, tipo_operador, cidade, uf, gtst, hora_evento, data_evento')
     .eq('ccc', ccc)
     .limit(1)
 
   if (existentes && existentes.length > 0) {
-    console.log(`[email-entrada] Evento ${ccc} já existe — ignorando.`)
-    return NextResponse.json({ ok: true, skipped: true, ccc, reason: 'duplicate' })
+    const existente = existentes[0]
+
+    // Identificar campos que mudaram em relação ao registro existente
+    const patch: Record<string, unknown> = {}
+    if (classificacaoEvento && existente.classificacao_evento !== classificacaoEvento)
+      patch.classificacao_evento = classificacaoEvento
+    if (nivelAgressao !== existente.nivel_agressao)
+      patch.nivel_agressao = nivelAgressao
+    if (motoristaAgredido !== existente.motorista_agredido)
+      patch.motorista_agredido = motoristaAgredido
+    if (nomeVitima && existente.nome_vitima !== nomeVitima)
+      patch.nome_vitima = nomeVitima
+    if (cargoVitima && existente.cargo_vitima !== cargoVitima)
+      patch.cargo_vitima = cargoVitima
+    if (telefoneVitima && existente.telefone_vitima !== telefoneVitima)
+      patch.telefone_vitima = telefoneVitima
+    if (empresa && existente.empresa !== empresa)
+      patch.empresa = empresa
+    if (segmento && existente.segmento !== segmento)
+      patch.segmento = segmento
+    if (tipoOperador && existente.tipo_operador !== tipoOperador)
+      patch.tipo_operador = tipoOperador
+    if (cidade && existente.cidade !== cidade)
+      patch.cidade = cidade
+    if (uf && existente.uf !== uf)
+      patch.uf = uf
+    if (horaEvento && existente.hora_evento !== horaEvento)
+      patch.hora_evento = horaEvento
+    if (normalizeDate(dataEvento) && existente.data_evento !== normalizeDate(dataEvento))
+      patch.data_evento = normalizeDate(dataEvento)
+
+    if (Object.keys(patch).length === 0) {
+      console.log(`[email-entrada] Evento ${ccc} já existe com mesmos dados — ignorando.`)
+      return NextResponse.json({ ok: true, skipped: true, ccc, reason: 'duplicate' })
+    }
+
+    // Há diferenças: atualizar e sinalizar para revisão
+    patch.foi_atualizado = true
+
+    const { error: updateError } = await supabase
+      .from('eventos')
+      .update(patch)
+      .eq('id', existente.id)
+
+    if (updateError) {
+      console.error('[email-entrada] Erro ao atualizar evento:', updateError.message)
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    console.log(`[email-entrada] ✓ Evento ${ccc} atualizado — campos:`, Object.keys(patch))
+    return NextResponse.json({ ok: true, updated: true, ccc, eventoId: existente.id, camposAlterados: Object.keys(patch).filter(k => k !== 'foi_atualizado') })
   }
 
   // 6. Inserir evento na triagem
