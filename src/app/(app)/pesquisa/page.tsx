@@ -484,9 +484,9 @@ export default function PesquisaPage() {
                 const nLig          = d.pesquisa.historicoLigacoes.length
                 const totalTentativas = twa + nLig
 
-                // Data do evento real: Evento vinculado → dataAtendimento → dataInformativo
+                // Data do evento: Evento vinculado → data_evento → dataAtendimento (registros antigos)
                 const eventoVinculado = d.eventoId ? eventoMap[d.eventoId] : undefined
-                const dataEvento = eventoVinculado?.dataEvento ?? d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
+                const dataEvento = eventoVinculado?.dataEvento ?? d.dataEvento ?? d.dataAtendimento
                 const horaEvento = eventoVinculado?.horaEvento ?? d.horaEvento
 
                 // Telefones múltiplos (separados por ";")
@@ -526,9 +526,11 @@ export default function PesquisaPage() {
                         {d.tipoEvento} · {d.cidade}/{d.uf}
                       </p>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        <span className="text-xs text-slate-400">
-                          Evento: {formatDate(dataEvento)}{horaEvento ? ` às ${horaEvento}` : ''}
-                        </span>
+                        {dataEvento && (
+                          <span className="text-xs text-slate-400">
+                            Evento: {formatDate(dataEvento)}{horaEvento ? ` às ${horaEvento}` : ''}
+                          </span>
+                        )}
                         {phones.map((phone) => (
                           <a
                             key={phone}
@@ -627,7 +629,7 @@ export default function PesquisaPage() {
                             { label: 'Cargo', value: d.cargo },
                             { label: 'Empresa', value: d.empresa },
                             { label: 'Localidade', value: `${d.cidade}/${d.uf}` },
-                            { label: 'Data evento', value: `${formatDate(dataEvento)}${horaEvento ? ` às ${horaEvento}` : ''}` },
+                            { label: 'Data evento', value: dataEvento ? `${formatDate(dataEvento)}${horaEvento ? ` às ${horaEvento}` : ''}` : '' },
                           ].map(({ label, value }) => {
                             const key = `${d.id}-${label}`
                             return (

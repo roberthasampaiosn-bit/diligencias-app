@@ -213,6 +213,7 @@ export interface Diligencia {
   dataInformativo?: string
   horaInformativo?: string
   // Campos BAT — evento / ligação / operação
+  dataEvento?: string
   horaEvento?: string
   dataLigacaoAdvogado?: string
   horaLigacaoAdvogado?: string

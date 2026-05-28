@@ -74,6 +74,7 @@ export interface DiligenciaRow {
   data_informativo?: string | null
   hora_informativo?: string | null
   // Campos BAT — evento / ligação / operação
+  data_evento?: string | null
   hora_evento?: string | null
   data_ligacao_advogado?: string | null
   hora_ligacao_advogado?: string | null

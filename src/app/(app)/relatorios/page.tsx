@@ -117,12 +117,14 @@ export default function RelatoriosPage() {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s
       }
-      function ano(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[0]) : '' }
-      function mes(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[1]) : '' }
-      function dia(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[2]) : '' }
+      function dataEventoRef(d: Diligencia) { return d.dataEvento ?? d.dataAtendimento }
+      function ano(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[0]) : '' }
+      function mes(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[1]) : '' }
+      function dia(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[2]) : '' }
       function dataFmt(d: Diligencia) {
-        if (!d.dataAtendimento) return ''
-        const [y, mm, dd] = d.dataAtendimento.split('-')
+        const dt = dataEventoRef(d)
+        if (!dt) return ''
+        const [y, mm, dd] = dt.split('-')
         return `${mm}/${dd}/${y}`
       }
 
@@ -218,12 +220,14 @@ export default function RelatoriosPage() {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s
       }
-      function ano(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[0]) : '' }
-      function mes(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[1]) : '' }
-      function dia(d: Diligencia)  { return d.dataAtendimento ? Number(d.dataAtendimento.split('-')[2]) : '' }
+      function dataEventoRef(d: Diligencia) { return d.dataEvento ?? d.dataAtendimento }
+      function ano(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[0]) : '' }
+      function mes(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[1]) : '' }
+      function dia(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[2]) : '' }
       function dataFmt(d: Diligencia) {
-        if (!d.dataAtendimento) return ''
-        const [y, mm, dd] = d.dataAtendimento.split('-')
+        const dt = dataEventoRef(d)
+        if (!dt) return ''
+        const [y, mm, dd] = dt.split('-')
         return `${mm}/${dd}/${y}`
       }
 
