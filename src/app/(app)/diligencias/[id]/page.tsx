@@ -101,6 +101,29 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     if (eventoVinculado?.dataEvento) setDataRealizacao(eventoVinculado.dataEvento)
   }, [eventoVinculado])
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Enter') return
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (modalRealizada) {
+        marcarRealizada(id, dataRealizacao || undefined)
+        setModalRealizada(false)
+      } else if (modalPago) {
+        marcarPago(id)
+        setModalPago(false)
+      } else if (modalFinalizarAnne) {
+        finalizarCiclo(id)
+        setModalFinalizarAnne(false)
+      } else if (modalFinalizar && notaAdv) {
+        handleFinalizar()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalRealizada, modalPago, modalFinalizarAnne, modalFinalizar, notaAdv, id, dataRealizacao])
+
   if (!d) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">

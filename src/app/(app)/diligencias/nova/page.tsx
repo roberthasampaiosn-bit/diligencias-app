@@ -76,6 +76,7 @@ function FormBatBrasil() {
     numeroBOProcesso: '',
     regiaoGtsc: '',
     motoristaAgredido: '',
+    dataEvento: '',
     dataLigacaoAdvogado: '',
     horaLigacaoAdvogado: '',
   })
@@ -162,9 +163,12 @@ function FormBatBrasil() {
       segmento: evento.segmento || prev.segmento,
       regiaoGtsc: evento.gtsc || prev.regiaoGtsc,
       motoristaAgredido: evento.motoristaAgredido ? 'Sim' : prev.motoristaAgredido,
-      dataLigacaoAdvogado: isRemoto ? (evento.dataEvento || prev.dataLigacaoAdvogado) : prev.dataLigacaoAdvogado,
+      dataEvento: evento.dataEvento || prev.dataEvento,
+      dataLigacaoAdvogado: evento.dataEvento || prev.dataLigacaoAdvogado,
       advogadoId: anneCaro ? anneCaro.id : prev.advogadoId,
-      observacoes: isRemoto ? 'Aguardando atendimento no local.' : prev.observacoes,
+      observacoes: isRemoto
+        ? 'Aguardando atendimento no local.'
+        : (evento.empresa?.toLowerCase().includes('fadel') ? 'Advogada Fadel em atendimento.' : prev.observacoes),
     }))
     setAutoFilled(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,9 +261,9 @@ function FormBatBrasil() {
     const e: Record<string, string> = {}
     const erroCcc = validarCccBat(form.ccc)
     if (erroCcc) e.ccc = erroCcc
-    if (form.telefoneVitima) {
+    if (form.telefoneVitima && !form.telefoneVitima.includes(';')) {
       const d = cleanPhone(form.telefoneVitima)
-      if (d.length < 10 || d.length > 11) e.telefoneVitima = '10 ou 11 dígitos'
+      if (d.length < 10 || d.length > 11) e.telefoneVitima = '10 ou 11 dígitos (ou separe múltiplos com ;)'
     }
     if (!form.cidade) e.cidade = 'Obrigatório'
     if (!form.uf) e.uf = 'Obrigatório'
@@ -350,6 +354,7 @@ function FormBatBrasil() {
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
+          <Input label="Data do evento" type="date" value={form.dataEvento} onChange={(e) => set('dataEvento', e.target.value)} />
           <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => setHora('horaEvento', e.target.value)} placeholder="HH:MM" />
           <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => {
             const modo = e.target.value
@@ -380,7 +385,7 @@ function FormBatBrasil() {
           <div className="sm:col-span-2">
             <Input label="Nome completo" value={form.vitima} onChange={(e) => set('vitima', e.target.value)} error={errors.vitima} />
           </div>
-          <Input label="Telefone" value={form.telefoneVitima} onChange={(e) => set('telefoneVitima', e.target.value)} error={errors.telefoneVitima} placeholder="11987654321" helper="Apenas números com DDD" />
+          <Input label="Telefone" value={form.telefoneVitima} onChange={(e) => set('telefoneVitima', e.target.value)} error={errors.telefoneVitima} placeholder="11987654321" helper="Apenas números com DDD. Para 2 vítimas, separe com ponto e vírgula: 11999990000; 11988880000" />
           <Input label="Cargo" value={form.cargo} onChange={(e) => set('cargo', e.target.value)} />
           <div className="sm:col-span-2">
             <Input label="Empresa da vítima" value={form.empresa} onChange={(e) => set('empresa', e.target.value)} placeholder="Nome da empresa onde a vítima trabalha" />
