@@ -101,28 +101,6 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     if (eventoVinculado?.dataEvento) setDataRealizacao(eventoVinculado.dataEvento)
   }, [eventoVinculado])
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Enter') return
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (modalRealizada) {
-        marcarRealizada(id, dataRealizacao || undefined)
-        setModalRealizada(false)
-      } else if (modalPago) {
-        marcarPago(id)
-        setModalPago(false)
-      } else if (modalFinalizarAnne) {
-        finalizarCiclo(id)
-        setModalFinalizarAnne(false)
-      } else if (modalFinalizar && notaAdv) {
-        handleFinalizar()
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalRealizada, modalPago, modalFinalizarAnne, modalFinalizar, notaAdv, id, dataRealizacao])
 
   if (!d) {
     return (
@@ -1008,7 +986,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalRealizada(false)}>Cancelar</Button>
-            <Button variant="success" size="sm" onClick={() => { marcarRealizada(id, dataRealizacao || undefined); setModalRealizada(false) }}>Confirmar</Button>
+            <Button autoFocus variant="success" size="sm" onClick={() => { marcarRealizada(id, dataRealizacao || undefined); setModalRealizada(false) }}>Confirmar</Button>
           </div>
         </div>
       </Modal>
@@ -1019,7 +997,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <p className="text-sm text-slate-600">Confirma pagamento de <strong>{formatCurrency(d.valorDiligencia)}</strong>?</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalPago(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={() => { marcarPago(id); setModalPago(false) }}>Confirmar</Button>
+            <Button autoFocus variant="primary" size="sm" onClick={() => { marcarPago(id); setModalPago(false) }}>Confirmar</Button>
           </div>
         </div>
       </Modal>
@@ -1030,7 +1008,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <p className="text-sm text-slate-600">Confirma a finalização do ciclo da diligência de <strong>{d.vitima}</strong>?</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalFinalizarAnne(false)}>Cancelar</Button>
-            <Button variant="success" size="sm" onClick={() => { finalizarCiclo(id); setModalFinalizarAnne(false) }}>Finalizar ciclo</Button>
+            <Button autoFocus variant="success" size="sm" onClick={() => { finalizarCiclo(id); setModalFinalizarAnne(false) }}>Finalizar ciclo</Button>
           </div>
         </div>
       </Modal>
