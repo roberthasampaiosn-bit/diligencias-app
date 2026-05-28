@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
-  PhoneOff, Clock, AlertCircle, ExternalLink, Download,
+  PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
+import { useEventos } from '@/context/EventosContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
@@ -15,7 +16,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone } from '@/lib/utils'
 import { StatusPesquisa, StatusDiligencia, ResultadoLigacao, Diligencia, Pesquisa } from '@/types'
 import { AbaExcel, exportarExcelEstilizado } from '@/lib/excel'
 
@@ -91,10 +92,22 @@ function formatDateTimeBR(s: string): string {
 
 function getPendentePriority(d: Diligencia): number {
   const dc = d.pesquisa.dataCombinada
-  if (!dc) return 3
-  if (/^\d{2}:\d{2}$/.test(dc)) return 3
-  const today = new Date().toISOString().split('T')[0]
-  return dc.split(' ')[0] <= today ? 1 : 2
+  const hasWA = !!d.pesquisa.dataEnvioWhatsApp
+
+  // Retorno atrasado → máxima prioridade
+  if (dc && !/^\d{2}:\d{2}$/.test(dc)) {
+    const today = new Date().toISOString().split('T')[0]
+    if (dc.split(' ')[0] <= today) return 1
+  }
+
+  // Sem WA enviado → precisa de contato inicial
+  if (!hasWA) return 2
+
+  // WA enviado + retorno futuro agendado
+  if (dc) return 3
+
+  // WA enviado, aguardando resposta
+  return 4
 }
 
 function sortPesquisa(a: Diligencia, b: Diligencia): number {
@@ -164,6 +177,12 @@ export default function PesquisaPage() {
     agendarRetorno, marcarRespondida, encerrarSemResposta,
   } = useDiligencias()
 
+  const { eventos } = useEventos()
+  const eventoMap = useMemo(
+    () => Object.fromEntries(eventos.map((e) => [e.id, e])),
+    [eventos],
+  )
+
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState('pendentes')
   const [, startTransition] = useTransition()
@@ -185,6 +204,30 @@ export default function PesquisaPage() {
   // Modal: Encerrar sem resposta
   const [modalEncerramento, setModalEncerramento] = useState<ModalEncerramentoState | null>(null)
   const [obsEncerramento, setObsEncerramento] = useState('')
+
+  // Copiar dados para entrevista
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  function copyToClipboard(text: string, fieldKey: string) {
+    navigator.clipboard.writeText(text)
+    setCopiedField(fieldKey)
+    setTimeout(() => setCopiedField(null), 1500)
+  }
+
+  // Enter para confirmar modal "Respondeu"
+  useEffect(() => {
+    if (!modalResposta) return
+    function handler(e: KeyboardEvent) {
+      if (e.key === 'Enter' && !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault()
+        marcarRespondida(modalResposta!.diligenciaId, textoResposta)
+        setModalResposta(null)
+        setTextoResposta('')
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [modalResposta, textoResposta, marcarRespondida])
 
   // ── Dados filtrados ──────────────────────────────────────────────────────────
 
@@ -222,15 +265,19 @@ export default function PesquisaPage() {
     else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     if (search) {
       const q = search.toLowerCase()
-      l = l.filter((d) => d.vitima.toLowerCase().includes(q) || d.ccc.toLowerCase().includes(q))
+      l = l.filter((d) =>
+        d.vitima.toLowerCase().includes(q) ||
+        d.ccc.toLowerCase().includes(q) ||
+        d.telefoneVitima.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+      )
     }
     return [...l].sort(sortPesquisa)
   }, [realizadasFiltradas, filtro, search])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  function handleLigar(d: Diligencia) {
-    window.open(`tel:${d.telefoneVitima}`)
+  function handleLigar(d: Diligencia, phone: string) {
+    window.open(`tel:${cleanPhone(phone)}`)
     const now = new Date()
     registrarLigacao(d.id, {
       data: now.toISOString().split('T')[0],
@@ -239,10 +286,10 @@ export default function PesquisaPage() {
     })
   }
 
-  function handleEnviarWhatsApp(d: Diligencia) {
+  function handleEnviarWhatsApp(d: Diligencia, phone: string) {
     const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente)
     registrarWhatsApp(d.id, mensagem)
-    window.open(buildWhatsAppUrl(d.telefoneVitima, mensagem), '_blank')
+    window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
   }
 
   function handleSalvarRetorno() {
@@ -437,6 +484,14 @@ export default function PesquisaPage() {
                 const nLig          = d.pesquisa.historicoLigacoes.length
                 const totalTentativas = twa + nLig
 
+                // Data do evento real: Evento vinculado → dataAtendimento → dataInformativo
+                const eventoVinculado = d.eventoId ? eventoMap[d.eventoId] : undefined
+                const dataEvento = eventoVinculado?.dataEvento ?? d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
+                const horaEvento = eventoVinculado?.horaEvento ?? d.horaEvento
+
+                // Telefones múltiplos (separados por ";")
+                const phones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
+
                 return (
                   <div key={d.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
 
@@ -470,16 +525,19 @@ export default function PesquisaPage() {
                       <p className="text-xs text-slate-500 mt-0.5">
                         {d.tipoEvento} · {d.cidade}/{d.uf}
                       </p>
-                      <div className="flex items-center gap-3 mt-0.5">
+                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         <span className="text-xs text-slate-400">
-                          {formatDate(d.createdAt.split('T')[0])}
+                          Evento: {formatDate(dataEvento)}{horaEvento ? ` às ${horaEvento}` : ''}
                         </span>
-                        <a
-                          href={`tel:${d.telefoneVitima}`}
-                          className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
-                        >
-                          {formatPhone(d.telefoneVitima)}
-                        </a>
+                        {phones.map((phone) => (
+                          <a
+                            key={phone}
+                            href={`tel:${cleanPhone(phone)}`}
+                            className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
+                          >
+                            {formatPhone(phone)}
+                          </a>
+                        ))}
                       </div>
                     </div>
 
@@ -556,29 +614,77 @@ export default function PesquisaPage() {
                       </div>
                     )}
 
+                    {/* Dados para entrevista */}
+                    {isPendente && (
+                      <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                          Dados para entrevista
+                        </p>
+                        <div className="space-y-1">
+                          {[
+                            { label: 'ID Evento', value: d.ccc },
+                            { label: 'Nome', value: d.vitima },
+                            { label: 'Cargo', value: d.cargo },
+                            { label: 'Empresa', value: d.empresa },
+                            { label: 'Localidade', value: `${d.cidade}/${d.uf}` },
+                            { label: 'Data evento', value: `${formatDate(dataEvento)}${horaEvento ? ` às ${horaEvento}` : ''}` },
+                          ].map(({ label, value }) => {
+                            const key = `${d.id}-${label}`
+                            return (
+                              <div key={label} className="flex items-center justify-between gap-2">
+                                <div className="flex items-baseline gap-1.5 min-w-0">
+                                  <span className="text-[10px] text-slate-400 shrink-0 w-16">{label}:</span>
+                                  <span className="text-xs font-medium text-slate-700 truncate">{value || '—'}</span>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(value || '', key)}
+                                  className="shrink-0 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                  title={`Copiar ${label}`}
+                                >
+                                  {copiedField === key
+                                    ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    : <Copy className="w-3.5 h-3.5" />
+                                  }
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Ações */}
                     {isPendente ? (
                       <div className="flex flex-col items-start gap-1.5 pt-1 border-t border-slate-100">
-                        {/* Linha 1: Ligar + WhatsApp */}
-                        <div className="flex gap-1.5 flex-wrap">
-                          <button
-                            onClick={() => handleLigar(d)}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
-                          >
-                            <Phone className="w-3.5 h-3.5" /> Ligar
-                          </button>
-                          <button
-                            onClick={() => handleEnviarWhatsApp(d)}
-                            className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                              d.pesquisa.dataEnvioWhatsApp
-                                ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
-                                : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                            }`}
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            {d.pesquisa.dataEnvioWhatsApp ? 'Reenviar WA' : 'WhatsApp'}
-                          </button>
-                        </div>
+                        {/* Linha 1: Ligar + WhatsApp — um par por telefone */}
+                        {phones.map((phone, idx) => (
+                          <div key={phone} className="flex gap-1.5 flex-wrap items-center">
+                            {phones.length > 1 && (
+                              <span className="text-[10px] text-slate-400 font-medium w-4 text-right shrink-0">
+                                {idx + 1}.
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleLigar(d, phone)}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                              Ligar{phones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
+                            </button>
+                            <button
+                              onClick={() => handleEnviarWhatsApp(d, phone)}
+                              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                                d.pesquisa.dataEnvioWhatsApp
+                                  ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
+                                  : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                              }`}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              {d.pesquisa.dataEnvioWhatsApp ? 'Reenviar WA' : 'WhatsApp'}
+                              {phones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
+                            </button>
+                          </div>
+                        ))}
                         {/* Linha 2: Agendar retorno */}
                         <button
                           onClick={() => setModalRetorno({ diligenciaId: d.id, vitima: d.vitima })}
