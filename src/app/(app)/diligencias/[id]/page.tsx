@@ -95,7 +95,10 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     () => d?.eventoId ? (eventos.find((e) => e.id === d.eventoId) ?? null) : null,
     [eventos, d]
   )
-  const isAnneCaroline = adv?.nomeCompleto.toLowerCase().includes('anne caroline') ?? false
+  const isFuncionariaInterna = adv ? (
+    adv.nomeCompleto.toLowerCase().includes('anne caroline') ||
+    adv.nomeCompleto.toLowerCase().includes('fadel')
+  ) : false
 
   useEffect(() => {
     if (eventoVinculado?.dataEvento) setDataRealizacao(eventoVinculado.dataEvento)
@@ -445,7 +448,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         {podeFinalizar && (
           <Button variant="success" size="sm" onClick={() => {
             if (pendenciasDocumentais.length > 0) setModalPendencia(true)
-            else if (isAnneCaroline) setModalFinalizarAnne(true)
+            else if (isFuncionariaInterna) setModalFinalizarAnne(true)
             else setModalFinalizar(true)
           }}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Finalizar ciclo
@@ -966,7 +969,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <p className="text-xs text-slate-500">Você pode voltar e anexar os documentos, ou concluir mesmo assim — a diligência ficará marcada com pendência documental.</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalPendencia(false)}>Voltar e anexar</Button>
-            <Button variant="warning" size="sm" onClick={() => { setModalPendencia(false); if (isAnneCaroline) setModalFinalizarAnne(true); else setModalFinalizar(true) }}>Concluir mesmo assim</Button>
+            <Button variant="warning" size="sm" onClick={() => { setModalPendencia(false); if (isFuncionariaInterna) setModalFinalizarAnne(true); else setModalFinalizar(true) }}>Concluir mesmo assim</Button>
           </div>
         </div>
       </Modal>
