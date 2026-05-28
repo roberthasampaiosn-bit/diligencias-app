@@ -97,7 +97,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   )
   const isFuncionariaInterna = adv ? (
     adv.nomeCompleto.toLowerCase().includes('anne caroline') ||
-    adv.nomeCompleto.toLowerCase().includes('fadel')
+    adv.nomeCompleto.toLowerCase().includes('caroline werner') ||
+    adv.nomeCompleto.toLowerCase().includes('marcela lourenzini')
   ) : false
 
   useEffect(() => {
