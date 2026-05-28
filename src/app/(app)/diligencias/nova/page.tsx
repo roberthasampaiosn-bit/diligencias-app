@@ -135,6 +135,10 @@ function FormBatBrasil() {
 
   useEffect(() => {
     if (!evento || autoFilled) return
+    const isRemoto = modoParam === 'remoto'
+    const anneCaro = isRemoto
+      ? advogados.find((a) => a.nomeCompleto.toLowerCase().includes('anne caroline'))
+      : undefined
     setForm((prev) => ({
       ...prev,
       ccc: evento.ccc || prev.ccc,
@@ -158,8 +162,12 @@ function FormBatBrasil() {
       segmento: evento.segmento || prev.segmento,
       regiaoGtsc: evento.gtsc || prev.regiaoGtsc,
       motoristaAgredido: evento.motoristaAgredido ? 'Sim' : prev.motoristaAgredido,
+      dataLigacaoAdvogado: isRemoto ? (evento.dataEvento || prev.dataLigacaoAdvogado) : prev.dataLigacaoAdvogado,
+      advogadoId: anneCaro ? anneCaro.id : prev.advogadoId,
+      observacoes: isRemoto ? 'Aguardando atendimento no local.' : prev.observacoes,
     }))
     setAutoFilled(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evento, autoFilled])
 
   const sugestoes = useMemo(() => {
