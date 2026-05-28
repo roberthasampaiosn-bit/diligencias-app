@@ -106,7 +106,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const whatsappVitima = buildWhatsAppUrl(d.telefoneVitima, buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente))
   const isRemoto = d.modoDiligencia === 'Remoto'
   const podeFinalizar = d.status === StatusDiligencia.Realizada
-    && (isRemoto || d.statusPagamento === StatusPagamento.Pago)
+    && (isRemoto || d.dispensarDocumentos || d.statusPagamento === StatusPagamento.Pago)
     && !d.cicloFinalizado
 
   const advPhone = adv ? (adv.whatsapp || adv.telefone).replace(/\D/g, '') : ''
