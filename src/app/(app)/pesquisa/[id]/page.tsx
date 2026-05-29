@@ -102,7 +102,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
     )
   }
 
-  const whatsappUrl = buildWhatsAppUrl(diligencia.telefoneVitima, buildPesquisaMessage(diligencia.vitima, diligencia.tipoEvento, diligencia.empresaCliente))
+  const whatsappUrl = buildWhatsAppUrl(diligencia.telefoneVitima, buildPesquisaMessage(diligencia.vitima, diligencia.tipoEvento, diligencia.empresaCliente, diligencia.dataEvento ?? diligencia.dataAtendimento))
   const hasRetornoAgendado = !!pesquisa.dataCombinada
 
   const [copied, setCopied] = useState<string | null>(null)

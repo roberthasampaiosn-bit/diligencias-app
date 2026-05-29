@@ -187,15 +187,16 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/55${digits}?text=${encoded}`
 }
 
-export function buildPesquisaMessage(vitima: string, tipoEvento: string, empresaCliente?: string): string {
+export function buildPesquisaMessage(vitima: string, tipoEvento: string, empresaCliente?: string, dataEvento?: string): string {
   const greeting = getGreeting()
   const nome = getFirstNames(vitima)
   const empresa = empresaCliente?.includes('V.TAL') ? 'V.TAL' : 'BAT'
   const tipo = tipoEvento ? tipoEvento.toLowerCase() : 'sinistro'
+  const dataFmt = dataEvento ? ` - ${formatDate(dataEvento)}` : ''
 
   return [
     `${greeting}, ${nome}! Tudo bem?`,
-    `Meu nome é Roberta e falo em nome da ${empresa} para a realização de uma pesquisa pós-sinistro (${tipo}).`,
+    `Meu nome é Roberta e falo em nome da ${empresa} para a realização de uma pesquisa pós-sinistro (${tipo}${dataFmt}).`,
     'Essa pesquisa é muito importante, pois tem como objetivo avaliar todo o atendimento prestado, contribuindo diretamente para melhorias contínuas no programa.',
     'A participação é rápida e será realizada por meio de uma breve ligação telefônica.',
     'Poderia, por gentileza, me informar o melhor dia e horário para entrarmos em contato?',

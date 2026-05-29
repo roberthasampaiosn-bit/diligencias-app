@@ -244,20 +244,46 @@ export default function PesquisaPage() {
     setSelectedIds(new Set())
   }
 
-  function handleEnviarWALote() {
+  // Helper: data do evento de uma diligência
+  function getDataEvento(d: Diligencia): string | undefined {
+    const ev = d.eventoId ? eventoMap[d.eventoId] : undefined
+    return ev?.dataEvento ?? d.dataEvento ?? d.dataAtendimento
+  }
+
+  // Fila guiada de WA em lote
+  type BatchItem = { d: Diligencia; phone: string; mensagem: string; waUrl: string }
+  const [batchQueue, setBatchQueue] = useState<BatchItem[]>([])
+  const [batchIdx, setBatchIdx] = useState(0)
+
+  function startBatchWA() {
     const alvo = lista.filter((d) => selectedIds.has(d.id) && d.pesquisa.status === StatusPesquisa.Pendente)
-    for (const d of alvo) {
+    const queue: BatchItem[] = alvo.map((d) => {
       const phone = d.telefoneVitima.split(';')[0].trim()
-      const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente)
-      registrarWhatsApp(d.id, mensagem)
+      const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente, getDataEvento(d))
+      return { d, phone, mensagem, waUrl: buildWhatsAppUrl(phone, mensagem) }
+    })
+    setBatchQueue(queue)
+    setBatchIdx(0)
+  }
+
+  function handleBatchNext(markAsSent: boolean) {
+    const current = batchQueue[batchIdx]
+    if (markAsSent && current) {
+      registrarWhatsApp(current.d.id, current.mensagem)
     }
-    if (alvo.length > 0) {
-      const first = alvo[0]
-      const phone = first.telefoneVitima.split(';')[0].trim()
-      const mensagem = buildPesquisaMessage(first.vitima, first.tipoEvento, first.empresaCliente)
-      window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
+    const isLast = batchIdx + 1 >= batchQueue.length
+    if (isLast) {
+      setBatchQueue([])
+      setBatchIdx(0)
+      clearSelection()
+    } else {
+      setBatchIdx((i) => i + 1)
     }
-    clearSelection()
+  }
+
+  function closeBatch() {
+    setBatchQueue([])
+    setBatchIdx(0)
   }
 
   // Enter para confirmar modal "Respondeu"
@@ -358,18 +384,17 @@ export default function PesquisaPage() {
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  function handleLigar(d: Diligencia, phone: string) {
+  function registrarLigacaoIniciada(d: Diligencia) {
     const now = new Date()
     registrarLigacao(d.id, {
       data: now.toISOString().split('T')[0],
       hora: now.toTimeString().slice(0, 5),
       observacao: 'Ligação iniciada',
     })
-    window.location.href = `tel:+55${cleanPhone(phone)}`
   }
 
   function handleEnviarWhatsApp(d: Diligencia, phone: string) {
-    const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente)
+    const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente, getDataEvento(d))
     registrarWhatsApp(d.id, mensagem)
     window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
   }
@@ -807,13 +832,14 @@ export default function PesquisaPage() {
                                 {idx + 1}.
                               </span>
                             )}
-                            <button
-                              onClick={() => handleLigar(d, phone)}
+                            <a
+                              href={`tel:+55${cleanPhone(phone)}`}
+                              onClick={() => registrarLigacaoIniciada(d)}
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                               <Phone className="w-3.5 h-3.5" />
                               Ligar{phones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
-                            </button>
+                            </a>
                             <button
                               onClick={() => handleEnviarWhatsApp(d, phone)}
                               className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
@@ -889,11 +915,11 @@ export default function PesquisaPage() {
           </span>
           <div className="w-px h-4 bg-slate-600" />
           <button
-            onClick={handleEnviarWALote}
+            onClick={startBatchWA}
             className="inline-flex items-center gap-2 text-sm font-semibold bg-green-500 hover:bg-green-400 transition-colors px-4 py-1.5 rounded-xl"
           >
             <MessageCircle className="w-4 h-4" />
-            Enviar WA para todos
+            Iniciar envio em fila
           </button>
           <button
             onClick={clearSelection}
@@ -903,6 +929,71 @@ export default function PesquisaPage() {
           </button>
         </div>
       )}
+
+      {/* Modal: Fila guiada de WA em lote */}
+      {batchQueue.length > 0 && (() => {
+        const current = batchQueue[batchIdx]
+        const isLast = batchIdx + 1 >= batchQueue.length
+        return (
+          <Modal open={true} onClose={closeBatch} title="Envio de WhatsApp em fila" size="sm">
+            <div className="p-5 space-y-4">
+              {/* Progresso */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Progresso</span>
+                  <span className="font-semibold text-slate-700">{batchIdx + 1} de {batchQueue.length}</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all duration-300"
+                    style={{ width: `${((batchIdx + 1) / batchQueue.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Pessoa atual */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-0.5">
+                <p className="font-semibold text-slate-800">{current.d.vitima}</p>
+                <p className="text-xs text-slate-500">{formatPhone(current.phone)}</p>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Clique em <strong>Abrir WhatsApp</strong> para abrir a conversa com a mensagem pronta.
+                Depois clique <strong>Enviado — Próximo</strong> para avançar.
+              </p>
+
+              <a
+                href={current.waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" /> Abrir WhatsApp
+              </a>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleBatchNext(true)}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold transition-colors"
+                >
+                  {isLast ? 'Enviado — Concluir' : 'Enviado — Próximo →'}
+                </button>
+                <button
+                  onClick={() => handleBatchNext(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 text-sm transition-colors"
+                  title="Avançar sem marcar como enviado"
+                >
+                  Pular
+                </button>
+              </div>
+
+              <button onClick={closeBatch} className="w-full text-xs text-slate-400 hover:text-slate-600 py-1 transition-colors">
+                Cancelar e fechar
+              </button>
+            </div>
+          </Modal>
+        )
+      })()}
 
       {/* Modal: Agendar retorno */}
       <Modal
