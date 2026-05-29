@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
+  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
@@ -88,6 +89,12 @@ function formatDateTimeBR(s: string): string {
     : `${parts[2]}/${parts[1]}/${parts[0]}`
 }
 
+// ─── Normalização de texto (remove acentos para busca) ───────────────────────
+
+function normalizeStr(s: string): string {
+  return (s ?? '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+}
+
 // ─── Ordenação ────────────────────────────────────────────────────────────────
 
 function getPendentePriority(d: Diligencia): number {
@@ -110,15 +117,17 @@ function getPendentePriority(d: Diligencia): number {
   return 4
 }
 
-function sortPesquisa(a: Diligencia, b: Diligencia): number {
+function sortPesquisa(a: Diligencia, b: Diligencia, order: 'asc' | 'desc' = 'desc'): number {
   const aConc = a.pesquisa.status === StatusPesquisa.Concluida
   const bConc = b.pesquisa.status === StatusPesquisa.Concluida
   if (aConc !== bConc) return aConc ? 1 : -1
-  if (aConc) return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  const dateA = new Date(a.dataAtendimento ?? a.createdAt).getTime()
+  const dateB = new Date(b.dataAtendimento ?? b.createdAt).getTime()
+  if (aConc) return order === 'desc' ? dateB - dateA : dateA - dateB
   const pa = getPendentePriority(a)
   const pb = getPendentePriority(b)
   if (pa !== pb) return pa - pb
-  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  return order === 'desc' ? dateB - dateA : dateA - dateB
 }
 
 // ─── Retorno ──────────────────────────────────────────────────────────────────
@@ -185,6 +194,7 @@ export default function PesquisaPage() {
 
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState('pendentes')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [, startTransition] = useTransition()
 
   // Período / intervalo de datas
@@ -212,6 +222,42 @@ export default function PesquisaPage() {
     navigator.clipboard.writeText(text)
     setCopiedField(fieldKey)
     setTimeout(() => setCopiedField(null), 1500)
+  }
+
+  // Seleção para WA em lote
+  const [selectedIds, setSelectedIds] = useState(new Set<string>())
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function selectAll() {
+    const pendentes = lista.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
+    setSelectedIds(new Set(pendentes.map((d) => d.id)))
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  function handleEnviarWALote() {
+    const alvo = lista.filter((d) => selectedIds.has(d.id) && d.pesquisa.status === StatusPesquisa.Pendente)
+    for (const d of alvo) {
+      const phone = d.telefoneVitima.split(';')[0].trim()
+      const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente)
+      registrarWhatsApp(d.id, mensagem)
+    }
+    if (alvo.length > 0) {
+      const first = alvo[0]
+      const phone = first.telefoneVitima.split(';')[0].trim()
+      const mensagem = buildPesquisaMessage(first.vitima, first.tipoEvento, first.empresaCliente)
+      window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
+    }
+    clearSelection()
   }
 
   // Enter para confirmar modal "Respondeu"
@@ -259,31 +305,67 @@ export default function PesquisaPage() {
     concluidas: realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida).length,
   }), [realizadasFiltradas])
 
+  // Contadores para cada botão de período (considera o filtro de status atual)
+  const periodCounts = useMemo(() => {
+    const applyStatusFilter = (items: Diligencia[]) => {
+      if (filtro === 'pendentes') return items.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
+      if (filtro === 'concluidas') return items.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
+      return items
+    }
+    const result: Record<string, number> = {}
+    for (const p of PERIODOS) {
+      if (p.key === 'custom') {
+        const ini = dataFiltroInicio || '2000-01-01'
+        const fim = dataFiltroFim || '9999-12-31'
+        const filtered = realizadas.filter((d) => {
+          const ref = d.dataAtendimento ?? d.createdAt.split('T')[0]
+          return ref >= ini && ref <= fim
+        })
+        result[p.key] = applyStatusFilter(filtered).length
+      } else if (p.key === '') {
+        result[p.key] = applyStatusFilter(realizadas).length
+      } else {
+        const range = periodoToRange(p.key)
+        if (range) {
+          const { ini, fim } = range
+          const filtered = realizadas.filter((d) => {
+            const ref = d.dataAtendimento ?? d.createdAt.split('T')[0]
+            return ref >= ini && ref <= fim
+          })
+          result[p.key] = applyStatusFilter(filtered).length
+        } else {
+          result[p.key] = 0
+        }
+      }
+    }
+    return result
+  }, [realizadas, filtro, dataFiltroInicio, dataFiltroFim])
+
   const lista = useMemo(() => {
     let l = realizadasFiltradas
     if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
     else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     if (search) {
-      const q = search.toLowerCase()
+      const q = normalizeStr(search)
       l = l.filter((d) =>
-        d.vitima.toLowerCase().includes(q) ||
-        d.ccc.toLowerCase().includes(q) ||
-        d.telefoneVitima.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+        normalizeStr(d.vitima).includes(q) ||
+        normalizeStr(d.ccc).includes(q) ||
+        d.telefoneVitima.replace(/\D/g, '').includes(search.replace(/\D/g, ''))
       )
     }
-    return [...l].sort(sortPesquisa)
-  }, [realizadasFiltradas, filtro, search])
+    return [...l].sort((a, b) => sortPesquisa(a, b, sortOrder))
+  }, [realizadasFiltradas, filtro, search, sortOrder])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   function handleLigar(d: Diligencia, phone: string) {
-    window.open(`tel:${cleanPhone(phone)}`)
     const now = new Date()
     registrarLigacao(d.id, {
       data: now.toISOString().split('T')[0],
       hora: now.toTimeString().slice(0, 5),
       observacao: 'Ligação iniciada',
     })
+    window.location.href = `tel:+55${cleanPhone(phone)}`
   }
 
   function handleEnviarWhatsApp(d: Diligencia, phone: string) {
@@ -381,7 +463,7 @@ export default function PesquisaPage() {
         <CardHeader>
           <div className="flex flex-col gap-3">
 
-            {/* Busca + botão exportar */}
+            {/* Busca + ordenação + exportar */}
             <div className="flex flex-wrap items-center gap-2">
               <SearchInput
                 value={search}
@@ -389,6 +471,16 @@ export default function PesquisaPage() {
                 placeholder="Buscar vítima, CCC..."
                 className="flex-1 min-w-0 sm:w-64"
               />
+              <button
+                onClick={() => setSortOrder((o) => o === 'desc' ? 'asc' : 'desc')}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                title={sortOrder === 'desc' ? 'Mais recente primeiro — clique para inverter' : 'Mais antigo primeiro — clique para inverter'}
+              >
+                {sortOrder === 'desc'
+                  ? <><ArrowDown className="w-3.5 h-3.5" /> Mais recente</>
+                  : <><ArrowUp className="w-3.5 h-3.5" /> Mais antigo</>
+                }
+              </button>
               <Button
                 size="sm"
                 variant="secondary"
@@ -401,44 +493,63 @@ export default function PesquisaPage() {
               </Button>
             </div>
 
-            {/* Filtro de status */}
+            {/* Filtro de status — com contadores do período atual */}
             <div className="flex flex-wrap gap-1.5">
-              {FILTROS.map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => startTransition(() => setFiltro(f.key))}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                    filtro === f.key
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+              {FILTROS.map((f) => {
+                const count = f.key === 'pendentes' ? stats.pendentes
+                  : f.key === 'concluidas' ? stats.concluidas
+                  : stats.total
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => startTransition(() => setFiltro(f.key))}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      filtro === f.key
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f.label}
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
+                      filtro === f.key ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
 
-            {/* Filtro de período */}
+            {/* Filtro de período — com contadores por status atual */}
             <div className="flex flex-wrap gap-1.5 items-center">
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
                 Período:
               </span>
-              {PERIODOS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => startTransition(() => {
-                    setPeriodoFiltro(p.key)
-                    if (p.key !== 'custom') { setDataFiltroInicio(''); setDataFiltroFim('') }
-                  })}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                    periodoFiltro === p.key
-                      ? 'bg-slate-700 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+              {PERIODOS.map((p) => {
+                const count = periodCounts[p.key] ?? 0
+                const isActive = periodoFiltro === p.key
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => startTransition(() => {
+                      setPeriodoFiltro(p.key)
+                      if (p.key !== 'custom') { setDataFiltroInicio(''); setDataFiltroFim('') }
+                    })}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-slate-700 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {p.label}
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
+                      isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
 
             {/* Inputs de data personalizada */}
@@ -470,7 +581,21 @@ export default function PesquisaPage() {
           />
         ) : (
           <CardBody className="p-4">
-            <div className="flex flex-col gap-3">
+            {/* Barra de seleção em lote */}
+            {lista.some((d) => d.pesquisa.status === StatusPesquisa.Pendente) && (
+              <div className="flex items-center justify-between mb-3 px-1">
+                <button
+                  onClick={selectedIds.size > 0 ? clearSelection : selectAll}
+                  className="text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors"
+                >
+                  {selectedIds.size > 0 ? `Desmarcar todos (${selectedIds.size})` : 'Selecionar todos pendentes'}
+                </button>
+                {selectedIds.size > 0 && (
+                  <span className="text-xs text-slate-400">{selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}</span>
+                )}
+              </div>
+            )}
+            <div className="flex flex-col gap-5">
               {lista.map((d) => {
                 const retorno       = parseRetorno(d.pesquisa.dataCombinada)
                 const ultima        = getUltimaTentativa(d.pesquisa)
@@ -492,11 +617,28 @@ export default function PesquisaPage() {
                 // Telefones múltiplos (separados por ";")
                 const phones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
 
-                return (
-                  <div key={d.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
+                const leftBorder = !isPendente
+                  ? 'border-l-emerald-500'
+                  : retorno?.variant === 'late'
+                  ? 'border-l-red-500'
+                  : retorno?.variant === 'normal' || retorno?.variant === 'timeonly'
+                  ? 'border-l-amber-400'
+                  : 'border-l-blue-400'
 
-                    {/* Status + indicador WA */}
+                return (
+                  <div key={d.id} className={`bg-white border border-slate-200 border-l-4 ${leftBorder} rounded-xl shadow p-4 space-y-3`}>
+
+                    {/* Status + checkbox seleção + indicador WA */}
                     <div className="flex items-center gap-2 flex-wrap">
+                      {isPendente && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(d.id)}
+                          onChange={() => toggleSelected(d.id)}
+                          className="w-4 h-4 rounded accent-blue-600 cursor-pointer shrink-0"
+                          title="Selecionar para WA em lote"
+                        />
+                      )}
                       <StatusPesquisaBadge status={d.pesquisa.status} />
                       {d.pesquisa.dataEnvioWhatsApp ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
@@ -629,7 +771,6 @@ export default function PesquisaPage() {
                             { label: 'Cargo', value: d.cargo },
                             { label: 'Empresa', value: d.empresa },
                             { label: 'Localidade', value: `${d.cidade}/${d.uf}` },
-                            { label: 'Data evento', value: dataEvento ? `${formatDate(dataEvento)}${horaEvento ? ` às ${horaEvento}` : ''}` : '' },
                           ].map(({ label, value }) => {
                             const key = `${d.id}-${label}`
                             return (
@@ -739,6 +880,29 @@ export default function PesquisaPage() {
           </CardBody>
         )}
       </Card>
+
+      {/* Barra flutuante — WA em lote */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <div className="w-px h-4 bg-slate-600" />
+          <button
+            onClick={handleEnviarWALote}
+            className="inline-flex items-center gap-2 text-sm font-semibold bg-green-500 hover:bg-green-400 transition-colors px-4 py-1.5 rounded-xl"
+          >
+            <MessageCircle className="w-4 h-4" />
+            Enviar WA para todos
+          </button>
+          <button
+            onClick={clearSelection}
+            className="text-slate-400 hover:text-white transition-colors text-xs px-2 py-1.5"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
 
       {/* Modal: Agendar retorno */}
       <Modal

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone } from '@/lib/utils'
 import { StatusPesquisa, ResultadoLigacao, Pesquisa } from '@/types'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
@@ -186,7 +186,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
 
       {/* Contato rápido com a vítima */}
       <div className="flex flex-wrap gap-2">
-        <a href={`tel:${diligencia.telefoneVitima}`}>
+        <a href={`tel:+55${cleanPhone(diligencia.telefoneVitima)}`}>
           <Button variant="primary" size="sm">
             <Phone className="w-3.5 h-3.5" /> Ligar — {formatPhone(diligencia.telefoneVitima)}
           </Button>
