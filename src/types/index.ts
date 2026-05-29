@@ -234,6 +234,26 @@ export interface Diligencia {
   updatedAt: string
 }
 
+// ─── Documento Avulso ─────────────────────────────────────────────────────────
+
+export interface DocumentoAvulso {
+  id: string
+  advogadoId: string | null
+  advogadoNome: string
+  tipo: 'contrato' | 'recibo' | 'ambos'
+  valor: number
+  dataAtendimento?: string
+  tipoServico?: string
+  filenameContrato?: string
+  zapsignTokenContrato?: string
+  linkAssinaturaAdriana?: string
+  linkAssinaturaAdvogadoContrato?: string
+  filenameRecibo?: string
+  zapsignTokenRecibo?: string
+  linkAssinaturaAdvogadoRecibo?: string
+  createdAt: string
+}
+
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────
 
 export interface DashboardStats {

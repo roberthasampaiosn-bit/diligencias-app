@@ -124,6 +124,24 @@ export interface ConsultaPlacaRow {
   updated_at: string
 }
 
+export interface DocumentoAvulsoRow {
+  id: string
+  advogado_id: string | null
+  advogado_nome: string
+  tipo: string
+  valor: number
+  data_atendimento: string | null
+  tipo_servico: string | null
+  filename_contrato: string | null
+  zapsign_token_contrato: string | null
+  link_assinatura_adriana: string | null
+  link_assinatura_advogado_contrato: string | null
+  filename_recibo: string | null
+  zapsign_token_recibo: string | null
+  link_assinatura_advogado_recibo: string | null
+  created_at: string
+}
+
 export interface EventoRow {
   id: string
   ccc: string
