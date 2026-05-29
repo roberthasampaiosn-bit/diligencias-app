@@ -92,7 +92,7 @@ function formatDateTimeBR(s: string): string {
 // ─── Normalização de texto (remove acentos para busca) ───────────────────────
 
 function normalizeStr(s: string): string {
-  return (s ?? '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+  return (s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
 // ─── Ordenação ────────────────────────────────────────────────────────────────
