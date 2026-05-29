@@ -369,9 +369,8 @@ export default function PesquisaPage() {
 
   const lista = useMemo(() => {
     let l = realizadasFiltradas
-    if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
-    else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     if (search) {
+      // Busca global: ignora filtro de status para encontrar qualquer nome/CCC/telefone
       const q = normalizeStr(search)
       const ql = search.toLowerCase().trim()
       l = l.filter((d) => {
@@ -383,6 +382,9 @@ export default function PesquisaPage() {
           normalizeStr(d.ccc).includes(q) ||
           String(d.telefoneVitima ?? '').replace(/\D/g, '').includes(search.replace(/\D/g, ''))
       })
+    } else {
+      if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
+      else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     }
     return [...l].sort((a, b) => sortPesquisa(a, b, sortOrder))
   }, [realizadasFiltradas, filtro, search, sortOrder])
