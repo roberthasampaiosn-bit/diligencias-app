@@ -259,7 +259,8 @@ export default function PesquisaPage() {
     const alvo = lista.filter((d) => selectedIds.has(d.id) && d.pesquisa.status === StatusPesquisa.Pendente)
     const queue: BatchItem[] = alvo.map((d) => {
       const phone = d.telefoneVitima.split(';')[0].trim()
-      const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente, getDataEvento(d))
+      const nome = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
+      const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
       return { d, phone, mensagem, waUrl: buildWhatsAppUrl(phone, mensagem) }
     })
     setBatchQueue(queue)
@@ -375,9 +376,12 @@ export default function PesquisaPage() {
       const ql = search.toLowerCase().trim()
       l = l.filter((d) => {
         const v = String(d.vitima ?? '').toLowerCase().trim()
+        const nomeEv = String(eventoMap[d.eventoId ?? '']?.nomeVitima ?? '').toLowerCase().trim()
         const c = String(d.ccc ?? '').toLowerCase().trim()
         return v.includes(ql) ||
           normalizeStr(d.vitima).includes(q) ||
+          nomeEv.includes(ql) ||
+          normalizeStr(nomeEv).includes(q) ||
           c.includes(ql) ||
           normalizeStr(d.ccc).includes(q) ||
           String(d.telefoneVitima ?? '').replace(/\D/g, '').includes(search.replace(/\D/g, ''))
@@ -387,7 +391,7 @@ export default function PesquisaPage() {
       else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     }
     return [...l].sort((a, b) => sortPesquisa(a, b, sortOrder))
-  }, [realizadasFiltradas, filtro, search, sortOrder])
+  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -401,7 +405,8 @@ export default function PesquisaPage() {
   }
 
   function handleEnviarWhatsApp(d: Diligencia, phone: string) {
-    const mensagem = buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente, getDataEvento(d))
+    const nome = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
+    const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
     registrarWhatsApp(d.id, mensagem)
     window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
   }
@@ -645,6 +650,8 @@ export default function PesquisaPage() {
                 const eventoVinculado = d.eventoId ? eventoMap[d.eventoId] : undefined
                 const dataEvento = eventoVinculado?.dataEvento ?? d.dataEvento ?? d.dataAtendimento
                 const horaEvento = eventoVinculado?.horaEvento ?? d.horaEvento
+                // Nome efetivo: vitima da diligência ou, se vazio, do evento vinculado
+                const nomeEfetivo = d.vitima || eventoVinculado?.nomeVitima || ''
 
                 // Telefones múltiplos (separados por ";")
                 const phones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
@@ -692,7 +699,7 @@ export default function PesquisaPage() {
                           href={`/diligencias/${d.id}`}
                           className="font-semibold text-slate-800 hover:text-blue-600 transition-colors"
                         >
-                          {d.vitima}
+                          {nomeEfetivo}
                         </Link>
                         <span className="font-mono text-xs text-blue-600 font-semibold">{d.ccc}</span>
                       </div>
@@ -799,7 +806,7 @@ export default function PesquisaPage() {
                         <div className="space-y-1">
                           {[
                             { label: 'ID Evento', value: d.ccc },
-                            { label: 'Nome', value: d.vitima },
+                            { label: 'Nome', value: nomeEfetivo },
                             { label: 'Cargo', value: d.cargo },
                             { label: 'Empresa', value: d.empresa },
                             { label: 'Localidade', value: `${d.cidade}/${d.uf}` },
@@ -863,7 +870,7 @@ export default function PesquisaPage() {
                         ))}
                         {/* Linha 2: Agendar retorno */}
                         <button
-                          onClick={() => setModalRetorno({ diligenciaId: d.id, vitima: d.vitima })}
+                          onClick={() => setModalRetorno({ diligenciaId: d.id, vitima: nomeEfetivo })}
                           className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           <Calendar className="w-3.5 h-3.5" /> Agendar retorno
@@ -871,13 +878,13 @@ export default function PesquisaPage() {
                         {/* Linha 3: Respondeu + Encerrar */}
                         <div className="flex gap-1.5 flex-wrap">
                           <button
-                            onClick={() => setModalResposta({ diligenciaId: d.id, vitima: d.vitima })}
+                            onClick={() => setModalResposta({ diligenciaId: d.id, vitima: nomeEfetivo })}
                             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" /> Respondeu
                           </button>
                           <button
-                            onClick={() => setModalEncerramento({ diligenciaId: d.id, vitima: d.vitima })}
+                            onClick={() => setModalEncerramento({ diligenciaId: d.id, vitima: nomeEfetivo })}
                             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
                           >
                             <PhoneOff className="w-3.5 h-3.5" /> Encerrar
@@ -885,7 +892,7 @@ export default function PesquisaPage() {
                         </div>
                         {/* Linha 4: Formulário de entrevista */}
                         <a
-                          href={buildFormUrl(d.ccc, d.vitima, d.cargo, d.empresa, d.cidade)}
+                          href={buildFormUrl(d.ccc, nomeEfetivo, d.cargo, d.empresa, d.cidade)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
