@@ -142,18 +142,34 @@ type RetornoVariant = 'normal' | 'late' | 'timeonly'
 
 function parseRetorno(dc: string | undefined): { text: string; variant: RetornoVariant } | null {
   if (!dc) return null
+
+  // Só hora: "HH:MM"
   if (/^\d{2}:\d{2}$/.test(dc)) {
     return { text: `Retorno: qualquer dia após ${dc}`, variant: 'timeonly' }
   }
-  const sp = dc.indexOf(' ')
-  if (sp === -1) return null
-  const datePart = dc.slice(0, sp)
-  const timePart = dc.slice(sp + 1)
+
   const today = new Date().toISOString().split('T')[0]
-  const [y, m, d] = datePart.split('-')
-  const fmt = `${d}/${m}/${y}`
-  if (datePart < today) return { text: `Retorno atrasado: ${fmt} às ${timePart}`, variant: 'late' }
-  return { text: `Retorno agendado para ${fmt} às ${timePart}`, variant: 'normal' }
+
+  // Separador pode ser espaço ou T (ISO)
+  const sep = dc.includes(' ') ? ' ' : dc.includes('T') ? 'T' : null
+  if (sep) {
+    const datePart = dc.slice(0, dc.indexOf(sep))
+    const timePart = dc.slice(dc.indexOf(sep) + 1, dc.indexOf(sep) + 6) // HH:MM
+    const [y, m, d] = datePart.split('-')
+    const fmt = `${d}/${m}/${y}`
+    if (datePart < today) return { text: `Retorno atrasado: ${fmt} às ${timePart}`, variant: 'late' }
+    return { text: `Retorno agendado para ${fmt} às ${timePart}`, variant: 'normal' }
+  }
+
+  // Só data: "YYYY-MM-DD"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dc)) {
+    const [y, m, d] = dc.split('-')
+    const fmt = `${d}/${m}/${y}`
+    if (dc < today) return { text: `Retorno atrasado: ${fmt}`, variant: 'late' }
+    return { text: `Retorno agendado para ${fmt}`, variant: 'normal' }
+  }
+
+  return null
 }
 
 // ─── Última tentativa ─────────────────────────────────────────────────────────
@@ -423,6 +439,7 @@ export default function PesquisaPage() {
       // Busca global: ignora filtro de status para encontrar qualquer nome/CCC/telefone
       const q = normalizeStr(search)
       const ql = search.toLowerCase().trim()
+      const phoneDigits = search.replace(/\D/g, '') // vazio se busca por nome
       l = l.filter((d) => {
         const v = String(d.vitima ?? '').toLowerCase().trim()
         const nomeEv = String(eventoMap[d.eventoId ?? '']?.nomeVitima ?? '').toLowerCase().trim()
@@ -433,7 +450,8 @@ export default function PesquisaPage() {
           normalizeStr(nomeEv).includes(q) ||
           c.includes(ql) ||
           normalizeStr(d.ccc).includes(q) ||
-          String(d.telefoneVitima ?? '').replace(/\D/g, '').includes(search.replace(/\D/g, ''))
+          // Busca por telefone SÓ quando há dígitos na pesquisa
+          (phoneDigits.length > 0 && String(d.telefoneVitima ?? '').replace(/\D/g, '').includes(phoneDigits))
       })
     } else {
       if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
