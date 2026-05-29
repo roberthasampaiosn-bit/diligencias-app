@@ -9,7 +9,7 @@ export interface EnviarZapSignBody {
   pdfBase64: string
   filename: string
   tipo: 'contrato' | 'recibo'
-  diligenciaId: string
+  diligenciaId?: string
   nomeAdvogado: string
   whatsappAdvogado: string
 }

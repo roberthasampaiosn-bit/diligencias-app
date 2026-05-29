@@ -18,7 +18,12 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone } from '@/lib/utils'
-import { StatusPesquisa, StatusDiligencia, ResultadoLigacao, Diligencia, Pesquisa } from '@/types'
+import {
+  StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
+  EmpresaCliente, TipoDiligencia, ModoDiligencia, TipoEvento,
+  StatusPagamento, normalizeEmpresa,
+  Diligencia, Pesquisa, Evento,
+} from '@/types'
 import { AbaExcel, exportarExcelEstilizado } from '@/lib/excel'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
@@ -133,6 +138,10 @@ function sortPesquisa(a: Diligencia, b: Diligencia, order: 'asc' | 'desc' = 'des
   const pa = getPendentePriority(a)
   const pb = getPendentePriority(b)
   if (pa !== pb) return pa - pb
+  // Dentro da mesma prioridade: quem tem menos ligações sobe (precisa de contato)
+  const ligA = a.pesquisa.historicoLigacoes.length
+  const ligB = b.pesquisa.historicoLigacoes.length
+  if (ligA !== ligB) return ligA - ligB
   return order === 'desc' ? dateB - dateA : dateA - dateB
 }
 
@@ -212,9 +221,10 @@ export default function PesquisaPage() {
   const {
     diligencias, registrarWhatsApp, registrarLigacao,
     agendarRetorno, marcarRespondida, encerrarSemResposta, atualizarPesquisa,
+    createDiligencia,
   } = useDiligencias()
 
-  const { eventos } = useEventos()
+  const { eventos, processarEvento } = useEventos()
   const eventoMap = useMemo(
     () => Object.fromEntries(eventos.map((e) => [e.id, e])),
     [eventos],
@@ -224,6 +234,74 @@ export default function PesquisaPage() {
   const [filtro, setFiltro] = useState('pendentes')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [, startTransition] = useTransition()
+
+  // ── Triagem: criação automática de diligência ao primeiro contato ────────────
+  const [criandoTriagem, setCriandoTriagem] = useState<string | null>(null) // eventoId em criação
+
+  async function criarDiligenciaDoEvento(ev: Evento): Promise<Diligencia> {
+    setCriandoTriagem(ev.id)
+    try {
+      const tipoEv = Object.values(TipoEvento).includes(ev.tipoEvento as TipoEvento)
+        ? (ev.tipoEvento as TipoEvento)
+        : TipoEvento.Outro
+
+      const nova = await createDiligencia({
+        empresaCliente:   normalizeEmpresa(ev.empresa ?? ''),
+        ccc:              ev.ccc,
+        vitima:           ev.nomeVitima ?? '',
+        telefoneVitima:   ev.telefoneVitima ?? '',
+        cargo:            ev.cargoVitima ?? '',
+        empresa:          ev.empresa ?? '',
+        cidade:           ev.cidade ?? '',
+        uf:               ev.uf ?? '',
+        tipoEvento:       tipoEv,
+        tipoDiligencia:   TipoDiligencia.AssistenciaJuridicaRemota,
+        modoDiligencia:   ModoDiligencia.Remoto,
+        advogadoId:       '',
+        valorDiligencia:  0,
+        status:           StatusDiligencia.Realizada,
+        statusPagamento:  StatusPagamento.Pendente,
+        cicloFinalizado:  false,
+        eventoId:         ev.id,
+        dataAtendimento:  ev.dataEvento ?? undefined,
+        dataEvento:       ev.dataEvento ?? undefined,
+        horaEvento:       ev.horaEvento ?? undefined,
+        segmento:         ev.segmento ?? undefined,
+        operacao:         ev.operacao ?? undefined,
+        pesquisa: {
+          status:             StatusPesquisa.Pendente,
+          historicoLigacoes:  [],
+          tentativasWhatsApp: 0,
+        },
+        anexos: {
+          contratoGerado:        '',
+          contratoAssinado:      '',
+          reciboGerado:          '',
+          reciboAssinado:        '',
+          comprovantePagamento:  '',
+          comprovanteServico:    '',
+        },
+      })
+      // NÃO chama processarEvento — evento permanece na triagem pendente
+      // A diligência fica vinculada pelo eventoId para rastrear a pesquisa
+      return nova
+    } finally {
+      setCriandoTriagem(null)
+    }
+  }
+
+  // Card pinado durante ligação
+  const [pinnedId, setPinnedId] = useState<string | null>(null)
+  const [pinnedAt, setPinnedAt] = useState<number | null>(null)
+
+  // Timer de segurança: solta o pin após 15 minutos automaticamente
+  useEffect(() => {
+    if (!pinnedId || !pinnedAt) return
+    const remaining = 15 * 60 * 1000 - (Date.now() - pinnedAt)
+    if (remaining <= 0) { setPinnedId(null); setPinnedAt(null); return }
+    const timer = setTimeout(() => { setPinnedId(null); setPinnedAt(null) }, remaining)
+    return () => clearTimeout(timer)
+  }, [pinnedId, pinnedAt])
 
   // Período / intervalo de datas
   const [periodoFiltro, setPeriodoFiltro] = useState<string>('')
@@ -480,8 +558,47 @@ export default function PesquisaPage() {
       }
       void hoje
     }
-    return [...l].sort((a, b) => sortPesquisa(a, b, sortOrder))
-  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap, subFiltro])
+    return [...l].sort((a, b) => {
+      // Card pinado sempre no topo
+      if (pinnedId) {
+        if (a.id === pinnedId) return -1
+        if (b.id === pinnedId) return 1
+      }
+      return sortPesquisa(a, b, sortOrder)
+    })
+  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap, subFiltro, pinnedId])
+
+  // Mapa eventoId → diligência (para mostrar status da pesquisa nos cards da triagem)
+  const dilPorEventoId = useMemo(() => {
+    const map: Record<string, Diligencia> = {}
+    for (const d of diligencias) {
+      if (d.eventoId) map[d.eventoId] = d
+    }
+    return map
+  }, [diligencias])
+
+  // Eventos da triagem pendentes — aparecem na fila de pesquisa
+  // Só após 24h do evento e enquanto a pesquisa não estiver concluída
+  const triagemPendentes = useMemo(() => {
+    if (filtro !== 'pendentes') return []
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const base = eventos.filter((e) => {
+      if (e.statusEvento !== StatusEvento.Pendente) return false
+      if (!e.dataEvento || e.dataEvento > cutoff24h) return false
+      // Se já tem diligência vinculada e pesquisa concluída, sai da fila
+      const dil = dilPorEventoId[e.id]
+      if (dil && dil.pesquisa.status === StatusPesquisa.Concluida) return false
+      return true
+    })
+    if (!search) return base
+    const q = normalizeStr(search)
+    const ql = search.toLowerCase().trim()
+    return base.filter((e) =>
+      normalizeStr(e.nomeVitima).includes(q) ||
+      (e.nomeVitima ?? '').toLowerCase().includes(ql) ||
+      e.ccc.toLowerCase().includes(ql)
+    )
+  }, [eventos, filtro, search, dilPorEventoId])
 
   const subFiltrosCounts = useMemo(() => {
     const pendentes = realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
@@ -502,6 +619,9 @@ export default function PesquisaPage() {
       hora: now.toTimeString().slice(0, 5),
       observacao: 'Ligação iniciada',
     })
+    // Pina o card no topo para manter dados visíveis durante a ligação
+    setPinnedId(d.id)
+    setPinnedAt(Date.now())
   }
 
   function handleEnviarWhatsApp(d: Diligencia, phone: string) {
@@ -793,6 +913,240 @@ export default function PesquisaPage() {
                 )}
               </div>
             )}
+            {/* ── Eventos da Triagem (sem diligência criada) ── */}
+            {triagemPendentes.length > 0 && (
+              <div className="mb-5">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wide">
+                    Da triagem — sem diligência
+                  </span>
+                  <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                    {triagemPendentes.length}
+                  </span>
+                  <span className="text-[10px] text-slate-400 ml-1">
+                    Evento recebido, pesquisa pendente
+                  </span>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {triagemPendentes.map((ev) => {
+                    const evPhones  = (ev.telefoneVitima ?? '').split(';').map((p) => p.trim()).filter(Boolean)
+                    const evLocalidade = `${ev.cidade}/${ev.uf}`
+                    const evDil     = dilPorEventoId[ev.id]        // diligência já criada para este evento (se houver)
+                    const evWa      = evDil?.pesquisa.dataEnvioWhatsApp
+                    const evNLig    = evDil?.pesquisa.historicoLigacoes.length ?? 0
+                    const evUltima  = evDil ? getUltimaTentativa(evDil.pesquisa) : null
+                    return (
+                      <div key={ev.id} className="bg-amber-50 border border-amber-200 border-l-4 border-l-amber-400 rounded-xl shadow-sm p-4 space-y-3">
+
+                        {/* Cabeçalho */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md">
+                            ⏳ Triagem pendente
+                          </span>
+                          {evWa ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
+                              <MessageCircle className="w-3 h-3" /> WA enviado · {formatDate(evWa)}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">
+                              <MessageCircle className="w-3 h-3" /> Sem WA
+                            </span>
+                          )}
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                            evNLig === 0 ? 'bg-slate-100 text-slate-400'
+                            : evNLig <= 2 ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
+                          }`}>
+                            <Phone className="w-3 h-3" />
+                            {evNLig === 0 ? 'Sem ligação' : `${evNLig} lig.`}
+                          </span>
+                          {criandoTriagem === ev.id && (
+                            <span className="text-[11px] text-amber-600 font-medium animate-pulse">Salvando...</span>
+                          )}
+                        </div>
+
+                        {/* Dados principais */}
+                        <div>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-800">{ev.nomeVitima || '(vítima não informada)'}</span>
+                            <span className="font-mono text-xs text-blue-600 font-semibold">{ev.ccc}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {ev.tipoEvento} · {evLocalidade}
+                          </p>
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            {ev.dataEvento && (
+                              <span className="text-xs text-slate-400">
+                                Evento: {formatDate(ev.dataEvento)}{ev.horaEvento ? ` às ${ev.horaEvento}` : ''}
+                              </span>
+                            )}
+                            {evPhones.map((phone) => (
+                              <a
+                                key={phone}
+                                href={`tel:${phone}`}
+                                className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
+                              >
+                                {formatPhone(phone)}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Retorno agendado */}
+                        {evDil && (() => {
+                          const ret = parseRetorno(evDil.pesquisa.dataCombinada, evDil.pesquisa.horaEntrevista)
+                          if (!ret) return null
+                          return (
+                            <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border ${
+                              ret.variant === 'late'     ? 'bg-red-50 text-red-700 border-red-200'
+                              : ret.variant === 'timeonly' ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {ret.variant === 'late'
+                                ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                : <Clock className="w-3.5 h-3.5 flex-shrink-0" />}
+                              {ret.text}
+                            </div>
+                          )
+                        })()}
+
+                        {/* Última tentativa */}
+                        {evUltima && (
+                          <p className="text-xs text-slate-500">
+                            <span className="font-medium text-slate-600">Última tentativa:</span>{' '}
+                            {evUltima.label}{evUltima.dateStr ? ` — ${evUltima.dateStr}` : ''}
+                          </p>
+                        )}
+
+                        {/* Dados para entrevista com botões de copiar */}
+                        <div className="bg-white rounded-lg p-2.5 border border-amber-100">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                            Dados para entrevista
+                          </p>
+                          <div className="space-y-1">
+                            {[
+                              { label: 'ID Evento', value: ev.ccc },
+                              { label: 'Nome',      value: ev.nomeVitima ?? '' },
+                              { label: 'Cargo',     value: ev.cargoVitima ?? '' },
+                              { label: 'Empresa',   value: ev.empresa },
+                              { label: 'Localidade',value: evLocalidade },
+                            ].map(({ label, value }) => {
+                              const key = `ev-${ev.id}-${label}`
+                              return (
+                                <div key={label} className="flex items-center justify-between gap-2">
+                                  <div className="flex items-baseline gap-1.5 min-w-0">
+                                    <span className="text-[10px] text-slate-400 shrink-0 w-16">{label}:</span>
+                                    <span className="text-xs font-medium text-slate-700 truncate">{value || '—'}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => copyToClipboard(value || '', key)}
+                                    className="shrink-0 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                    title={`Copiar ${label}`}
+                                  >
+                                    {copiedField === key
+                                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                      : <Copy className="w-3.5 h-3.5" />
+                                    }
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Ações: Ligar + WA + Formulário */}
+                        <div className="flex flex-col items-start gap-1.5 pt-1 border-t border-amber-100">
+                          {evPhones.map((phone, idx) => (
+                            <div key={phone} className="flex gap-1.5 flex-wrap items-center">
+                              {evPhones.length > 1 && (
+                                <span className="text-[10px] text-slate-400 font-medium w-4 text-right shrink-0">
+                                  {idx + 1}.
+                                </span>
+                              )}
+                              <button
+                                disabled={criandoTriagem === ev.id}
+                                onClick={async () => {
+                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                  window.location.href = `tel:+55${phone}`
+                                  registrarLigacaoIniciada(dil)
+                                }}
+                                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                                Ligar{evPhones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
+                              </button>
+                              <button
+                                disabled={criandoTriagem === ev.id}
+                                onClick={async () => {
+                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                  handleEnviarWhatsApp(dil, phone)
+                                }}
+                                className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                                  evWa ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
+                                       : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                                }`}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                {evWa ? 'Reenviar WA' : 'WhatsApp'}{evPhones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
+                              </button>
+                            </div>
+                          ))}
+                          {/* Agendar retorno */}
+                          <button
+                            disabled={criandoTriagem === ev.id}
+                            onClick={async () => {
+                              const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                              setModalRetorno({ diligenciaId: dil.id, vitima: ev.nomeVitima ?? '' })
+                              setRetornoData(''); setRetornoHora('')
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                          >
+                            <Calendar className="w-3.5 h-3.5" /> Agendar retorno
+                          </button>
+
+                          <a
+                            href={buildFormUrl(ev.ccc, ev.nomeVitima ?? '', ev.cargoVitima ?? '', ev.empresa, ev.cidade)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Abrir formulário de entrevista
+                          </a>
+                          {/* Resultado */}
+                          <div className="flex gap-1.5 flex-wrap pt-0.5">
+                            <button
+                              disabled={criandoTriagem === ev.id}
+                              onClick={async () => {
+                                const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                setModalResposta({ diligenciaId: dil.id, vitima: ev.nomeVitima ?? '' })
+                                setTextoResposta('')
+                              }}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Respondeu
+                            </button>
+                            <button
+                              disabled={criandoTriagem === ev.id}
+                              onClick={async () => {
+                                const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                setModalEncerramento({ diligenciaId: dil.id, vitima: ev.nomeVitima ?? '' })
+                                setObsEncerramento('')
+                              }}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                              <PhoneOff className="w-3.5 h-3.5" /> Encerrar
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-4 border-t border-slate-200" />
+              </div>
+            )}
+
             <div className="flex flex-col gap-5">
               {lista.map((d) => {
                 const retorno       = parseRetorno(d.pesquisa.dataCombinada, d.pesquisa.horaEntrevista)
@@ -817,7 +1171,11 @@ export default function PesquisaPage() {
                 // Telefones múltiplos (separados por ";")
                 const phones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
 
-                const leftBorder = !isPendente
+                const isPinned = d.id === pinnedId
+
+                const leftBorder = isPinned
+                  ? 'border-l-blue-500'
+                  : !isPendente
                   ? 'border-l-emerald-500'
                   : retorno?.variant === 'late'
                   ? 'border-l-red-500'
@@ -826,7 +1184,22 @@ export default function PesquisaPage() {
                   : 'border-l-blue-400'
 
                 return (
-                  <div key={d.id} className={`bg-white border border-slate-200 border-l-4 ${leftBorder} rounded-xl shadow p-4 space-y-3`}>
+                  <div key={d.id} className={`bg-white border border-slate-200 border-l-4 ${leftBorder} rounded-xl shadow p-4 space-y-3 ${isPinned ? 'ring-2 ring-blue-300' : ''}`}>
+
+                    {/* Banner "Em ligação" com botão Liberar */}
+                    {isPinned && (
+                      <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        <span className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 animate-pulse" /> Em ligação — dados visíveis
+                        </span>
+                        <button
+                          onClick={() => { setPinnedId(null); setPinnedAt(null) }}
+                          className="text-xs text-blue-500 hover:text-blue-700 font-semibold px-2 py-0.5 rounded hover:bg-blue-100 transition-colors"
+                        >
+                          ✕ Liberar
+                        </button>
+                      </div>
+                    )}
 
                     {/* Status + checkbox seleção + indicador WA */}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -849,6 +1222,18 @@ export default function PesquisaPage() {
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">
                           <MessageCircle className="w-3 h-3" />
                           Sem WA
+                        </span>
+                      )}
+                      {isPendente && (
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                          nLig === 0
+                            ? 'bg-slate-100 text-slate-400'
+                            : nLig <= 2
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          <Phone className="w-3 h-3" />
+                          {nLig === 0 ? 'Sem ligação' : `${nLig} lig.`}
                         </span>
                       )}
                     </div>

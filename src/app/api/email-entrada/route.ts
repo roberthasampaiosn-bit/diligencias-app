@@ -133,7 +133,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Dados da vítima ficam na seção "Envolvidos"
   const nomeVitima     = extractAfterSection(text, 'Envolvidos', 'Nome')
   const cargoVitima    = extractAfterSection(text, 'Envolvidos', 'Cargo')
-  const telefoneVitima = extractAfterSection(text, 'Envolvidos', 'Telefone')
+  const telefoneVitimaRaw = extractAfterSection(text, 'Envolvidos', 'Telefone')
+  // Normaliza múltiplos telefones separados por ";" → limpa dígitos e rejunta com ";"
+  const telefoneVitima = telefoneVitimaRaw
+    .split(';')
+    .map((p) => p.trim().replace(/\D/g, ''))
+    .filter(Boolean)
+    .join(';')
 
   // Motorista agredido: nível > 1 E cargo menciona "motorista"
   const motoristaAgredido =

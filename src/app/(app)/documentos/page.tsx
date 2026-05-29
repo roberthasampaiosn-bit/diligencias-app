@@ -4,7 +4,7 @@ import { useState, useMemo, Suspense, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-  FileText, CheckCircle2, Upload, Download, ArrowRight, MessageCircle, PlusCircle, Clock,
+  FileText, CheckCircle2, Upload, Download, ArrowRight, MessageCircle, PlusCircle, Clock, ExternalLink,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -541,8 +541,11 @@ function DocumentosContent() {
             historico.map((doc) => {
               const adv = advogadoMap.get(doc.advogadoId ?? '')
               const data = new Date(doc.createdAt).toLocaleDateString('pt-BR')
+              const temContrato = !!(doc.filenameContrato || doc.linkAssinaturaAdriana || doc.linkAssinaturaAdvogadoContrato)
+              const temRecibo   = !!(doc.filenameRecibo   || doc.linkAssinaturaAdvogadoRecibo)
               return (
-                <div key={doc.id} className="border border-slate-100 rounded-xl p-4 space-y-2">
+                <div key={doc.id} className="border border-slate-100 rounded-xl p-4 space-y-3">
+                  {/* Cabeçalho */}
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-slate-700">{doc.advogadoNome}</p>
@@ -550,32 +553,64 @@ function DocumentosContent() {
                     </div>
                     <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-2.5 py-1 capitalize flex-shrink-0">{doc.tipo}</span>
                   </div>
-                  <div className="flex gap-2 flex-wrap pt-1">
-                    {doc.linkAssinaturaAdriana && (
-                      <a href={buildWhatsAppAdriana('AVULSO', 'contrato', doc.linkAssinaturaAdriana)} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" variant="secondary">
-                          <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                          WhatsApp Adriana
-                        </Button>
-                      </a>
-                    )}
-                    {doc.linkAssinaturaAdvogadoContrato && (
-                      <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'contrato', doc.linkAssinaturaAdvogadoContrato)} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" variant="secondary">
-                          <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                          WA Advogado (contrato)
-                        </Button>
-                      </a>
-                    )}
-                    {doc.linkAssinaturaAdvogadoRecibo && (
-                      <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'recibo', doc.linkAssinaturaAdvogadoRecibo)} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" variant="secondary">
-                          <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                          WA Advogado (recibo)
-                        </Button>
-                      </a>
-                    )}
-                  </div>
+
+                  {/* Contrato */}
+                  {temContrato && (
+                    <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Contrato</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {doc.linkAssinaturaAdriana && (
+                          <a href={buildWhatsAppAdriana('AVULSO', 'contrato', doc.linkAssinaturaAdriana)} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="secondary">
+                              <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                              WA Adriana
+                            </Button>
+                          </a>
+                        )}
+                        {doc.linkAssinaturaAdvogadoContrato && (
+                          <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'contrato', doc.linkAssinaturaAdvogadoContrato)} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="secondary">
+                              <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                              WA Advogado
+                            </Button>
+                          </a>
+                        )}
+                        {doc.zapsignTokenContrato && (
+                          <a href={`https://app.zapsign.com.br/verificar/${doc.zapsignTokenContrato}`} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="ghost">
+                              <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                              Ver / Baixar assinado
+                            </Button>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recibo */}
+                  {temRecibo && (
+                    <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recibo</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {doc.linkAssinaturaAdvogadoRecibo && (
+                          <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'recibo', doc.linkAssinaturaAdvogadoRecibo)} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="secondary">
+                              <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                              WA Advogado
+                            </Button>
+                          </a>
+                        )}
+                        {doc.zapsignTokenRecibo && (
+                          <a href={`https://app.zapsign.com.br/verificar/${doc.zapsignTokenRecibo}`} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="ghost">
+                              <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                              Ver / Baixar assinado
+                            </Button>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })
