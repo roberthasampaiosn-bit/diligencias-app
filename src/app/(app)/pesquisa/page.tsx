@@ -373,11 +373,16 @@ export default function PesquisaPage() {
     else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     if (search) {
       const q = normalizeStr(search)
-      l = l.filter((d) =>
-        normalizeStr(d.vitima).includes(q) ||
-        normalizeStr(d.ccc).includes(q) ||
-        d.telefoneVitima.replace(/\D/g, '').includes(search.replace(/\D/g, ''))
-      )
+      const ql = search.toLowerCase().trim()
+      l = l.filter((d) => {
+        const v = String(d.vitima ?? '').toLowerCase().trim()
+        const c = String(d.ccc ?? '').toLowerCase().trim()
+        return v.includes(ql) ||
+          normalizeStr(d.vitima).includes(q) ||
+          c.includes(ql) ||
+          normalizeStr(d.ccc).includes(q) ||
+          String(d.telefoneVitima ?? '').replace(/\D/g, '').includes(search.replace(/\D/g, ''))
+      })
     }
     return [...l].sort((a, b) => sortPesquisa(a, b, sortOrder))
   }, [realizadasFiltradas, filtro, search, sortOrder])
