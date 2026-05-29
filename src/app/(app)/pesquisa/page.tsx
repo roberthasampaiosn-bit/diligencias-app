@@ -140,33 +140,39 @@ function sortPesquisa(a: Diligencia, b: Diligencia, order: 'asc' | 'desc' = 'des
 
 type RetornoVariant = 'normal' | 'late' | 'timeonly'
 
-function parseRetorno(dc: string | undefined): { text: string; variant: RetornoVariant } | null {
-  if (!dc) return null
-
-  // Só hora: "HH:MM"
-  if (/^\d{2}:\d{2}$/.test(dc)) {
-    return { text: `Retorno: qualquer dia após ${dc}`, variant: 'timeonly' }
-  }
+function parseRetorno(
+  dc: string | undefined,
+  horaEntrevista?: string,
+): { text: string; variant: RetornoVariant } | null {
+  if (!dc && !horaEntrevista) return null
 
   const today = new Date().toISOString().split('T')[0]
 
-  // Separador pode ser espaço ou T (ISO)
+  // Sem data, só horário: "HH:MM" em dataCombinada (legado) ou horaEntrevista sem data
+  if (!dc || /^\d{2}:\d{2}$/.test(dc)) {
+    const hora = /^\d{2}:\d{2}$/.test(dc ?? '') ? dc! : horaEntrevista!
+    return { text: `Retorno: qualquer dia após ${hora}`, variant: 'timeonly' }
+  }
+
+  // Data+hora combinadas (legado): "YYYY-MM-DD HH:MM" ou "YYYY-MM-DDTHH:MM"
   const sep = dc.includes(' ') ? ' ' : dc.includes('T') ? 'T' : null
   if (sep) {
     const datePart = dc.slice(0, dc.indexOf(sep))
-    const timePart = dc.slice(dc.indexOf(sep) + 1, dc.indexOf(sep) + 6) // HH:MM
+    // Prefere horaEntrevista (mais nova) sobre a hora embutida em dataCombinada
+    const timePart = horaEntrevista ?? dc.slice(dc.indexOf(sep) + 1, dc.indexOf(sep) + 6)
     const [y, m, d] = datePart.split('-')
     const fmt = `${d}/${m}/${y}`
     if (datePart < today) return { text: `Retorno atrasado: ${fmt} às ${timePart}`, variant: 'late' }
     return { text: `Retorno agendado para ${fmt} às ${timePart}`, variant: 'normal' }
   }
 
-  // Só data: "YYYY-MM-DD"
+  // Só data: "YYYY-MM-DD" — combina com horaEntrevista se existir
   if (/^\d{4}-\d{2}-\d{2}$/.test(dc)) {
     const [y, m, d] = dc.split('-')
     const fmt = `${d}/${m}/${y}`
-    if (dc < today) return { text: `Retorno atrasado: ${fmt}`, variant: 'late' }
-    return { text: `Retorno agendado para ${fmt}`, variant: 'normal' }
+    const timeStr = horaEntrevista ? ` às ${horaEntrevista}` : ''
+    if (dc < today) return { text: `Retorno atrasado: ${fmt}${timeStr}`, variant: 'late' }
+    return { text: `Retorno agendado para ${fmt}${timeStr}`, variant: 'normal' }
   }
 
   return null
@@ -205,7 +211,7 @@ function getUltimaTentativa(p: Pesquisa): { label: string; dateStr: string } | n
 export default function PesquisaPage() {
   const {
     diligencias, registrarWhatsApp, registrarLigacao,
-    agendarRetorno, marcarRespondida, encerrarSemResposta,
+    agendarRetorno, marcarRespondida, encerrarSemResposta, atualizarPesquisa,
   } = useDiligencias()
 
   const { eventos } = useEventos()
@@ -507,8 +513,17 @@ export default function PesquisaPage() {
 
   function handleSalvarRetorno() {
     if (!modalRetorno || !retornoHora) return
-    const value = retornoData ? `${retornoData} ${retornoHora}` : retornoHora
-    agendarRetorno(modalRetorno.diligenciaId, value)
+    // pesquisa_data_combinada é coluna date no Supabase → trunca o horário.
+    // Salvamos a data em dataCombinada e o horário em horaEntrevista separadamente.
+    if (retornoData) {
+      atualizarPesquisa(modalRetorno.diligenciaId, {
+        dataCombinada: retornoData,
+        horaEntrevista: retornoHora,
+      }).catch(() => {})
+    } else {
+      // Sem data fixa: guarda "HH:MM" em dataCombinada (mantém comportamento legado)
+      agendarRetorno(modalRetorno.diligenciaId, retornoHora)
+    }
     setModalRetorno(null); setRetornoData(''); setRetornoHora('')
   }
 
@@ -780,7 +795,7 @@ export default function PesquisaPage() {
             )}
             <div className="flex flex-col gap-5">
               {lista.map((d) => {
-                const retorno       = parseRetorno(d.pesquisa.dataCombinada)
+                const retorno       = parseRetorno(d.pesquisa.dataCombinada, d.pesquisa.horaEntrevista)
                 const ultima        = getUltimaTentativa(d.pesquisa)
                 const isPendente    = d.pesquisa.status === StatusPesquisa.Pendente
                 const temHistorico  =
