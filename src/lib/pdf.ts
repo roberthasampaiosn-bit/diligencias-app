@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf'
-import { Diligencia, Advogado, EmpresaCliente } from '@/types'
+import { Diligencia, Advogado, EmpresaCliente, TipoDiligencia } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -611,6 +611,53 @@ export function gerarReciboBase64Only(
 ): { filename: string; base64: string } {
   const builder = _selectReciboBuilder(diligencia)
   const { doc, filename } = builder(diligencia, advogado)
+  const base64 = doc.output('datauristring').split(',')[1]
+  return { filename, base64 }
+}
+
+// ─── Documento Avulso ────────────────────────────────────────────────────────
+
+export interface DadosAvulso {
+  valor: number
+  dataAtendimento?: string
+  tipoServico?: string
+}
+
+export function gerarContratoAvulsoParaZapSign(
+  dados: DadosAvulso,
+  advogado: Advogado,
+): { filename: string; base64: string } {
+  const stub = {
+    valorDiligencia: dados.valor,
+    ccc: 'AVULSO',
+    empresaCliente: EmpresaCliente.BatBrasil,
+  } as Diligencia
+  const { doc } = _buildContratoDoc(stub, advogado)
+  const nomeAdv = advogado.nomeCompleto.split(' ')[0]
+  const data = hoje().replace(/-/g, '')
+  const filename = `contrato-AVULSO-${nomeAdv}-${data}.pdf`
+  doc.save(filename)
+  const base64 = doc.output('datauristring').split(',')[1]
+  return { filename, base64 }
+}
+
+export function gerarReciboAvulsoParaZapSign(
+  dados: DadosAvulso,
+  advogado: Advogado,
+): { filename: string; base64: string } {
+  const stub = {
+    valorDiligencia: dados.valor,
+    ccc: '',
+    dataAtendimento: dados.dataAtendimento,
+    tipoDiligencia: TipoDiligencia.Outro,
+    tipoDiligenciaDescricao: dados.tipoServico || 'Prestação de serviços',
+    empresaCliente: EmpresaCliente.BatBrasil,
+  } as Diligencia
+  const { doc } = _buildReciboDoc(stub, advogado)
+  const nomeAdv = advogado.nomeCompleto.split(' ')[0]
+  const data = hoje().replace(/-/g, '')
+  const filename = `recibo-AVULSO-${nomeAdv}-${data}.pdf`
+  doc.save(filename)
   const base64 = doc.output('datauristring').split(',')[1]
   return { filename, base64 }
 }
