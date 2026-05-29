@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Bell,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
@@ -47,6 +47,12 @@ const PERIODOS = [
   { key: 'ano',    label: 'Este ano'      },
   { key: 'custom', label: 'Personalizado' },
   { key: '',       label: 'Todos'         },
+]
+
+const SUB_FILTROS = [
+  { key: 'agendados', label: 'Com retorno' },
+  { key: 'semWa',     label: 'Sem WA'      },
+  { key: 'waAntigo',  label: 'WA > 7 dias' },
 ]
 
 interface ModalRetornoState    { diligenciaId: string; vitima: string }
@@ -202,6 +208,12 @@ export default function PesquisaPage() {
   const [dataFiltroInicio, setDataFiltroInicio] = useState('')
   const [dataFiltroFim, setDataFiltroFim] = useState('')
 
+  // Sub-filtros pendentes
+  const [subFiltro, setSubFiltro] = useState('')
+
+  // Notificações
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default')
+
   // Modal: Agendar retorno
   const [modalRetorno, setModalRetorno] = useState<ModalRetornoState | null>(null)
   const [retornoData, setRetornoData] = useState('')
@@ -302,6 +314,43 @@ export default function PesquisaPage() {
     return () => document.removeEventListener('keydown', handler)
   }, [modalResposta, textoResposta, marcarRespondida])
 
+  // ── Notificações ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifPermission('unsupported')
+      return
+    }
+    setNotifPermission(Notification.permission)
+  }, [])
+
+  function getRetornosHoje(items: typeof realizadas) {
+    const hoje = new Date().toISOString().split('T')[0]
+    return items.filter((d) => {
+      if (d.pesquisa.status !== StatusPesquisa.Pendente) return false
+      const dc = d.pesquisa.dataCombinada
+      if (!dc || /^\d{2}:\d{2}$/.test(dc)) return false
+      return dc.split(' ')[0] === hoje
+    })
+  }
+
+  async function requestNotification() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const perm = await Notification.requestPermission()
+    setNotifPermission(perm)
+    if (perm === 'granted') notifyRetornosHoje()
+  }
+
+  function notifyRetornosHoje() {
+    const itens = getRetornosHoje(realizadas)
+    if (itens.length === 0) return
+    const nomes = itens.slice(0, 3).map((d) => d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || 'Pesquisa').join(', ')
+    new Notification('Retornos agendados para hoje', {
+      body: `${itens.length} retorno(s): ${nomes}${itens.length > 3 ? '...' : ''}`,
+      icon: '/icon-192x192.png',
+    })
+  }
+
   // ── Dados filtrados ──────────────────────────────────────────────────────────
 
   const realizadas = useMemo(
@@ -390,8 +439,35 @@ export default function PesquisaPage() {
       if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
       else if (filtro === 'concluidas') l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
     }
+    // Sub-filtros (aplicados a pendentes)
+    if (subFiltro) {
+      const hoje = new Date().toISOString().split('T')[0]
+      const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+      if (subFiltro === 'agendados') {
+        l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && !!d.pesquisa.dataCombinada)
+      } else if (subFiltro === 'semWa') {
+        l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && !d.pesquisa.dataEnvioWhatsApp)
+      } else if (subFiltro === 'waAntigo') {
+        l = l.filter((d) =>
+          d.pesquisa.status === StatusPesquisa.Pendente &&
+          !!d.pesquisa.dataEnvioWhatsApp &&
+          d.pesquisa.dataEnvioWhatsApp <= cutoff
+        )
+      }
+      void hoje
+    }
     return [...l].sort((a, b) => sortPesquisa(a, b, sortOrder))
-  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap])
+  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap, subFiltro])
+
+  const subFiltrosCounts = useMemo(() => {
+    const pendentes = realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
+    const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+    return {
+      agendados: pendentes.filter((d) => !!d.pesquisa.dataCombinada).length,
+      semWa:     pendentes.filter((d) => !d.pesquisa.dataEnvioWhatsApp).length,
+      waAntigo:  pendentes.filter((d) => !!d.pesquisa.dataEnvioWhatsApp && d.pesquisa.dataEnvioWhatsApp <= cutoff).length,
+    }
+  }, [realizadasFiltradas])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -500,34 +576,57 @@ export default function PesquisaPage() {
         <CardHeader>
           <div className="flex flex-col gap-3">
 
-            {/* Busca + ordenação + exportar */}
-            <div className="flex flex-wrap items-center gap-2">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Buscar vítima, CCC..."
-                className="flex-1 min-w-0 sm:w-64"
-              />
-              <button
-                onClick={() => setSortOrder((o) => o === 'desc' ? 'asc' : 'desc')}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                title={sortOrder === 'desc' ? 'Mais recente primeiro — clique para inverter' : 'Mais antigo primeiro — clique para inverter'}
-              >
-                {sortOrder === 'desc'
-                  ? <><ArrowDown className="w-3.5 h-3.5" /> Mais recente</>
-                  : <><ArrowUp className="w-3.5 h-3.5" /> Mais antigo</>
-                }
-              </button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleExportarPesquisas}
-                disabled={lista.length === 0}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline ml-1">Exportar Excel</span>
-                <span className="sm:hidden ml-1">Excel</span>
-              </Button>
+            {/* Busca + ordenação + exportar + notificações */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Buscar vítima, CCC..."
+                  className="flex-1 min-w-0 sm:w-64"
+                />
+                <button
+                  onClick={() => setSortOrder((o) => o === 'desc' ? 'asc' : 'desc')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                  title={sortOrder === 'desc' ? 'Mais recente primeiro — clique para inverter' : 'Mais antigo primeiro — clique para inverter'}
+                >
+                  {sortOrder === 'desc'
+                    ? <><ArrowDown className="w-3.5 h-3.5" /> Mais recente</>
+                    : <><ArrowUp className="w-3.5 h-3.5" /> Mais antigo</>
+                  }
+                </button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleExportarPesquisas}
+                  disabled={lista.length === 0}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline ml-1">Exportar Excel</span>
+                  <span className="sm:hidden ml-1">Excel</span>
+                </Button>
+                {notifPermission !== 'unsupported' && (
+                  <button
+                    onClick={notifPermission === 'granted' ? notifyRetornosHoje : requestNotification}
+                    title={notifPermission === 'granted' ? 'Notificar retornos de hoje' : 'Ativar notificações'}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+                      notifPermission === 'granted'
+                        ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    {notifPermission !== 'granted' && <span className="hidden sm:inline">Ativar alertas</span>}
+                  </button>
+                )}
+              </div>
+              {search && (
+                <p className="text-xs text-slate-500 pl-1">
+                  {lista.length === 0
+                    ? `Nenhum resultado para "${search}"`
+                    : `${lista.length} resultado${lista.length !== 1 ? 's' : ''} para "${search}"`}
+                </p>
+              )}
             </div>
 
             {/* Filtro de status — com contadores do período atual */}
@@ -579,6 +678,35 @@ export default function PesquisaPage() {
                     }`}
                   >
                     {p.label}
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
+                      isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Sub-filtros para pendentes */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
+                Pendentes:
+              </span>
+              {SUB_FILTROS.map((sf) => {
+                const count = subFiltrosCounts[sf.key as keyof typeof subFiltrosCounts] ?? 0
+                const isActive = subFiltro === sf.key
+                return (
+                  <button
+                    key={sf.key}
+                    onClick={() => startTransition(() => setSubFiltro(isActive ? '' : sf.key))}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {sf.label}
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
                       isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
                     }`}>
