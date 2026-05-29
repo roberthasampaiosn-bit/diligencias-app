@@ -260,15 +260,72 @@ function DocumentosContent() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      {/* ── Cabeçalho + painel de avulsos ─────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+        {/* Título */}
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-slate-800">Documentos</h1>
           <p className="text-sm text-slate-500 mt-0.5">Contratos, recibos e comprovantes por diligência</p>
         </div>
-        <Button size="sm" onClick={abrirModalAvulso}>
-          <PlusCircle className="w-4 h-4" />
-          Documento avulso
-        </Button>
+
+        {/* Painel avulsos: histórico + botão novo */}
+        <div className="flex flex-col gap-2 sm:min-w-[300px] sm:max-w-[380px]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" /> Avulsos gerados
+            </span>
+            <Button size="sm" onClick={abrirModalAvulso}>
+              <PlusCircle className="w-4 h-4" />
+              Novo avulso
+            </Button>
+          </div>
+
+          {historico.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">Nenhum documento avulso gerado ainda.</p>
+          ) : (
+            <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white">
+              {historico.map((doc) => {
+                const adv = advogadoMap.get(doc.advogadoId ?? '')
+                const data = new Date(doc.createdAt).toLocaleDateString('pt-BR')
+                return (
+                  <div key={doc.id} className="px-3 py-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-slate-700 truncate">{doc.advogadoNome}</p>
+                      <span className="text-[10px] font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5 flex-shrink-0 capitalize">{doc.tipo}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">{data} · {formatCurrency(doc.valor)}{doc.tipoServico ? ` · ${doc.tipoServico}` : ''}</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {doc.linkAssinaturaAdriana && (
+                        <a href={buildWhatsAppAdriana('AVULSO', 'contrato', doc.linkAssinaturaAdriana)} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost" className="text-[11px] h-6 px-2">
+                            <MessageCircle className="w-3 h-3 text-green-600" />
+                            WA Adriana
+                          </Button>
+                        </a>
+                      )}
+                      {doc.linkAssinaturaAdvogadoContrato && (
+                        <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'contrato', doc.linkAssinaturaAdvogadoContrato)} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost" className="text-[11px] h-6 px-2">
+                            <MessageCircle className="w-3 h-3 text-green-600" />
+                            WA Adv. (contrato)
+                          </Button>
+                        </a>
+                      )}
+                      {doc.linkAssinaturaAdvogadoRecibo && (
+                        <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'recibo', doc.linkAssinaturaAdvogadoRecibo)} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost" className="text-[11px] h-6 px-2">
+                            <MessageCircle className="w-3 h-3 text-green-600" />
+                            WA Adv. (recibo)
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -522,64 +579,6 @@ function DocumentosContent() {
         })()}
       </Modal>
 
-      {/* ── Histórico de Avulsos ──────────────────────────────────────────── */}
-      {historico.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-400" />
-              <span className="text-sm font-semibold text-slate-700">Documentos avulsos gerados</span>
-            </div>
-          </CardHeader>
-          <CardBody className="p-0">
-            <div className="divide-y divide-slate-50">
-              {historico.map((doc) => {
-                const adv = advogadoMap.get(doc.advogadoId ?? '')
-                const data = new Date(doc.createdAt).toLocaleDateString('pt-BR')
-                return (
-                  <div key={doc.id} className="px-5 py-3 space-y-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">{doc.advogadoNome}</p>
-                        <p className="text-xs text-slate-400">{data} · {formatCurrency(doc.valor)}{doc.tipoServico ? ` · ${doc.tipoServico}` : ''}</p>
-                      </div>
-                      <span className="text-xs font-medium text-blue-600 capitalize bg-blue-50 rounded px-2 py-0.5">{doc.tipo}</span>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {/* Botões WhatsApp — contrato */}
-                      {doc.linkAssinaturaAdriana && (
-                        <a href={buildWhatsAppAdriana('AVULSO', 'contrato', doc.linkAssinaturaAdriana)} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost">
-                            <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                            WA Adriana (contrato)
-                          </Button>
-                        </a>
-                      )}
-                      {doc.linkAssinaturaAdvogadoContrato && (
-                        <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'contrato', doc.linkAssinaturaAdvogadoContrato)} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost">
-                            <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                            WA Advogado (contrato)
-                          </Button>
-                        </a>
-                      )}
-                      {/* Botões WhatsApp — recibo */}
-                      {doc.linkAssinaturaAdvogadoRecibo && (
-                        <a href={buildWhatsAppZapSign(adv?.whatsapp, doc.advogadoNome, 'AVULSO', 'recibo', doc.linkAssinaturaAdvogadoRecibo)} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost">
-                            <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-                            WA Advogado (recibo)
-                          </Button>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardBody>
-        </Card>
-      )}
 
       {/* ── Modal Documento Avulso ─────────────────────────────────────────── */}
       <Modal open={modalAvulso} onClose={() => setModalAvulso(false)} title="Novo documento avulso" size="lg">
