@@ -13,6 +13,8 @@ import {
   StatusPesquisa, StatusDiligencia, StatusPagamento,
 } from '@/types'
 import { useToast } from './ToastContext'
+import { useAuth } from './AuthContext'
+import { logAudit } from '@/services/auditLogDB'
 
 export interface DiligenciasContextValue {
   diligencias: Diligencia[]
@@ -48,6 +50,8 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { addToast } = useToast()
+  const { user } = useAuth()
+  const userEmail = user?.email ?? 'desconhecido'
 
   // Ref sincronizado com o estado — permite leituras síncronas dentro de useCallback
   // sem adicionar `diligencias` nas dependências e gerar loops.
@@ -81,47 +85,60 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   ): Promise<Diligencia> => {
     const nova = await insertDiligencia(data)
     setDiligencias((prev) => [nova, ...prev])
+    logAudit({ usuarioEmail: userEmail, acao: 'criou_diligencia', entidadeId: nova.id, detalhes: nova.ccc })
     return nova
-  }, [])
+  }, [userEmail])
 
   const updateDiligencia = useCallback(async (id: string, patch: Partial<Diligencia>): Promise<void> => {
     patchD(id, patch)
     try {
       await patchDiligencia(id, patch)
+      const d = diligenciasRef.current.find((x) => x.id === id)
+      logAudit({ usuarioEmail: userEmail, acao: 'editou_diligencia', entidadeId: id, detalhes: d?.ccc })
     } catch (err) {
       console.error(err)
       addToast('error', 'Não foi possível salvar. Verifique sua conexão.')
       throw err
     }
-  }, [patchD, addToast])
+  }, [patchD, addToast, userEmail])
 
   const marcarRealizada = useCallback((id: string, dataAtendimento?: string) => {
     const patch: Partial<Diligencia> = { status: StatusDiligencia.Realizada }
     if (dataAtendimento) patch.dataAtendimento = dataAtendimento
     patchD(id, patch)
     patchDiligencia(id, patch)
-      .then(() => addToast('success', 'Diligência marcada como realizada.'))
+      .then(() => {
+        addToast('success', 'Diligência marcada como realizada.')
+        const d = diligenciasRef.current.find((x) => x.id === id)
+        logAudit({ usuarioEmail: userEmail, acao: 'marcou_realizada', entidadeId: id, detalhes: d?.ccc })
+      })
       .catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
-  }, [patchD, addToast])
+  }, [patchD, addToast, userEmail])
 
   const marcarPago = useCallback(async (id: string): Promise<void> => {
     patchD(id, { statusPagamento: StatusPagamento.Pago })
     try {
       await patchDiligencia(id, { statusPagamento: StatusPagamento.Pago })
       addToast('success', 'Pagamento registrado.')
+      const d = diligenciasRef.current.find((x) => x.id === id)
+      logAudit({ usuarioEmail: userEmail, acao: 'registrou_pagamento', entidadeId: id, detalhes: d?.ccc })
     } catch (err) {
       console.error(err)
       addToast('error', 'Não foi possível registrar o pagamento.')
       throw err
     }
-  }, [patchD, addToast])
+  }, [patchD, addToast, userEmail])
 
   const finalizarCiclo = useCallback((id: string, avaliacao?: AvaliacaoAdvogado) => {
     patchD(id, { cicloFinalizado: true, ...(avaliacao && { avaliacao }) })
     patchDiligencia(id, { cicloFinalizado: true, ...(avaliacao && { avaliacao }) })
-      .then(() => addToast('success', 'Ciclo finalizado.'))
+      .then(() => {
+        addToast('success', 'Ciclo finalizado.')
+        const d = diligenciasRef.current.find((x) => x.id === id)
+        logAudit({ usuarioEmail: userEmail, acao: 'finalizou_ciclo', entidadeId: id, detalhes: d?.ccc })
+      })
       .catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
-  }, [patchD, addToast])
+  }, [patchD, addToast, userEmail])
 
   const atualizarAnexo = useCallback((id: string, campo: keyof Anexos, valor: string) => {
     setDiligencias((prev) =>
@@ -161,8 +178,10 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       tentativasWhatsApp: novoCount,
     }
     patchP(id, pp)
-    patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
-  }, [patchP, addToast])
+    patchPesquisa(id, pp)
+      .then(() => logAudit({ usuarioEmail: userEmail, acao: 'enviou_whatsapp', entidadeId: id, detalhes: d?.ccc }))
+      .catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
+  }, [patchP, addToast, userEmail])
 
   const registrarLigacao = useCallback(async (id: string, ligacao: Omit<Ligacao, 'id'>): Promise<void> => {
     try {
@@ -179,12 +198,14 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
         })
       )
       addToast('success', 'Ligação registrada.')
+      const d = diligenciasRef.current.find((x) => x.id === id)
+      logAudit({ usuarioEmail: userEmail, acao: 'registrou_ligacao', entidadeId: id, detalhes: d?.ccc })
     } catch (err) {
       console.error('[registrarLigacao] insertLigacao:', err)
       addToast('error', err instanceof Error ? err.message : 'Não foi possível registrar a ligação.')
       throw err
     }
-  }, [addToast])
+  }, [addToast, userEmail])
 
   const agendarRetorno = useCallback((id: string, data: string) => {
     const pp = { dataCombinada: data }
@@ -217,12 +238,14 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     try {
       await patchPesquisa(id, patch)
       addToast('success', 'Pesquisa salva.')
+      const d = diligenciasRef.current.find((x) => x.id === id)
+      logAudit({ usuarioEmail: userEmail, acao: 'atualizou_pesquisa', entidadeId: id, detalhes: d?.ccc })
     } catch (err) {
       console.error(err)
       addToast('error', 'Não foi possível salvar. Verifique sua conexão.')
       throw err
     }
-  }, [patchP, addToast])
+  }, [patchP, addToast, userEmail])
 
   return (
     <DiligenciasContext.Provider value={{

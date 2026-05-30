@@ -720,6 +720,12 @@ export default function RelatoriosPage() {
           </div>
         )}
       </Card>
+
+      <div className="flex justify-end pt-4">
+        <Link href="/historico" className="text-xs text-slate-300 hover:text-slate-400 transition-colors">
+          log
+        </Link>
+      </div>
     </div>
   )
 }
