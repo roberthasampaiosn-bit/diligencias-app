@@ -108,12 +108,24 @@ export default function DashboardPage() {
 
       {/* Stats gerais (aplicam o filtro) */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <StatCard title="Eventos novos" value={stats.eventosNovos} icon={FileSearch} color="blue" subtitle="Aguardando triagem" />
-        <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Aguardando execução" />
-        <StatCard title="Realizadas este mês" value={stats.diligenciasRealizadasMes} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
-        <StatCard title="Ciclos fechados mês" value={stats.ciclosFinalizadosMes} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
-        <StatCard title="Pesq. pendentes" value={stats.pesquisasPendentes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar" />
-        <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />
+        <Link href="/triagem" className="block hover:scale-[1.02] transition-transform">
+          <StatCard title="Eventos novos" value={stats.eventosNovos} icon={FileSearch} color="blue" subtitle="Aguardando triagem" />
+        </Link>
+        <Link href="/diligencias?status=Em+andamento" className="block hover:scale-[1.02] transition-transform">
+          <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Aguardando execução" />
+        </Link>
+        <Link href="/diligencias?status=Realizada" className="block hover:scale-[1.02] transition-transform">
+          <StatCard title="Realizadas este mês" value={stats.diligenciasRealizadasMes} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
+        </Link>
+        <Link href="/diligencias?ciclo=fechado" className="block hover:scale-[1.02] transition-transform">
+          <StatCard title="Ciclos fechados mês" value={stats.ciclosFinalizadosMes} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
+        </Link>
+        <Link href="/pesquisa?filtro=pendentes" className="block hover:scale-[1.02] transition-transform">
+          <StatCard title="Pesq. pendentes" value={stats.pesquisasPendentes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar" />
+        </Link>
+        <Link href="/pesquisa?filtro=concluidas" className="block hover:scale-[1.02] transition-transform">
+          <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />
+        </Link>
       </div>
 
       {/* Pendências do dia */}
@@ -177,18 +189,22 @@ export default function DashboardPage() {
 
       {/* Totais financeiros */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Pago este mês — Diligências</p>
-          <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(stats.valorTotalPagoMes)}</p>
-          <p className="text-xs text-emerald-600 mt-1">
-            Acumulado 2026: {formatCurrency(stats.valorTotalPago)}{filtro !== 'todos' ? ` · ${filtro}` : ''}
-          </p>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Total pago — Consulta de Placas</p>
-          <p className="text-2xl font-bold text-blue-800 mt-1">{formatCurrency(statsPlacas.totalPago)}</p>
-          <p className="text-xs text-blue-600 mt-1">{statsPlacas.localizadas} consulta{statsPlacas.localizadas !== 1 ? 's' : ''} localizada{statsPlacas.localizadas !== 1 ? 's' : ''}</p>
-        </div>
+        <Link href="/financeiro" className="block hover:scale-[1.01] transition-transform">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 hover:border-emerald-300 transition-colors">
+            <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Pago este mês — Diligências</p>
+            <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(stats.valorTotalPagoMes)}</p>
+            <p className="text-xs text-emerald-600 mt-1">
+              Acumulado 2026: {formatCurrency(stats.valorTotalPago)}{filtro !== 'todos' ? ` · ${filtro}` : ''}
+            </p>
+          </div>
+        </Link>
+        <Link href="/consulta-placas" className="block hover:scale-[1.01] transition-transform">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+            <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Total pago — Consulta de Placas</p>
+            <p className="text-2xl font-bold text-blue-800 mt-1">{formatCurrency(statsPlacas.totalPago)}</p>
+            <p className="text-xs text-blue-600 mt-1">{statsPlacas.localizadas} consulta{statsPlacas.localizadas !== 1 ? 's' : ''} localizada{statsPlacas.localizadas !== 1 ? 's' : ''}</p>
+          </div>
+        </Link>
       </div>
 
       {/* Visão por cliente (sempre mostrada, não afetada pelo filtro) */}
@@ -196,7 +212,8 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Visão por cliente</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* BAT BRASIL */}
-          <div className="border border-blue-200 rounded-xl p-4 bg-blue-50/40 space-y-3">
+          <Link href="/diligencias?empresa=BAT+Brasil" className="block hover:scale-[1.01] transition-transform">
+          <div className="border border-blue-200 rounded-xl p-4 bg-blue-50/40 space-y-3 hover:border-blue-300 transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">BAT BRASIL</span>
               <span className="text-xs text-slate-500">{statsBat.total} diligências</span>
@@ -224,9 +241,11 @@ export default function DashboardPage() {
               <p className="font-semibold text-red-600">{formatCurrency(statsBat.valorPendente)}</p>
             </div>
           </div>
+          </Link>
 
           {/* V.TAL */}
-          <div className="border border-purple-200 rounded-xl p-4 bg-purple-50/40 space-y-3">
+          <Link href="/diligencias?empresa=V.TAL" className="block hover:scale-[1.01] transition-transform">
+          <div className="border border-purple-200 rounded-xl p-4 bg-purple-50/40 space-y-3 hover:border-purple-300 transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">V.TAL</span>
               <span className="text-xs text-slate-500">{statsVtal.total} diligências</span>
@@ -254,6 +273,7 @@ export default function DashboardPage() {
               <p className="font-semibold text-red-600">{formatCurrency(statsVtal.valorPendente)}</p>
             </div>
           </div>
+          </Link>
         </div>
       </div>
 
@@ -266,10 +286,18 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard title="Total de consultas" value={statsPlacas.total} icon={CarFront} color="blue" />
-          <StatCard title="Localizadas" value={statsPlacas.localizadas} icon={CheckCircle2} color="emerald" />
-          <StatCard title="Não localizadas" value={statsPlacas.naoLocalizadas} icon={XCircle} color="red" />
-          <StatCard title="Total pago placas" value={formatCurrency(statsPlacas.totalPago)} icon={DollarSign} color="blue" />
+          <Link href="/consulta-placas" className="block hover:scale-[1.02] transition-transform">
+            <StatCard title="Total de consultas" value={statsPlacas.total} icon={CarFront} color="blue" />
+          </Link>
+          <Link href="/consulta-placas?resultado=Localizada" className="block hover:scale-[1.02] transition-transform">
+            <StatCard title="Localizadas" value={statsPlacas.localizadas} icon={CheckCircle2} color="emerald" />
+          </Link>
+          <Link href={`/consulta-placas?resultado=${encodeURIComponent('Não localizada')}`} className="block hover:scale-[1.02] transition-transform">
+            <StatCard title="Não localizadas" value={statsPlacas.naoLocalizadas} icon={XCircle} color="red" />
+          </Link>
+          <Link href="/consulta-placas" className="block hover:scale-[1.02] transition-transform">
+            <StatCard title="Total pago placas" value={formatCurrency(statsPlacas.totalPago)} icon={DollarSign} color="blue" />
+          </Link>
         </div>
       </div>
 

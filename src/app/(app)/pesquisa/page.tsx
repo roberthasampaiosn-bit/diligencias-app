@@ -1,7 +1,8 @@
 ﻿'use client'
 
-import { useState, useMemo, useTransition, useEffect } from 'react'
+import { useState, useMemo, useTransition, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
@@ -217,7 +218,7 @@ function getUltimaTentativa(p: Pesquisa): { label: string; dateStr: string } | n
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function PesquisaPage() {
+function PesquisaContent() {
   const {
     diligencias, registrarWhatsApp, registrarLigacao,
     agendarRetorno, marcarRespondida, encerrarSemResposta, atualizarPesquisa,
@@ -230,8 +231,12 @@ export default function PesquisaPage() {
     [eventos],
   )
 
+  const searchParams = useSearchParams()
+  const paramFiltro = searchParams.get('filtro')
   const [search, setSearch] = useState('')
-  const [filtro, setFiltro] = useState('pendentes')
+  const [filtro, setFiltro] = useState(
+    paramFiltro && ['pendentes', 'concluidas', 'todas'].includes(paramFiltro) ? paramFiltro : 'pendentes'
+  )
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [, startTransition] = useTransition()
 
@@ -1660,5 +1665,13 @@ export default function PesquisaPage() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+export default function PesquisaPage() {
+  return (
+    <Suspense>
+      <PesquisaContent />
+    </Suspense>
   )
 }

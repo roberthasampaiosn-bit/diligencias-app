@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ResultadoConsultaPlaca } from '@/types'
+import { useSearchParams } from 'next/navigation'
 import { exportarExcelEstilizado } from '@/lib/excel'
 
 function ResultadoBadge({ resultado }: { resultado?: ResultadoConsultaPlaca }) {
@@ -35,8 +36,11 @@ function isPendente(c: { resultado?: string; valor?: number; anexoResultado?: st
 
 function ConsultaPlacasContent() {
   const { consultasPlacas } = useConsultasPlacas()
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
-  const [filtroResultado, setFiltroResultado] = useState<'todos' | ResultadoConsultaPlaca>('todos')
+  const [filtroResultado, setFiltroResultado] = useState<'todos' | ResultadoConsultaPlaca>(
+    (searchParams.get('resultado') as ResultadoConsultaPlaca | null) ?? 'todos'
+  )
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [exportando, setExportando] = useState(false)

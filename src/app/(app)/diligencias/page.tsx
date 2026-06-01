@@ -78,7 +78,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
 
 // ── Filtros avançados (dropdown) ──────────────────────────────────────────────
 
-type FiltroStatus = 'todos' | StatusDiligencia | 'pendencia'
+type FiltroStatus = 'todos' | StatusDiligencia | 'pendencia' | 'cicloFechado'
 type FiltroModo   = 'todos' | ModoDiligencia
 type FiltroPeriodo = '30d' | 'todos'
 
@@ -149,6 +149,7 @@ function FiltrosDropdown({
             <Chip label="Em andamento" active={filtros.status === StatusDiligencia.EmAndamento} onClick={() => onChange({ status: StatusDiligencia.EmAndamento })} />
             <Chip label="Realizada" active={filtros.status === StatusDiligencia.Realizada} onClick={() => onChange({ status: StatusDiligencia.Realizada })} />
             <Chip label="Pendência documental" active={filtros.status === 'pendencia'} onClick={() => onChange({ status: 'pendencia' })} />
+            <Chip label="Ciclo fechado" active={filtros.status === 'cicloFechado'} onClick={() => onChange({ status: 'cicloFechado' })} />
           </div>
 
           <div>
@@ -181,8 +182,15 @@ function DiligenciasContent() {
   const { advogadoMap } = useAdvogados()
   const [, startTransition] = useTransition()
   const [search, setSearch] = useState(searchParams.get('ccc') || '')
-  const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>('todas')
-  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: 'todos', modo: 'todos', periodo: '30d' })
+
+  const paramEmpresa = searchParams.get('empresa') as EmpresaCliente | null
+  const paramStatus = searchParams.get('status') as StatusDiligencia | null
+  const paramCiclo = searchParams.get('ciclo')
+  const initialStatus: FiltroStatus = paramCiclo === 'fechado' ? 'cicloFechado' : paramStatus ?? 'todos'
+  const hasFilter = !!(paramEmpresa || paramStatus || paramCiclo)
+
+  const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>(paramEmpresa ?? 'todas')
+  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: initialStatus, modo: 'todos', periodo: hasFilter ? 'todos' : '30d' })
 
   function updateFiltro(partial: Partial<FiltrosAvancados>) {
     startTransition(() => setFiltrosAvancados((f) => ({ ...f, ...partial })))
@@ -203,6 +211,8 @@ function DiligenciasContent() {
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (filtrosAvancados.status === 'pendencia') {
       l = l.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
+    } else if (filtrosAvancados.status === 'cicloFechado') {
+      l = l.filter((d) => d.cicloFinalizado)
     } else if (filtrosAvancados.status !== 'todos') {
       l = l.filter((d) => d.status === filtrosAvancados.status)
     }
