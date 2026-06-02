@@ -109,7 +109,8 @@ export default function RelatoriosPage() {
       })
 
       const bat   = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.BatBrasil)
-      const batCC = bat.filter((d) => d.valorDiligencia > 0)
+      // Inclui diligências com valor > 0 OU marcadas como "incluir na planilha" (ex: audiências R$0 da equipe interna)
+      const batCC = bat.filter((d) => (d.valorDiligencia ?? 0) > 0 || d.incluirNaPlanilha)
       const vtal  = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.VTAL)
 
       function dateBR(s?: string) {
@@ -117,6 +118,7 @@ export default function RelatoriosPage() {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s
       }
+      // Para a planilha SJR (Suporte Jurídico): usa data do EVENTO
       function dataEventoRef(d: Diligencia) { return d.dataEvento ?? d.dataAtendimento }
       function ano(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[0]) : '' }
       function mes(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[1]) : '' }
@@ -127,6 +129,19 @@ export default function RelatoriosPage() {
         const [y, mm, dd] = dt.split('-')
         return `${mm}/${dd}/${y}`
       }
+      // Para a planilha SC (Com Custo / BAT-Cliente): usa data do ATENDIMENTO
+      function dataAtRef(d: Diligencia) { return d.dataAtendimento ?? d.createdAt.split('T')[0] }
+      function anoAt(d: Diligencia)  { const dt = dataAtRef(d); return dt ? Number(dt.split('-')[0]) : '' }
+      function mesAt(d: Diligencia)  { const dt = dataAtRef(d); return dt ? Number(dt.split('-')[1]) : '' }
+      function diaAt(d: Diligencia)  { const dt = dataAtRef(d); return dt ? Number(dt.split('-')[2]) : '' }
+      function dataFmtAt(d: Diligencia) {
+        const dt = dataAtRef(d)
+        if (!dt) return ''
+        const [y, mm, dd] = dt.split('-')
+        return `${mm}/${dd}/${y}`
+      }
+      // Local de atendimento: BAT usa dpRegistrou; VTAL usa localAtendimento
+      function localAt(d: Diligencia) { return d.dpRegistrou ?? d.localAtendimento ?? '' }
 
       // ── Aba 1: BAT — Suporte Jurídico ────────────────────────────────────────
       const headersSJR = [
@@ -161,9 +176,10 @@ export default function RelatoriosPage() {
         'Nome do Advogado','Telefone','Valor pago correspondente','Valor adv acionante',
       ]
       const linhasSC = batCC.map((d) => [
-        ano(d), mes(d), dia(d), dataFmt(d), '', d.uf, d.cidade, '',
+        anoAt(d), mesAt(d), diaAt(d), dataFmtAt(d),
+        d.regiaoGtsc ?? '', d.uf, d.cidade, d.operacao ?? '',
         d.tipoDiligencia, d.observacoes ?? '', d.ccc,
-        d.numeroBOProcesso ?? '', d.localAtendimento ?? '', d.modoDiligencia,
+        d.numeroBOProcesso ?? '', localAt(d), d.modoDiligencia,
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
         d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
         d.valorDiligencia, '',
@@ -213,23 +229,23 @@ export default function RelatoriosPage() {
         const data = d.dataAtendimento ?? d.createdAt.split('T')[0]
         return data >= dataInicio && data <= dataFim
       })
-      const batCC = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.BatBrasil && d.valorDiligencia > 0)
+      // Inclui diligências com valor > 0 OU marcadas como "incluir na planilha" (audiências R$0 da equipe interna)
+      const batCC = porPeriodo.filter((d) =>
+        d.empresaCliente === EmpresaCliente.BatBrasil &&
+        ((d.valorDiligencia ?? 0) > 0 || d.incluirNaPlanilha)
+      )
 
-      function dateBR(s?: string) {
-        if (!s) return ''
-        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-        return m ? `${m[3]}/${m[2]}/${m[1]}` : s
-      }
-      function dataEventoRef(d: Diligencia) { return d.dataEvento ?? d.dataAtendimento }
-      function ano(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[0]) : '' }
-      function mes(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[1]) : '' }
-      function dia(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[2]) : '' }
-      function dataFmt(d: Diligencia) {
-        const dt = dataEventoRef(d)
+      function dataAtRef(d: Diligencia) { return d.dataAtendimento ?? d.createdAt.split('T')[0] }
+      function anoAt(d: Diligencia)  { const dt = dataAtRef(d); return dt ? Number(dt.split('-')[0]) : '' }
+      function mesAt(d: Diligencia)  { const dt = dataAtRef(d); return dt ? Number(dt.split('-')[1]) : '' }
+      function diaAt(d: Diligencia)  { const dt = dataAtRef(d); return dt ? Number(dt.split('-')[2]) : '' }
+      function dataFmtAt(d: Diligencia) {
+        const dt = dataAtRef(d)
         if (!dt) return ''
         const [y, mm, dd] = dt.split('-')
         return `${mm}/${dd}/${y}`
       }
+      function localAt(d: Diligencia) { return d.dpRegistrou ?? d.localAtendimento ?? '' }
 
       // Mesma estrutura da BAT - Com Custo, mas sem colunas de valor nem telefone
       const headersSC = [
@@ -239,9 +255,10 @@ export default function RelatoriosPage() {
         'Nome do Advogado',
       ]
       const linhasSC = batCC.map((d) => [
-        ano(d), mes(d), dia(d), dataFmt(d), '', d.uf, d.cidade, '',
+        anoAt(d), mesAt(d), diaAt(d), dataFmtAt(d),
+        d.regiaoGtsc ?? '', d.uf, d.cidade, d.operacao ?? '',
         d.tipoDiligencia, d.observacoes ?? '', d.ccc,
-        d.numeroBOProcesso ?? '', d.localAtendimento ?? '', d.modoDiligencia,
+        d.numeroBOProcesso ?? '', localAt(d), d.modoDiligencia,
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
       ])
 
