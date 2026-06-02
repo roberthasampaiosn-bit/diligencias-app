@@ -86,8 +86,9 @@ function FormBatBrasil() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
-  // Remoto vindo da triagem → botão "Criar e Concluir"
-  const isCriarEConcluir = modoParam === 'remoto' && !!eventoId
+  // Remoto OU empresa Fadel vindos da triagem → botão "Criar e Concluir"
+  const isFadel = form.empresa.toLowerCase().includes('fadel')
+  const isCriarEConcluir = !!eventoId && (modoParam === 'remoto' || isFadel)
 
   // Restaurar form do sessionStorage ao voltar da criação de advogado
   useEffect(() => {
