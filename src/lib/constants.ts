@@ -78,7 +78,7 @@ export function normalizarModoAssistenciaBat(valor: string): ModoAssistenciaBat 
 
 // ─── Operação e Segmento BAT ──────────────────────────────────────────────────
 
-export const OPERACOES_BAT = ['Próprio', 'Terceirizado'] as const
+export const OPERACOES_BAT = ['Próprio', 'Terceirizado', 'AIT'] as const
 export type OperacaoBat = typeof OPERACOES_BAT[number]
 
 export const SEGMENTOS_BAT = ['Last Mile', 'PSC', 'Redespacho'] as const

@@ -83,7 +83,8 @@ export default function FinanceiroPage() {
   }, [diligencias, diasAtrasado, mes])
 
   const lista = useMemo(() => {
-    let l = diligencias
+    // Mostrar apenas diligências com valor > 0 OU marcadas como "incluir na planilha"
+    let l = diligencias.filter((d) => (d.valorDiligencia ?? 0) > 0 || d.incluirNaPlanilha)
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (filtro === 'pendentes') l = l.filter((d) => d.statusPagamento === StatusPagamento.Pendente && (d.valorDiligencia ?? 0) > 0)
     if (filtro === 'pagos') l = l.filter((d) => d.statusPagamento === StatusPagamento.Pago)

@@ -71,6 +71,7 @@ export enum StatusPagamento {
 export enum TipoOperador {
   Proprio = 'Próprio',
   Terceirizado = 'Terceirizado',
+  AIT = 'AIT',
   Agregado = 'Agregado',
 }
 
@@ -226,6 +227,7 @@ export interface Diligencia {
   // Campos específicos V.TAL (opcionais para BAT BRASIL)
   dataAtendimento?: string
   dispensarDocumentos?: boolean
+  incluirNaPlanilha?: boolean
   macro?: string
   localAtendimento?: string
   resultadoDemanda?: string

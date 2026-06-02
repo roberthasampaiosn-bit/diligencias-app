@@ -85,6 +85,11 @@ function FormBatBrasil() {
   const [cccMatch, setCccMatch] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [incluirNaPlanilha, setIncluirNaPlanilha] = useState(false)
+  const [showConfirmIncluir, setShowConfirmIncluir] = useState(false)
+
+  const valorNumerico = parseFloat(form.valorDiligencia || '0') || 0
+  const isValorZero = valorNumerico === 0
 
   // Remoto OU empresa Fadel vindos da triagem → botão "Criar e Concluir"
   const isFadel = form.empresa.toLowerCase().includes('fadel')
@@ -315,7 +320,8 @@ function FormBatBrasil() {
         horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: concluir ? StatusDiligencia.Realizada : StatusDiligencia.EmAndamento,
         dataAtendimento: concluir ? hoje : undefined,
-        statusPagamento: StatusPagamento.Pendente,
+        statusPagamento: (incluirNaPlanilha && valorNumerico === 0) ? StatusPagamento.Pago : StatusPagamento.Pendente,
+        incluirNaPlanilha: incluirNaPlanilha || undefined,
         cicloFinalizado: false,
         pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
         anexos: {},
@@ -465,7 +471,25 @@ function FormBatBrasil() {
             </div>
           )}
 
-          <Input label="Valor (R$)" type="number" step="0.01" min="0" value={form.valorDiligencia} onChange={(e) => set('valorDiligencia', e.target.value)} placeholder="Opcional" />
+          <div>
+            <Input label="Valor (R$)" type="number" step="0.01" min="0" value={form.valorDiligencia} onChange={(e) => { set('valorDiligencia', e.target.value); if (parseFloat(e.target.value) > 0) setIncluirNaPlanilha(false) }} placeholder="Opcional" />
+            {isValorZero && (
+              <div className="mt-2">
+                {!incluirNaPlanilha ? (
+                  <button type="button" onClick={() => setShowConfirmIncluir(true)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2">
+                    + Incluir na planilha de diligências
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                    Será incluída na planilha de diligências (valor zero)
+                    <button type="button" onClick={() => setIncluirNaPlanilha(false)} className="ml-auto opacity-60 hover:opacity-100">✕</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="sm:col-span-2">
             <Textarea label="Observações sobre o advogado" value={form.obsAdvogado} onChange={(e) => set('obsAdvogado', e.target.value)} placeholder="Notas sobre o desempenho ou comunicação do advogado (opcional)" />
           </div>
@@ -490,6 +514,24 @@ function FormBatBrasil() {
           <Button type="submit" loading={saving}><Save className="w-4 h-4" /> Criar diligência</Button>
         )}
       </div>
+
+      {/* Modal de confirmação — incluir na planilha com valor zero */}
+      {showConfirmIncluir && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-base font-semibold text-slate-800">Incluir na planilha de diligências?</h3>
+            <p className="text-sm text-slate-600">
+              Tem certeza que deseja incluir esta diligência na planilha de diligências com custo, mesmo com valor <strong>R$&nbsp;0,00</strong>?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="secondary" type="button" onClick={() => setShowConfirmIncluir(false)}>Cancelar</Button>
+              <Button type="button" onClick={() => { setIncluirNaPlanilha(true); setShowConfirmIncluir(false) }}>
+                Sim, incluir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   )
 }

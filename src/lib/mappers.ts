@@ -138,6 +138,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     regiaoGtsc: row.regiao_gtsc ?? undefined,
     motoristaAgredido: row.motorista_agredido ?? undefined,
     dataAtendimento: row.data_atendimento ?? undefined,
+    incluirNaPlanilha: row.incluir_na_planilha ?? false,
     macro: row.macro ?? undefined,
     localAtendimento: row.local_atendimento ?? undefined,
     resultadoDemanda: row.resultado_demanda ?? undefined,
@@ -226,6 +227,7 @@ export function fromDiligencia(
     ...(d.statusAssinaturaContrato != null && { status_assinatura_contrato: d.statusAssinaturaContrato }),
     ...(d.statusAssinaturaRecibo != null && { status_assinatura_recibo: d.statusAssinaturaRecibo }),
     ...(d.dispensarDocumentos != null && { dispensar_documentos: d.dispensarDocumentos }),
+    ...(d.incluirNaPlanilha != null && { incluir_na_planilha: d.incluirNaPlanilha }),
   } as Omit<DiligenciaRow, 'id' | 'created_at' | 'updated_at' | 'ligacoes'>
 }
 
