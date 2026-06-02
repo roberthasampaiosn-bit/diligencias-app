@@ -8,6 +8,7 @@ import {
 } from '@/services/consultaPlacasDB'
 import { ConsultaPlaca } from '@/types'
 import { useToast } from './ToastContext'
+import { supabase } from '@/lib/supabase'
 
 export interface ConsultaPlacasContextValue {
   consultasPlacas: ConsultaPlaca[]
@@ -34,6 +35,17 @@ export function ConsultaPlacasProvider({ children }: { children: ReactNode }) {
         setError('Não foi possível carregar as consultas de placas.')
         setLoading(false)
       })
+
+    const channel = supabase
+      .channel('consultas-placas-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultas_placas' }, () => {
+        fetchConsultasPlacas()
+          .then((data) => setConsultasPlacas(data))
+          .catch((err) => console.error('[ConsultaPlacasContext] realtime refetch:', err))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const createConsultaPlaca = useCallback(async (

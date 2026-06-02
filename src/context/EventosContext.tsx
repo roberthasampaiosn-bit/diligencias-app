@@ -6,6 +6,7 @@ import {
 import { fetchEventos, patchEvento, insertEvento, deleteEvento } from '@/services/eventosDB'
 import { Evento, StatusEvento, TipoOperador } from '@/types'
 import { useToast } from './ToastContext'
+import { supabase } from '@/lib/supabase'
 
 export interface ImportResult {
   criados: number
@@ -674,6 +675,17 @@ export function EventosProvider({ children }: { children: ReactNode }) {
         setError('Não foi possível carregar os eventos.')
         setLoading(false)
       })
+
+    const channel = supabase
+      .channel('eventos-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, () => {
+        fetchEventos()
+          .then((data) => setEventos(data))
+          .catch((err) => console.error('[EventosContext] realtime refetch:', err))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const processarEvento = useCallback((eventoId: string, diligenciaId: string) => {

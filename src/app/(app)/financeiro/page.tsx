@@ -62,7 +62,7 @@ export default function FinanceiroPage() {
 
   const stats = useMemo(() => {
     const pago = diligencias.filter((d) => d.statusPagamento === StatusPagamento.Pago)
-    const pendente = diligencias.filter((d) => d.statusPagamento === StatusPagamento.Pendente)
+    const pendente = diligencias.filter((d) => d.statusPagamento === StatusPagamento.Pendente && (d.valorDiligencia ?? 0) > 0)
     const atrasados = pendente.filter(
       (d) => d.status === StatusDiligencia.Realizada && daysSince(d.createdAt) > diasAtrasado
     )
@@ -85,7 +85,7 @@ export default function FinanceiroPage() {
   const lista = useMemo(() => {
     let l = diligencias
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
-    if (filtro === 'pendentes') l = l.filter((d) => d.statusPagamento === StatusPagamento.Pendente)
+    if (filtro === 'pendentes') l = l.filter((d) => d.statusPagamento === StatusPagamento.Pendente && (d.valorDiligencia ?? 0) > 0)
     if (filtro === 'pagos') l = l.filter((d) => d.statusPagamento === StatusPagamento.Pago)
     if (filtro === 'atrasados') {
       l = l.filter(

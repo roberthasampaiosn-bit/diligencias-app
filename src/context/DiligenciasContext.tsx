@@ -8,6 +8,7 @@ import {
   fetchDiligencias, insertDiligencia, patchDiligencia,
   patchPesquisa, patchAnexo, insertLigacao, uploadArquivoAnexo, removerAnexoDB,
 } from '@/services/diligenciasDB'
+import { supabase } from '@/lib/supabase'
 import {
   Diligencia, Pesquisa, Ligacao, Anexos, AvaliacaoAdvogado,
   StatusPesquisa, StatusDiligencia, StatusPagamento,
@@ -66,6 +67,19 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
         setError('Não foi possível carregar as diligências.')
         setLoading(false)
       })
+
+    // Sincronização em tempo real — qualquer alteração feita por outro usuário
+    // (ex: Anne criando uma diligência) atualiza a lista automaticamente.
+    const channel = supabase
+      .channel('diligencias-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'diligencias' }, () => {
+        fetchDiligencias()
+          .then((data) => setDiligencias(data))
+          .catch((err) => console.error('[DiligenciasContext] realtime refetch:', err))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const patchD = useCallback((id: string, patch: Partial<Diligencia>) => {

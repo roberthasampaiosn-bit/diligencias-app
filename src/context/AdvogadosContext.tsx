@@ -6,6 +6,7 @@ import {
 import { fetchAdvogados, insertAdvogado, patchAdvogado } from '@/services/advogadosDB'
 import { Advogado } from '@/types'
 import { useToast } from './ToastContext'
+import { supabase } from '@/lib/supabase'
 
 export interface AdvogadosContextValue {
   advogados: Advogado[]
@@ -32,6 +33,17 @@ export function AdvogadosProvider({ children }: { children: ReactNode }) {
         setError('Não foi possível carregar os advogados.')
         setLoading(false)
       })
+
+    const channel = supabase
+      .channel('advogados-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'advogados' }, () => {
+        fetchAdvogados()
+          .then((data) => setAdvogados(data))
+          .catch((err) => console.error('[AdvogadosContext] realtime refetch:', err))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const advogadoMap = useMemo(

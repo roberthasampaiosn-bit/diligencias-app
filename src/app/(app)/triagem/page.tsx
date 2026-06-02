@@ -230,40 +230,6 @@ export default function TriagemPage() {
               </div>
             </div>
           )}
-          {grupos.finalizados.length > 0 && (
-            <div>
-              <GrupoHeader titulo="Ciclos finalizados" count={grupos.finalizados.length} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {grupos.finalizados.map((e) => (
-                  <EventoCard
-                    key={e.id}
-                    evento={e}
-                    diligenciaFinalizada={true}
-                    antigo={isAntigo(e.dataEvento, e.horaEvento)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          {grupos.arquivados.length > 0 && (
-            <div>
-              <GrupoHeader titulo="Arquivados" count={grupos.arquivados.length} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {grupos.arquivados.map((e) => (
-                  <EventoCard
-                    key={e.id}
-                    evento={e}
-                    diligenciaFinalizada={
-                      e.statusEvento === StatusEvento.Criado &&
-                      !!e.diligenciaId &&
-                      finalizadosSet.has(e.diligenciaId)
-                    }
-                    antigo={isAntigo(e.dataEvento, e.horaEvento)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
