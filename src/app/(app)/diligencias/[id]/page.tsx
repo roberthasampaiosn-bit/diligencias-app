@@ -523,9 +523,23 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </CardHeader>
           <CardBody className="space-y-3">
             <DR label="CCC" value={<span className="font-mono text-blue-700">{d.ccc}</span>} />
-            {eventoVinculado?.dataEvento && <DR label="Data do evento" value={formatDate(eventoVinculado.dataEvento)} />}
+            {eventoVinculado?.dataEvento && (
+              <DR
+                label="Data do evento"
+                value={`${formatDate(eventoVinculado.dataEvento)}${eventoVinculado.horaEvento ? ` às ${eventoVinculado.horaEvento.slice(0, 5)}` : ''}`}
+              />
+            )}
+            {(d.dataInformativo || eventoVinculado?.dataRecebimento) && (
+              <DR
+                label="Data do informativo"
+                value={(() => {
+                  const data = d.dataInformativo ?? eventoVinculado?.dataRecebimento
+                  const hora = d.horaInformativo ?? eventoVinculado?.horaRecebimento
+                  return `${formatDate(data!)}${hora ? ` às ${hora.slice(0, 5)}` : ''}`
+                })()}
+              />
+            )}
             {d.dataAtendimento && <DR label="Data do atendimento" value={formatDate(d.dataAtendimento)} />}
-            {!d.dataAtendimento && d.dataInformativo && <DR label="Data do informativo" value={formatDate(d.dataInformativo)} />}
             <DR label="Tipo de evento" value={d.tipoEvento} />
             <DR label="Tipo de diligência" value={d.tipoDiligencia} />
             <DR label="Modo" value={d.modoDiligencia} />
