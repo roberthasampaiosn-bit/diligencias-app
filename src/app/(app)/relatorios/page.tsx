@@ -127,7 +127,7 @@ export default function RelatoriosPage() {
         const dt = dataEventoRef(d)
         if (!dt) return ''
         const [y, mm, dd] = dt.split('-')
-        return `${mm}/${dd}/${y}`
+        return `${dd}/${mm}/${y}`
       }
       // Para a planilha SC (Com Custo / BAT-Cliente): usa data do ATENDIMENTO
       function dataAtRef(d: Diligencia) { return d.dataAtendimento ?? d.createdAt.split('T')[0] }
@@ -138,7 +138,7 @@ export default function RelatoriosPage() {
         const dt = dataAtRef(d)
         if (!dt) return ''
         const [y, mm, dd] = dt.split('-')
-        return `${mm}/${dd}/${y}`
+        return `${dd}/${mm}/${y}`
       }
       // Local de atendimento: BAT usa dpRegistrou; VTAL usa localAtendimento
       function localAt(d: Diligencia) { return d.dpRegistrou ?? d.localAtendimento ?? '' }
@@ -243,7 +243,7 @@ export default function RelatoriosPage() {
         const dt = dataAtRef(d)
         if (!dt) return ''
         const [y, mm, dd] = dt.split('-')
-        return `${mm}/${dd}/${y}`
+        return `${dd}/${mm}/${y}`
       }
       function localAt(d: Diligencia) { return d.dpRegistrou ?? d.localAtendimento ?? '' }
 
