@@ -143,12 +143,12 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   ].join('\n') : ''
   const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(msgFinanceiro)}` : '#'
 
-  // Pendência documental (presencial): falta contrato assinado, recibo assinado ou comprovante pgto
-  // Ignorado se d.dispensarDocumentos === true
-  const pendenciasDocumentais = !isRemoto && !d.dispensarDocumentos ? [
-    !d.anexos.contratoAssinado && 'contrato assinado',
-    !d.anexos.reciboAssinado && 'recibo assinado',
-    !d.anexos.comprovantePagamento && 'comprovante de pagamento',
+  // Pendência documental: verificada após ciclo finalizado, exceto se documentos dispensados
+  const pendenciasDocumentais = !d.dispensarDocumentos ? [
+    !d.anexos.contratoAssinado && 'Contrato assinado',
+    !d.anexos.reciboAssinado && 'Recibo assinado',
+    (d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento && 'Comprovante de pagamento',
+    !d.anexos.comprovanteServico && 'Comprovante de serviço',
   ].filter(Boolean) as string[] : []
   const temPendenciaDocumental = d.cicloFinalizado && pendenciasDocumentais.length > 0
 
@@ -375,6 +375,23 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </Link>
         </div>
       </div>
+
+      {/* ── Alerta de documentos faltando ── */}
+      {temPendenciaDocumental && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800 mb-1">Documentos pendentes nesta diligência:</p>
+            <div className="flex flex-wrap gap-2">
+              {pendenciasDocumentais.map((doc) => (
+                <span key={doc} className="inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                  ⚠ {doc}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── STICKY ACTION BAR ── */}
       <div className="sticky top-0 z-20 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex flex-wrap gap-2 items-center">

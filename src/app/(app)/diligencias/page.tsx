@@ -3,7 +3,7 @@
 import { useState, useMemo, memo, useRef, useEffect, Suspense, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ClipboardList, Plus, MapPin, SlidersHorizontal, X } from 'lucide-react'
+import { ClipboardList, Plus, MapPin, SlidersHorizontal, X, AlertTriangle } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
@@ -12,7 +12,20 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Diligencia, StatusDiligencia, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
+import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
+
+// ── Documentos faltando ───────────────────────────────────────────────────────
+
+function docsFaltando(d: Diligencia): string[] {
+  if (!d.cicloFinalizado || d.dispensarDocumentos) return []
+  const faltam: string[] = []
+  if (!d.anexos.contratoAssinado) faltam.push('Contrato assinado')
+  if (!d.anexos.reciboAssinado) faltam.push('Recibo assinado')
+  if ((d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento)
+    faltam.push('Comprovante de pagamento')
+  if (!d.anexos.comprovanteServico) faltam.push('Comprovante de serviço')
+  return faltam
+}
 
 // ── Ordenação inteligente ─────────────────────────────────────────────────────
 
@@ -67,10 +80,21 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
         }
       </td>
       <td className="px-4 py-3">
-        {d.cicloFinalizado
-          ? <span className="text-xs text-emerald-600 font-medium">✓ Diligência concluída</span>
-          : <span className="text-xs text-slate-400">—</span>
-        }
+        {d.cicloFinalizado ? (
+          <div className="space-y-1">
+            <span className="text-xs text-emerald-600 font-medium">✓ Diligência concluída</span>
+            {docsFaltando(d).length > 0 && (
+              <div className="flex items-center gap-1 text-amber-600">
+                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                <span className="text-xs font-medium">
+                  {docsFaltando(d).length} doc{docsFaltando(d).length > 1 ? 's' : ''} faltando
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
       </td>
     </tr>
   )
