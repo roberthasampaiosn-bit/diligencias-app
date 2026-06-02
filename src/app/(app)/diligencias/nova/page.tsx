@@ -86,6 +86,9 @@ function FormBatBrasil() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
+  // Remoto vindo da triagem → botão "Criar e Concluir"
+  const isCriarEConcluir = modoParam === 'remoto' && !!eventoId
+
   // Restaurar form do sessionStorage ao voltar da criação de advogado
   useEffect(() => {
     const newAdvId = searchParams.get('newAdvogadoId')
@@ -272,11 +275,12 @@ function FormBatBrasil() {
     return e
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, concluir = false) {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setSaving(true)
+    const hoje = new Date().toISOString().split('T')[0]
     try {
       const nova = await createDiligencia({
         empresaCliente: EmpresaCliente.BatBrasil,
@@ -308,7 +312,8 @@ function FormBatBrasil() {
         motoristaAgredido: form.motoristaAgredido || undefined,
         dataLigacaoAdvogado: form.dataLigacaoAdvogado || undefined,
         horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
-        status: StatusDiligencia.EmAndamento,
+        status: concluir ? StatusDiligencia.Realizada : StatusDiligencia.EmAndamento,
+        dataAtendimento: concluir ? hoje : undefined,
         statusPagamento: StatusPagamento.Pendente,
         cicloFinalizado: false,
         pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
@@ -354,6 +359,16 @@ function FormBatBrasil() {
       <Card>
         <CardHeader><CardTitle>Identificação</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Data/hora do informativo — somente leitura, exibida quando vem da triagem */}
+          {(form.dataInformativo || form.horaInformativo) && (
+            <div className="sm:col-span-2 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-600">
+              <span className="font-medium text-slate-500 whitespace-nowrap">📧 Informativo recebido em:</span>
+              <span className="font-semibold text-slate-800">
+                {form.dataInformativo ? new Date(form.dataInformativo + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                {form.horaInformativo ? ` às ${form.horaInformativo.slice(0, 5)}` : ''}
+              </span>
+            </div>
+          )}
           <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
           <Input label="Data do evento" type="date" value={form.dataEvento} onChange={(e) => set('dataEvento', e.target.value)} />
@@ -465,7 +480,14 @@ function FormBatBrasil() {
 
       <div className="flex gap-3 justify-end pb-6">
         <Link href="/diligencias"><Button variant="secondary" type="button">Cancelar</Button></Link>
-        <Button type="submit" loading={saving}><Save className="w-4 h-4" /> Criar diligência</Button>
+        {isCriarEConcluir ? (
+          <Button type="button" loading={saving} onClick={(e) => handleSubmit(e as unknown as React.FormEvent, true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <CheckCircle2 className="w-4 h-4" /> Criar e Concluir
+          </Button>
+        ) : (
+          <Button type="submit" loading={saving}><Save className="w-4 h-4" /> Criar diligência</Button>
+        )}
       </div>
     </form>
   )
