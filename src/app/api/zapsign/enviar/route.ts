@@ -76,6 +76,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       lang: 'pt-BR',
       base64_pdf: pdfBase64,
       signers,
+      ...(process.env.APP_URL
+        ? { webhook_url: `${process.env.APP_URL}/api/zapsign/webhook` }
+        : {}),
     }),
   })
 

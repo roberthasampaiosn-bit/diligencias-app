@@ -189,12 +189,14 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
     'As partes reconhecem que o presente contrato não gera vínculo empregatício, não se aplicando as disposições da CLT, inexistindo habitualidade, subordinação, pessoalidade ou onerosidade típica da relação de emprego.',
   )
 
-  // ── Cláusula 4ª – itens a) e b) ──────────────────────────────────────────
+  // ── Cláusula 4ª – itens a) e (opcionalmente) b) ─────────────────────────
+  const isVtal = diligencia.empresaCliente === EmpresaCliente.VTAL
   const textoA = `a) Pelos serviços prestados, o CONTRATADO receberá o valor de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), mediante pagamento via PIX ou transferência bancária, após apresentação de recibo de prestação de serviços.`
   const wrappedA = doc.splitTextToSize(textoA, TW)
   const textoB = 'b) Para os casos em que comprovadamente a diligência tiver duração de mais de 6 horas (360 minutos) ou finalizar após as 20 horas, o valor dos honorários fixados no item a, será dobrado.'
-  const wrappedB = doc.splitTextToSize(textoB, TW)
-  checkPage(lh95 + 3 + wrappedA.length * lh95 + 5 + wrappedB.length * lh95 + 8)
+  const wrappedB = isVtal ? [] : doc.splitTextToSize(textoB, TW)
+  const extraB = isVtal ? 0 : wrappedB.length * lh95 + 5
+  checkPage(lh95 + 3 + wrappedA.length * lh95 + 5 + extraB + 3)
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
@@ -206,10 +208,12 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   doc.setFontSize(9.5)
   doc.setTextColor(20)
   doc.text(wrappedA, M, y, { align: 'justify', maxWidth: TW })
-  y += wrappedA.length * lh95 + 5
+  y += wrappedA.length * lh95 + (isVtal ? 8 : 5)
 
-  doc.text(wrappedB, M, y, { align: 'justify', maxWidth: TW })
-  y += wrappedB.length * lh95 + 8
+  if (!isVtal) {
+    doc.text(wrappedB, M, y, { align: 'justify', maxWidth: TW })
+    y += wrappedB.length * lh95 + 8
+  }
 
   // ── Cláusulas 5ª a 8ª ────────────────────────────────────────────────────
   clausula(
@@ -547,8 +551,8 @@ function _buildContratoVTALDoc(diligencia: Diligencia, advogado: Advogado): { do
   return { doc, filename }
 }
 
-function _selectContratoBuilder(diligencia: Diligencia) {
-  return diligencia.empresaCliente === EmpresaCliente.VTAL ? _buildContratoVTALDoc : _buildContratoDoc
+function _selectContratoBuilder(_diligencia: Diligencia) {
+  return _buildContratoDoc
 }
 
 // ─── Contrato ────────────────────────────────────────────────────────────────
