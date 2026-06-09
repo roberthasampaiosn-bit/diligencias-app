@@ -1265,7 +1265,7 @@ function PesquisaContent() {
                     <div>
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <Link
-                          href={`/diligencias/${d.id}`}
+                          href={`/pesquisa/${d.id}`}
                           className="font-semibold text-slate-800 hover:text-blue-600 transition-colors"
                         >
                           {nomeEfetivo}
