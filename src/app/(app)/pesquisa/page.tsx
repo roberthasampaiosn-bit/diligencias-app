@@ -107,6 +107,10 @@ function normalizeStr(s: string): string {
   return (s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+function sanitizeName(s: string | null | undefined): string {
+  return (s ?? '').replace(/^[\s:]+/, '').trim()
+}
+
 // ─── Ordenação ────────────────────────────────────────────────────────────────
 
 function getPendentePriority(d: Diligencia): number {
@@ -253,7 +257,7 @@ function PesquisaContent() {
       const nova = await createDiligencia({
         empresaCliente:   normalizeEmpresa(ev.empresa ?? ''),
         ccc:              ev.ccc,
-        vitima:           ev.nomeVitima ?? '',
+        vitima:           sanitizeName(ev.nomeVitima),
         telefoneVitima:   ev.telefoneVitima ?? '',
         cargo:            ev.cargoVitima ?? '',
         empresa:          ev.empresa ?? '',
@@ -376,7 +380,7 @@ function PesquisaContent() {
     const alvo = lista.filter((d) => selectedIds.has(d.id) && d.pesquisa.status === StatusPesquisa.Pendente)
     const queue: BatchItem[] = alvo.map((d) => {
       const phone = d.telefoneVitima.split(';')[0].trim()
-      const nome = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
+      const nome = sanitizeName(d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima)
       const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
       return { d, phone, mensagem, waUrl: buildWhatsAppUrl(phone, mensagem) }
     })
@@ -459,7 +463,10 @@ function PesquisaContent() {
   // ── Dados filtrados ──────────────────────────────────────────────────────────
 
   const realizadas = useMemo(
-    () => diligencias.filter((d) => d.status === StatusDiligencia.Realizada),
+    () => diligencias.filter((d) =>
+      d.status === StatusDiligencia.Realizada &&
+      d.empresaCliente !== EmpresaCliente.VTAL
+    ),
     [diligencias],
   )
 
@@ -590,6 +597,8 @@ function PesquisaContent() {
     const base = eventos.filter((e) => {
       if (e.statusEvento !== StatusEvento.Pendente) return false
       if (!e.dataEvento || e.dataEvento > cutoff24h) return false
+      // Pesquisa só para BAT BRASIL — VTAL não usa este fluxo
+      if (normalizeEmpresa(e.empresa ?? '') === EmpresaCliente.VTAL) return false
       // Se já tem diligência vinculada e pesquisa concluída, sai da fila
       const dil = dilPorEventoId[e.id]
       if (dil && dil.pesquisa.status === StatusPesquisa.Concluida) return false
@@ -630,7 +639,7 @@ function PesquisaContent() {
   }
 
   function handleEnviarWhatsApp(d: Diligencia, phone: string) {
-    const nome = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
+    const nome = sanitizeName(d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima)
     const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
     registrarWhatsApp(d.id, mensagem)
     window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
@@ -973,7 +982,7 @@ function PesquisaContent() {
                         {/* Dados principais */}
                         <div>
                           <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="font-semibold text-slate-800">{ev.nomeVitima || '(vítima não informada)'}</span>
+                            <span className="font-semibold text-slate-800">{sanitizeName(ev.nomeVitima) || '(vítima não informada)'}</span>
                             <span className="font-mono text-xs text-blue-600 font-semibold">{ev.ccc}</span>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">
@@ -1031,7 +1040,7 @@ function PesquisaContent() {
                           <div className="space-y-1">
                             {[
                               { label: 'ID Evento', value: ev.ccc },
-                              { label: 'Nome',      value: ev.nomeVitima ?? '' },
+                              { label: 'Nome',      value: sanitizeName(ev.nomeVitima) },
                               { label: 'Cargo',     value: ev.cargoVitima ?? '' },
                               { label: 'Empresa',   value: ev.empresa },
                               { label: 'Localidade',value: evLocalidade },
@@ -1083,8 +1092,14 @@ function PesquisaContent() {
                               <button
                                 disabled={criandoTriagem === ev.id}
                                 onClick={async () => {
+                                  // Abre a janela antes do await para não ser bloqueado pelo popup blocker
+                                  const newWin = window.open('', '_blank')
                                   const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                  handleEnviarWhatsApp(dil, phone)
+                                  const nome = sanitizeName(dil.vitima || eventoMap[dil.eventoId ?? '']?.nomeVitima || ev.nomeVitima)
+                                  const mensagem = buildPesquisaMessage(nome, dil.tipoEvento, dil.empresaCliente, getDataEvento(dil))
+                                  registrarWhatsApp(dil.id, mensagem)
+                                  const url = buildWhatsAppUrl(phone, mensagem)
+                                  if (newWin) { newWin.location.href = url } else { window.open(url, '_blank') }
                                 }}
                                 className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                                   evWa ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
@@ -1101,7 +1116,7 @@ function PesquisaContent() {
                             disabled={criandoTriagem === ev.id}
                             onClick={async () => {
                               const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                              setModalRetorno({ diligenciaId: dil.id, vitima: ev.nomeVitima ?? '' })
+                              setModalRetorno({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
                               setRetornoData(''); setRetornoHora('')
                             }}
                             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
@@ -1110,7 +1125,7 @@ function PesquisaContent() {
                           </button>
 
                           <a
-                            href={buildFormUrl(ev.ccc, ev.nomeVitima ?? '', ev.cargoVitima ?? '', ev.empresa, ev.cidade)}
+                            href={buildFormUrl(ev.ccc, sanitizeName(ev.nomeVitima), ev.cargoVitima ?? '', ev.empresa, ev.cidade)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
@@ -1123,7 +1138,7 @@ function PesquisaContent() {
                               disabled={criandoTriagem === ev.id}
                               onClick={async () => {
                                 const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                setModalResposta({ diligenciaId: dil.id, vitima: ev.nomeVitima ?? '' })
+                                setModalResposta({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
                                 setTextoResposta('')
                               }}
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
@@ -1134,7 +1149,7 @@ function PesquisaContent() {
                               disabled={criandoTriagem === ev.id}
                               onClick={async () => {
                                 const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                setModalEncerramento({ diligenciaId: dil.id, vitima: ev.nomeVitima ?? '' })
+                                setModalEncerramento({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
                                 setObsEncerramento('')
                               }}
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -1171,7 +1186,7 @@ function PesquisaContent() {
                 const dataEvento = eventoVinculado?.dataEvento ?? d.dataEvento ?? d.dataAtendimento
                 const horaEvento = eventoVinculado?.horaEvento ?? d.horaEvento
                 // Nome efetivo: vitima da diligência ou, se vazio, do evento vinculado
-                const nomeEfetivo = d.vitima || eventoVinculado?.nomeVitima || ''
+                const nomeEfetivo = sanitizeName(d.vitima || eventoVinculado?.nomeVitima)
 
                 // Telefones múltiplos (separados por ";")
                 const phones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
