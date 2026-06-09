@@ -70,12 +70,34 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
 
     // Sincronização em tempo real — qualquer alteração feita por outro usuário
     // (ex: Anne criando uma diligência) atualiza a lista automaticamente.
+    // O merge preserva ligações em memória que ainda não chegaram no banco
+    // (evita race condition entre insertLigacao e o refetch disparado pelo realtime).
+    function mergeComEstadoAtual(fetchedData: Diligencia[], prev: Diligencia[]): Diligencia[] {
+      return fetchedData.map((fetched) => {
+        const inMem = prev.find((x) => x.id === fetched.id)
+        if (!inMem) return fetched
+        const memLigs = inMem.pesquisa.historicoLigacoes
+        const dbLigs  = fetched.pesquisa.historicoLigacoes
+        if (memLigs.length > dbLigs.length) {
+          return { ...fetched, pesquisa: { ...fetched.pesquisa, historicoLigacoes: memLigs } }
+        }
+        return fetched
+      })
+    }
+
     const channel = supabase
       .channel('diligencias-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'diligencias' }, () => {
         fetchDiligencias()
-          .then((data) => setDiligencias(data))
+          .then((data) => setDiligencias((prev) => mergeComEstadoAtual(data, prev)))
           .catch((err) => console.error('[DiligenciasContext] realtime refetch:', err))
+      })
+      // Subscription na tabela ligacoes: garante que insertLigacao seja refletido no estado
+      // mesmo quando o refetch de diligencias ocorre antes de o INSERT completar.
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ligacoes' }, () => {
+        fetchDiligencias()
+          .then((data) => setDiligencias(data))
+          .catch((err) => console.error('[DiligenciasContext] ligacoes realtime refetch:', err))
       })
       .subscribe()
 

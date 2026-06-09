@@ -1079,36 +1079,39 @@ function PesquisaContent() {
                                   {idx + 1}.
                                 </span>
                               )}
-                              <button
-                                disabled={criandoTriagem === ev.id}
-                                onClick={async () => {
-                                  try {
-                                    const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                    window.location.href = `tel:+55${phone}`
-                                    registrarLigacaoIniciada(dil)
-                                  } catch (err) {
-                                    addToast('error', `Erro ao registrar: ${err instanceof Error ? err.message : 'Tente novamente'}`)
-                                  }
+                              <a
+                                href={criandoTriagem === ev.id ? undefined : `tel:+55${phone}`}
+                                onClick={(e) => {
+                                  if (criandoTriagem === ev.id) { e.preventDefault(); return }
+                                  ;(async () => {
+                                    try {
+                                      const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                      registrarLigacaoIniciada(dil)
+                                    } catch (err) {
+                                      addToast('error', `Erro ao registrar: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                    }
+                                  })()
                                 }}
-                                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors${criandoTriagem === ev.id ? ' opacity-50 pointer-events-none' : ''}`}
                               >
                                 <Phone className="w-3.5 h-3.5" />
                                 Ligar{evPhones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
-                              </button>
+                              </a>
                               <button
                                 disabled={criandoTriagem === ev.id}
                                 onClick={async () => {
-                                  // Monta a mensagem com dados do evento (disponíveis agora, sem await)
                                   const nome = sanitizeName(evDil?.vitima || ev.nomeVitima)
                                   const empresaCliente = evDil?.empresaCliente ?? normalizeEmpresa(ev.empresa ?? '')
                                   const tipoEvento = evDil?.tipoEvento ?? ev.tipoEvento ?? ''
                                   const mensagem = buildPesquisaMessage(nome, tipoEvento, empresaCliente, ev.dataEvento ?? undefined)
                                   const url = buildWhatsAppUrl(phone, mensagem)
-                                  // Abre o WhatsApp imediatamente (síncrono — sem popup blocker)
                                   window.open(url, '_blank')
-                                  // Cria diligência em background se necessário, depois registra
-                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                  registrarWhatsApp(dil.id, mensagem)
+                                  try {
+                                    const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                    registrarWhatsApp(dil.id, mensagem)
+                                  } catch (err) {
+                                    addToast('error', `Erro ao registrar WA: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                  }
                                 }}
                                 className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                                   evWa ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
