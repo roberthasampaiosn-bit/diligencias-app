@@ -1092,14 +1092,17 @@ function PesquisaContent() {
                               <button
                                 disabled={criandoTriagem === ev.id}
                                 onClick={async () => {
-                                  // Abre a janela antes do await para não ser bloqueado pelo popup blocker
-                                  const newWin = window.open('', '_blank')
-                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                  const nome = sanitizeName(dil.vitima || eventoMap[dil.eventoId ?? '']?.nomeVitima || ev.nomeVitima)
-                                  const mensagem = buildPesquisaMessage(nome, dil.tipoEvento, dil.empresaCliente, getDataEvento(dil))
-                                  registrarWhatsApp(dil.id, mensagem)
+                                  // Monta a mensagem com dados do evento (disponíveis agora, sem await)
+                                  const nome = sanitizeName(evDil?.vitima || ev.nomeVitima)
+                                  const empresaCliente = evDil?.empresaCliente ?? normalizeEmpresa(ev.empresa ?? '')
+                                  const tipoEvento = evDil?.tipoEvento ?? ev.tipoEvento ?? ''
+                                  const mensagem = buildPesquisaMessage(nome, tipoEvento, empresaCliente, ev.dataEvento ?? undefined)
                                   const url = buildWhatsAppUrl(phone, mensagem)
-                                  if (newWin) { newWin.location.href = url } else { window.open(url, '_blank') }
+                                  // Abre o WhatsApp imediatamente (síncrono — sem popup blocker)
+                                  window.open(url, '_blank')
+                                  // Cria diligência em background se necessário, depois registra
+                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                  registrarWhatsApp(dil.id, mensagem)
                                 }}
                                 className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                                   evWa ? 'border-green-300 bg-green-100 text-green-800 hover:bg-green-200'
