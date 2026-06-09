@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
+import { useToast } from '@/context/ToastContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
@@ -230,6 +231,7 @@ function PesquisaContent() {
   } = useDiligencias()
 
   const { eventos, processarEvento } = useEventos()
+  const { addToast } = useToast()
   const eventoMap = useMemo(
     () => Object.fromEntries(eventos.map((e) => [e.id, e])),
     [eventos],
@@ -1080,9 +1082,13 @@ function PesquisaContent() {
                               <button
                                 disabled={criandoTriagem === ev.id}
                                 onClick={async () => {
-                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                  window.location.href = `tel:+55${phone}`
-                                  registrarLigacaoIniciada(dil)
+                                  try {
+                                    const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                    window.location.href = `tel:+55${phone}`
+                                    registrarLigacaoIniciada(dil)
+                                  } catch (err) {
+                                    addToast('error', `Erro ao registrar: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                  }
                                 }}
                                 className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
                               >
@@ -1118,9 +1124,13 @@ function PesquisaContent() {
                           <button
                             disabled={criandoTriagem === ev.id}
                             onClick={async () => {
-                              const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                              setModalRetorno({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
-                              setRetornoData(''); setRetornoHora('')
+                              try {
+                                const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                setModalRetorno({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
+                                setRetornoData(''); setRetornoHora('')
+                              } catch (err) {
+                                addToast('error', `Erro ao criar registro: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                              }
                             }}
                             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
                           >
@@ -1140,9 +1150,13 @@ function PesquisaContent() {
                             <button
                               disabled={criandoTriagem === ev.id}
                               onClick={async () => {
-                                const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                setModalResposta({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
-                                setTextoResposta('')
+                                try {
+                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                  setModalResposta({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
+                                  setTextoResposta('')
+                                } catch (err) {
+                                  addToast('error', `Erro ao criar registro: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                }
                               }}
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
                             >
@@ -1151,9 +1165,13 @@ function PesquisaContent() {
                             <button
                               disabled={criandoTriagem === ev.id}
                               onClick={async () => {
-                                const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                setModalEncerramento({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
-                                setObsEncerramento('')
+                                try {
+                                  const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                  setModalEncerramento({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
+                                  setObsEncerramento('')
+                                } catch (err) {
+                                  addToast('error', `Erro ao criar registro: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                }
                               }}
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                             >

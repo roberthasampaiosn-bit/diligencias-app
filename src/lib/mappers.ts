@@ -171,7 +171,7 @@ export function fromDiligencia(
     tipo_evento: d.tipoEvento,
     tipo_diligencia: d.tipoDiligencia,
     modo_diligencia: d.modoDiligencia,
-    advogado_id: d.advogadoId,
+    advogado_id: d.advogadoId || null,
     valor_diligencia: d.valorDiligencia ?? null,
     observacoes: d.observacoes ?? null,
     ...(d.obsAdvogado != null && { obs_advogado: d.obsAdvogado }),
