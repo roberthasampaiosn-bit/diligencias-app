@@ -73,8 +73,16 @@ export default function DashboardPage() {
 
   const pendencias = useMemo(() => {
     const emAndamento = diligencias.filter((d) => d.status === StatusDiligencia.EmAndamento)
-    const pesqPendentes = diligencias.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && d.modoDiligencia !== 'Remoto')
-    const pgtoPendente = diligencias.filter((d) => d.statusPagamento === StatusPagamento.Pendente && d.status === StatusDiligencia.Realizada)
+    const pesqPendentes = diligencias.filter((d) =>
+      d.pesquisa.status === StatusPesquisa.Pendente &&
+      d.status === StatusDiligencia.Realizada &&
+      d.empresaCliente !== EmpresaCliente.VTAL
+    )
+    const pgtoPendente = diligencias.filter((d) =>
+      d.statusPagamento === StatusPagamento.Pendente &&
+      d.status === StatusDiligencia.Realizada &&
+      (d.valorDiligencia ?? 0) > 0
+    )
     const semCiclo = diligencias.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
     return { emAndamento, pesqPendentes, pgtoPendente, semCiclo }
   }, [diligencias])

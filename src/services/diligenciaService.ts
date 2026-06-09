@@ -1,4 +1,4 @@
-import { Diligencia, DashboardStats, StatusDiligencia, StatusPagamento, StatusPesquisa } from '@/types'
+import { Diligencia, DashboardStats, StatusDiligencia, StatusPagamento, StatusPesquisa, EmpresaCliente } from '@/types'
 
 // Funções puras — sem estado interno. O estado vive no AppContext.
 
@@ -13,10 +13,13 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
   const pesquisasPendentes = diligencias.filter(
     (d) =>
       d.status === StatusDiligencia.Realizada &&
-      d.pesquisa.status !== StatusPesquisa.Concluida
+      d.pesquisa.status !== StatusPesquisa.Concluida &&
+      d.empresaCliente !== EmpresaCliente.VTAL
   )
   const pesquisasConcluidas = diligencias.filter(
-    (d) => d.pesquisa.status === StatusPesquisa.Concluida
+    (d) =>
+      d.pesquisa.status === StatusPesquisa.Concluida &&
+      d.empresaCliente !== EmpresaCliente.VTAL
   )
   const ciclosFinalizados = diligencias.filter((d) => d.cicloFinalizado)
   const ciclosFinalizadosMes = diligencias.filter((d) => d.cicloFinalizado && doMes(d))
