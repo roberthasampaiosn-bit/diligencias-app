@@ -673,7 +673,7 @@ export function gerarContratoAvulsoParaZapSign(
   dados: DadosAvulso,
   advogado: Advogado,
   empresaCliente: EmpresaCliente = EmpresaCliente.BatBrasil,
-): { filename: string; base64: string } {
+): { filename: string; base64: string; dataUri: string } {
   const stub = {
     valorDiligencia: dados.valor,
     ccc: 'AVULSO',
@@ -683,16 +683,17 @@ export function gerarContratoAvulsoParaZapSign(
   const nomeAdv = advogado.nomeCompleto.split(' ')[0]
   const data = hoje().replace(/-/g, '')
   const filename = `contrato-AVULSO-${nomeAdv}-${data}.pdf`
-  doc.save(filename)
-  const base64 = doc.output('datauristring').split(',')[1]
-  return { filename, base64 }
+  // NÃO chamar doc.save() aqui — em iOS/PWA interrompe o fluxo antes do ZapSign
+  const dataUri = doc.output('datauristring')
+  const base64 = dataUri.split(',')[1]
+  return { filename, base64, dataUri }
 }
 
 export function gerarReciboAvulsoParaZapSign(
   dados: DadosAvulso,
   advogado: Advogado,
   empresaCliente: EmpresaCliente = EmpresaCliente.BatBrasil,
-): { filename: string; base64: string } {
+): { filename: string; base64: string; dataUri: string } {
   const stub = {
     valorDiligencia: dados.valor,
     ccc: '',
@@ -705,9 +706,10 @@ export function gerarReciboAvulsoParaZapSign(
   const nomeAdv = advogado.nomeCompleto.split(' ')[0]
   const data = hoje().replace(/-/g, '')
   const filename = `recibo-AVULSO-${nomeAdv}-${data}.pdf`
-  doc.save(filename)
-  const base64 = doc.output('datauristring').split(',')[1]
-  return { filename, base64 }
+  // NÃO chamar doc.save() aqui — em iOS/PWA interrompe o fluxo antes do ZapSign
+  const dataUri = doc.output('datauristring')
+  const base64 = dataUri.split(',')[1]
+  return { filename, base64, dataUri }
 }
 
 // ─── Valor por extenso (reais) ────────────────────────────────────────────────

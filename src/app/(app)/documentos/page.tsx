@@ -82,8 +82,8 @@ function DocumentosContent() {
   const [avulsoServico, setAvulsoServico] = useState('')
   const [avulsoGerando, setAvulsoGerando] = useState(false)
   const [avulsoResultado, setAvulsoResultado] = useState<{
-    contrato?: EnviarZapSignResult & { filename: string }
-    recibo?: EnviarZapSignResult & { filename: string }
+    contrato?: EnviarZapSignResult & { filename: string; dataUri: string }
+    recibo?: EnviarZapSignResult & { filename: string; dataUri: string }
   } | null>(null)
 
   // ── Histórico de avulsos ──────────────────────────────────────────────────
@@ -124,25 +124,25 @@ function DocumentosContent() {
       const resultado: typeof avulsoResultado = {}
 
       if (avulsoTipo === 'contrato' || avulsoTipo === 'ambos') {
-        const { filename, base64 } = gerarContratoAvulsoParaZapSign(dados, adv, avulsoEmpresa)
+        const { filename, base64, dataUri } = gerarContratoAvulsoParaZapSign(dados, adv, avulsoEmpresa)
         const res = await fetch('/api/zapsign/enviar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pdfBase64: base64, filename, tipo: 'contrato', nomeAdvogado: adv.nomeCompleto, whatsappAdvogado: adv.whatsapp ?? '' }),
         })
         if (!res.ok) { const e = await res.json().catch(() => ({ error: 'Erro' })); alert(`ZapSign contrato: ${e.error}`); return }
-        resultado.contrato = { ...(await res.json() as EnviarZapSignResult), filename }
+        resultado.contrato = { ...(await res.json() as EnviarZapSignResult), filename, dataUri }
       }
 
       if (avulsoTipo === 'recibo' || avulsoTipo === 'ambos') {
-        const { filename, base64 } = gerarReciboAvulsoParaZapSign(dados, adv, avulsoEmpresa)
+        const { filename, base64, dataUri } = gerarReciboAvulsoParaZapSign(dados, adv, avulsoEmpresa)
         const res = await fetch('/api/zapsign/enviar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pdfBase64: base64, filename, tipo: 'recibo', nomeAdvogado: adv.nomeCompleto, whatsappAdvogado: adv.whatsapp ?? '' }),
         })
         if (!res.ok) { const e = await res.json().catch(() => ({ error: 'Erro' })); alert(`ZapSign recibo: ${e.error}`); return }
-        resultado.recibo = { ...(await res.json() as EnviarZapSignResult), filename }
+        resultado.recibo = { ...(await res.json() as EnviarZapSignResult), filename, dataUri }
       }
 
       setAvulsoResultado(resultado)
@@ -790,40 +790,49 @@ function DocumentosContent() {
 
               {avulsoResultado.contrato && (() => {
                 const adv = advogadoMap.get(avulsoAdvogadoId)
-                const linkAdriana = avulsoResultado.contrato!.linkAdriana
-                const linkAdvogado = avulsoResultado.contrato!.linkAdvogado
+                const { linkAdriana, linkAdvogado, dataUri, filename } = avulsoResultado.contrato!
                 return (
-                  <div className="border border-slate-100 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Contrato</p>
+                  <div className="border border-emerald-100 bg-emerald-50 rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Contrato</p>
+                      <a href={dataUri} download={filename}>
+                        <Button size="sm" variant="secondary"><Download className="w-3.5 h-3.5" />Baixar PDF</Button>
+                      </a>
+                    </div>
+                    {/* Botões WhatsApp */}
                     <div className="flex gap-2 flex-wrap">
                       {linkAdriana && (
                         <a href={buildWhatsAppAdriana('AVULSO', 'contrato', linkAdriana)} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WhatsApp Adriana</Button>
+                          <Button size="sm" variant="secondary"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WA Adriana</Button>
                         </a>
                       )}
                       {adv && linkAdvogado && (
                         <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'contrato', linkAdvogado)} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WhatsApp Advogado</Button>
+                          <Button size="sm" variant="secondary"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WA Advogado</Button>
                         </a>
                       )}
                     </div>
-                    {/* Links diretos de assinatura como fallback */}
-                    <div className="space-y-1 pt-1">
-                      {linkAdriana && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 w-20 flex-shrink-0">Link Adriana:</span>
-                          <a href={linkAdriana} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1">
-                            <ExternalLink className="w-3 h-3 flex-shrink-0" />Abrir link
+                    {/* Links diretos sempre visíveis */}
+                    <div className="space-y-1.5 bg-white rounded-lg p-2.5">
+                      {linkAdriana ? (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-slate-400 w-24 flex-shrink-0 pt-0.5">Adriana assina:</span>
+                          <a href={linkAdriana} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all flex items-start gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />{linkAdriana}
                           </a>
                         </div>
+                      ) : (
+                        <p className="text-xs text-amber-600">Link de Adriana não retornado pelo ZapSign.</p>
                       )}
-                      {linkAdvogado && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 w-20 flex-shrink-0">Link Advogado:</span>
-                          <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1">
-                            <ExternalLink className="w-3 h-3 flex-shrink-0" />Abrir link
+                      {linkAdvogado ? (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-slate-400 w-24 flex-shrink-0 pt-0.5">Advogado assina:</span>
+                          <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all flex items-start gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />{linkAdvogado}
                           </a>
                         </div>
+                      ) : (
+                        <p className="text-xs text-amber-600">Link do advogado não retornado pelo ZapSign.</p>
                       )}
                     </div>
                   </div>
@@ -832,25 +841,34 @@ function DocumentosContent() {
 
               {avulsoResultado.recibo && (() => {
                 const adv = advogadoMap.get(avulsoAdvogadoId)
-                const linkAdvogado = avulsoResultado.recibo!.linkAdvogado
+                const { linkAdvogado, dataUri, filename } = avulsoResultado.recibo!
                 return (
-                  <div className="border border-slate-100 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recibo</p>
+                  <div className="border border-emerald-100 bg-emerald-50 rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Recibo</p>
+                      <a href={dataUri} download={filename}>
+                        <Button size="sm" variant="secondary"><Download className="w-3.5 h-3.5" />Baixar PDF</Button>
+                      </a>
+                    </div>
                     <div className="flex gap-2 flex-wrap">
                       {adv && linkAdvogado && (
                         <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'recibo', linkAdvogado)} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WhatsApp Advogado</Button>
+                          <Button size="sm" variant="secondary"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WA Advogado</Button>
                         </a>
                       )}
                     </div>
-                    {linkAdvogado && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-xs text-slate-400 w-20 flex-shrink-0">Link Advogado:</span>
-                        <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1">
-                          <ExternalLink className="w-3 h-3 flex-shrink-0" />Abrir link
-                        </a>
-                      </div>
-                    )}
+                    <div className="bg-white rounded-lg p-2.5">
+                      {linkAdvogado ? (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-slate-400 w-24 flex-shrink-0 pt-0.5">Advogado assina:</span>
+                          <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all flex items-start gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />{linkAdvogado}
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-600">Link do advogado não retornado pelo ZapSign.</p>
+                      )}
+                    </div>
                   </div>
                 )
               })()}
