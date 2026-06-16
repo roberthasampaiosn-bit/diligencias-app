@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { ScrollButtons } from './ScrollButtons'
 import { useDbStatus } from '@/context/AppContext'
 import { ToastContainer } from '@/components/ui/Toast'
 
@@ -14,6 +15,7 @@ interface AppShellProps {
 
 export function AppShell({ children, title }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
   const { loading, error } = useDbStatus()
   const [dismissedError, setDismissedError] = useState<string | null>(null)
 
@@ -40,7 +42,7 @@ export function AppShell({ children, title }: AppShellProps) {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 relative">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 lg:p-6 relative">
           {loading ? (
             <div className="flex items-center justify-center py-32">
               <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -54,6 +56,7 @@ export function AppShell({ children, title }: AppShellProps) {
         </main>
       </div>
 
+      <ScrollButtons targetRef={mainRef} />
       <ToastContainer />
     </div>
   )

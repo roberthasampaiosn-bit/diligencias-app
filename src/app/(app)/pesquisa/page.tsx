@@ -594,7 +594,8 @@ function PesquisaContent() {
   // Eventos da triagem pendentes — aparecem na fila de pesquisa
   // Só após 24h do evento e enquanto a pesquisa não estiver concluída
   const triagemPendentes = useMemo(() => {
-    if (filtro !== 'pendentes') return []
+    // Durante a busca, ignora o filtro de status para encontrar qualquer evento
+    if (filtro !== 'pendentes' && !search) return []
     const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const base = eventos.filter((e) => {
       if (e.statusEvento !== StatusEvento.Pendente) return false
@@ -907,7 +908,7 @@ function PesquisaContent() {
           </div>
         </CardHeader>
 
-        {lista.length === 0 ? (
+        {lista.length === 0 && triagemPendentes.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
             title="Nenhuma pesquisa encontrada"

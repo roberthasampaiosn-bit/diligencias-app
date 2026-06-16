@@ -220,6 +220,18 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
           </div>
           <div className="sm:col-span-2">
             <Input label="Chave Pix (opcional)" value={form.chavePix} onChange={(e) => set('chavePix', e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+            <div className="flex gap-2 mt-1.5">
+              {form.cpf && (
+                <button type="button" onClick={() => set('chavePix', form.cpf)} className="text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                  Usar CPF
+                </button>
+              )}
+              {form.telefone && (
+                <button type="button" onClick={() => set('chavePix', cleanPhone(form.telefone))} className="text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                  Usar telefone
+                </button>
+              )}
+            </div>
           </div>
           <div className="sm:col-span-2">
             <Textarea label="Observações" value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Informações adicionais..." />
