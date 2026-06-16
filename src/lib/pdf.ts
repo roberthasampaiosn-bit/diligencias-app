@@ -90,6 +90,46 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
     }
   }
 
+  // Quebra texto com recuo na 1ª linha (para blocos "RÓTULO: texto"):
+  // a primeira linha usa firstWidth (espaço restante após o rótulo) e as
+  // demais usam restWidth (largura total). Não altera o conteúdo, só os cortes.
+  function wrapHanging(text: string, firstWidth: number, restWidth: number): string[] {
+    const words = text.split(/\s+/).filter(Boolean)
+    const lines: string[] = []
+    let cur = ''
+    let width = firstWidth
+    for (const w of words) {
+      const test = cur ? `${cur} ${w}` : w
+      if (cur && doc.getTextWidth(test) > width) {
+        lines.push(cur)
+        cur = w
+        width = restWidth
+      } else {
+        cur = test
+      }
+    }
+    if (cur) lines.push(cur)
+    return lines
+  }
+
+  // Desenha uma linha justificada distribuindo o espaço entre as palavras até
+  // preencher targetWidth. A última linha de um parágrafo (isLast) e linhas com
+  // uma só palavra ficam alinhadas à esquerda, como manda a tipografia.
+  function drawJustifiedLine(line: string, x: number, yy: number, targetWidth: number, isLast: boolean) {
+    const words = line.split(/\s+/).filter(Boolean)
+    if (isLast || words.length < 2) {
+      doc.text(line, x, yy)
+      return
+    }
+    const wordsWidth = words.reduce((s, w) => s + doc.getTextWidth(w), 0)
+    const gap = (targetWidth - wordsWidth) / (words.length - 1)
+    let cx = x
+    for (let i = 0; i < words.length; i++) {
+      doc.text(words[i], cx, yy)
+      cx += doc.getTextWidth(words[i]) + gap
+    }
+  }
+
   // ── Título ────────────────────────────────────────────────────────────────
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
@@ -116,15 +156,17 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
     const labelFull = `${label}: `
     const labelW = doc.getTextWidth(labelFull)
     doc.setFont('helvetica', 'normal')
-    const wrapped = doc.splitTextToSize(texto, TW - labelW)
+    const wrapped = wrapHanging(texto, TW - labelW, TW)
     checkPage(wrapped.length * lh95 + 9)
     doc.setFont('helvetica', 'bold')
     doc.text(labelFull, M, y)
     doc.setFont('helvetica', 'normal')
-    doc.text(wrapped[0], M + labelW, y)
+    const ultima = wrapped.length - 1
+    // 1ª linha: começa após o rótulo, justifica no espaço restante
+    drawJustifiedLine(wrapped[0], M + labelW, y, TW - labelW, ultima === 0)
     for (let i = 1; i < wrapped.length; i++) {
       y += lh95
-      doc.text(wrapped[i], M, y)
+      drawJustifiedLine(wrapped[i], M, y, TW, i === ultima)
     }
     y += lh95 + 8
   }
@@ -172,7 +214,7 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
     'Resolvem firmar o presente CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS, que se regerá pelas cláusulas e condições seguintes:',
     TW,
   )
-  doc.text(resolveLines, M, y)
+  doc.text(resolveLines, M, y, { align: 'justify', maxWidth: TW })
   y += resolveLines.length * lh95 + 9
 
   // ── Cláusulas 1ª a 3ª ────────────────────────────────────────────────────
@@ -242,7 +284,7 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
     'E, por estarem justas e contratadas, as partes assinam o presente instrumento em duas vias de igual teor.',
     TW,
   )
-  doc.text(fechoLines, M, y)
+  doc.text(fechoLines, M, y, { align: 'justify', maxWidth: TW })
   y += fechoLines.length * lh95 + 16
 
   // ── Assinaturas — bloco separado visualmente, não pode ficar colado ────────
