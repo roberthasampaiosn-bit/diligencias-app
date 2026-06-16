@@ -249,7 +249,8 @@ function DiligenciasContent() {
           d.vitima.toLowerCase().includes(q) ||
           d.empresaCliente.toLowerCase().includes(q) ||
           d.empresa.toLowerCase().includes(q) ||
-          d.cidade.toLowerCase().includes(q)
+          d.cidade.toLowerCase().includes(q) ||
+          (advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '').toLowerCase().includes(q)
       )
     }
     return sortDiligencias(l)
@@ -278,7 +279,7 @@ function DiligenciasContent() {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-            <SearchInput value={search} onChange={setSearch} placeholder="CCC, vítima, empresa..." className="sm:w-64" />
+            <SearchInput value={search} onChange={setSearch} placeholder="CCC, vítima, advogado, cidade..." className="sm:w-64" />
             <div className="flex gap-1.5 flex-wrap items-center">
               {/* Filtros rápidos de cliente */}
               {(['todas', EmpresaCliente.BatBrasil, EmpresaCliente.VTAL] as const).map((f) => (
