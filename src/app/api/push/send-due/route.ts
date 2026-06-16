@@ -10,11 +10,6 @@ import { StatusDiligencia, StatusPesquisa } from '@/types'
 
 const LOOKBACK_MS = 12 * 60 * 60 * 1000 // não avisa retornos vencidos há mais de 12h
 
-// "agora" no horário de Brasília (UTC-3)
-function nowBRT(): Date {
-  return new Date(Date.now() - 3 * 60 * 60 * 1000)
-}
-
 function parseScheduled(dataCombinada: string | null, hora: string | null): { key: string; when: Date } | null {
   if (!dataCombinada) return null
   // Apenas horário "HH:MM" (qualquer dia) → não dá para agendar um dia específico
@@ -57,7 +52,9 @@ async function handle(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const agora = nowBRT()
+  // 'when' já é instante absoluto (data/hora BRT com offset -03:00),
+  // então comparamos com o instante real atual.
+  const agora = new Date()
   type Due = { id: string; vitima: string; key: string; time: string }
   const due: Due[] = []
   for (const d of dils ?? []) {
