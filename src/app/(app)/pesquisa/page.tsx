@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
-  ArrowUp, ArrowDown, Bell,
+  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
@@ -19,6 +19,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
+import { PushButton } from '@/components/shared/PushButton'
 import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone } from '@/lib/utils'
 import {
   StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
@@ -323,8 +324,6 @@ function PesquisaContent() {
   const [subFiltro, setSubFiltro] = useState('')
 
   // Notificações
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default')
-
   // Modal: Agendar retorno
   const [modalRetorno, setModalRetorno] = useState<ModalRetornoState | null>(null)
   const [retornoData, setRetornoData] = useState('')
@@ -424,43 +423,6 @@ function PesquisaContent() {
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [modalResposta, textoResposta, marcarRespondida])
-
-  // ── Notificações ────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported')
-      return
-    }
-    setNotifPermission(Notification.permission)
-  }, [])
-
-  function getRetornosHoje(items: typeof realizadas) {
-    const hoje = new Date().toISOString().split('T')[0]
-    return items.filter((d) => {
-      if (d.pesquisa.status !== StatusPesquisa.Pendente) return false
-      const dc = d.pesquisa.dataCombinada
-      if (!dc || /^\d{2}:\d{2}$/.test(dc)) return false
-      return dc.split(' ')[0] === hoje
-    })
-  }
-
-  async function requestNotification() {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
-    const perm = await Notification.requestPermission()
-    setNotifPermission(perm)
-    if (perm === 'granted') notifyRetornosHoje()
-  }
-
-  function notifyRetornosHoje() {
-    const itens = getRetornosHoje(realizadas)
-    if (itens.length === 0) return
-    const nomes = itens.slice(0, 3).map((d) => d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || 'Pesquisa').join(', ')
-    new Notification('Retornos agendados para hoje', {
-      body: `${itens.length} retorno(s): ${nomes}${itens.length > 3 ? '...' : ''}`,
-      icon: '/icon-192x192.png',
-    })
-  }
 
   // ── Dados filtrados ──────────────────────────────────────────────────────────
 
@@ -775,20 +737,7 @@ function PesquisaContent() {
                   <span className="hidden sm:inline ml-1">Exportar Excel</span>
                   <span className="sm:hidden ml-1">Excel</span>
                 </Button>
-                {notifPermission !== 'unsupported' && (
-                  <button
-                    onClick={notifPermission === 'granted' ? notifyRetornosHoje : requestNotification}
-                    title={notifPermission === 'granted' ? 'Notificar retornos de hoje' : 'Ativar notificações'}
-                    className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
-                      notifPermission === 'granted'
-                        ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Bell className="w-3.5 h-3.5" />
-                    {notifPermission !== 'granted' && <span className="hidden sm:inline">Ativar alertas</span>}
-                  </button>
-                )}
+                <PushButton />
               </div>
               {search && (
                 <p className="text-xs text-slate-500 pl-1">
