@@ -672,11 +672,12 @@ export interface DadosAvulso {
 export function gerarContratoAvulsoParaZapSign(
   dados: DadosAvulso,
   advogado: Advogado,
+  empresaCliente: EmpresaCliente = EmpresaCliente.BatBrasil,
 ): { filename: string; base64: string } {
   const stub = {
     valorDiligencia: dados.valor,
     ccc: 'AVULSO',
-    empresaCliente: EmpresaCliente.BatBrasil,
+    empresaCliente,
   } as Diligencia
   const { doc } = _buildContratoDoc(stub, advogado)
   const nomeAdv = advogado.nomeCompleto.split(' ')[0]
@@ -690,6 +691,7 @@ export function gerarContratoAvulsoParaZapSign(
 export function gerarReciboAvulsoParaZapSign(
   dados: DadosAvulso,
   advogado: Advogado,
+  empresaCliente: EmpresaCliente = EmpresaCliente.BatBrasil,
 ): { filename: string; base64: string } {
   const stub = {
     valorDiligencia: dados.valor,
@@ -697,7 +699,7 @@ export function gerarReciboAvulsoParaZapSign(
     dataAtendimento: dados.dataAtendimento,
     tipoDiligencia: TipoDiligencia.Outro,
     tipoDiligenciaDescricao: dados.tipoServico || 'Prestação de serviços',
-    empresaCliente: EmpresaCliente.BatBrasil,
+    empresaCliente,
   } as Diligencia
   const { doc } = _buildReciboDoc(stub, advogado)
   const nomeAdv = advogado.nomeCompleto.split(' ')[0]

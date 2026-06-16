@@ -17,7 +17,7 @@ import { formatCurrency } from '@/lib/utils'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoParaZapSign, gerarReciboParaZapSign, gerarContratoAvulsoParaZapSign, gerarReciboAvulsoParaZapSign } from '@/lib/pdf'
 import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import { fetchDocumentosAvulsos, insertDocumentoAvulso } from '@/services/documentosAvulsosDB'
-import { Diligencia, Advogado, Anexos, DocumentoAvulso } from '@/types'
+import { Diligencia, Advogado, Anexos, DocumentoAvulso, EmpresaCliente } from '@/types'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
 
 const CAMPOS_ANEXOS: { key: keyof Anexos; label: string; seq: number }[] = [
@@ -75,6 +75,7 @@ function DocumentosContent() {
   // ── Estado modal avulso ───────────────────────────────────────────────────
   const [modalAvulso, setModalAvulso] = useState(false)
   const [avulsoAdvogadoId, setAvulsoAdvogadoId] = useState('')
+  const [avulsoEmpresa, setAvulsoEmpresa] = useState<EmpresaCliente>(EmpresaCliente.BatBrasil)
   const [avulsoValor, setAvulsoValor] = useState('')
   const [avulsoTipo, setAvulsoTipo] = useState<'contrato' | 'recibo' | 'ambos'>('contrato')
   const [avulsoData, setAvulsoData] = useState('')
@@ -102,6 +103,7 @@ function DocumentosContent() {
 
   function abrirModalAvulso() {
     setAvulsoAdvogadoId('')
+    setAvulsoEmpresa(EmpresaCliente.BatBrasil)
     setAvulsoValor('')
     setAvulsoTipo('contrato')
     setAvulsoData('')
@@ -122,7 +124,7 @@ function DocumentosContent() {
       const resultado: typeof avulsoResultado = {}
 
       if (avulsoTipo === 'contrato' || avulsoTipo === 'ambos') {
-        const { filename, base64 } = gerarContratoAvulsoParaZapSign(dados, adv)
+        const { filename, base64 } = gerarContratoAvulsoParaZapSign(dados, adv, avulsoEmpresa)
         const res = await fetch('/api/zapsign/enviar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -133,7 +135,7 @@ function DocumentosContent() {
       }
 
       if (avulsoTipo === 'recibo' || avulsoTipo === 'ambos') {
-        const { filename, base64 } = gerarReciboAvulsoParaZapSign(dados, adv)
+        const { filename, base64 } = gerarReciboAvulsoParaZapSign(dados, adv, avulsoEmpresa)
         const res = await fetch('/api/zapsign/enviar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -690,6 +692,29 @@ function DocumentosContent() {
                 )
               })()}
 
+              {/* Empresa cliente */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Empresa cliente</label>
+                <div className="flex gap-2">
+                  {([EmpresaCliente.BatBrasil, EmpresaCliente.VTAL] as const).map((emp) => (
+                    <button
+                      key={emp}
+                      type="button"
+                      onClick={() => setAvulsoEmpresa(emp)}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        avulsoEmpresa === emp
+                          ? emp === EmpresaCliente.VTAL
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {emp}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Tipo de documento */}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de documento</label>
@@ -765,20 +790,40 @@ function DocumentosContent() {
 
               {avulsoResultado.contrato && (() => {
                 const adv = advogadoMap.get(avulsoAdvogadoId)
+                const linkAdriana = avulsoResultado.contrato!.linkAdriana
+                const linkAdvogado = avulsoResultado.contrato!.linkAdvogado
                 return (
                   <div className="border border-slate-100 rounded-lg p-3 space-y-2">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Contrato</p>
-                    <p className="text-xs text-slate-600 font-mono">{avulsoResultado.contrato.filename}</p>
                     <div className="flex gap-2 flex-wrap">
-                      {avulsoResultado.contrato.linkAdriana && (
-                        <a href={buildWhatsAppAdriana('AVULSO', 'contrato', avulsoResultado.contrato.linkAdriana)} target="_blank" rel="noopener noreferrer">
+                      {linkAdriana && (
+                        <a href={buildWhatsAppAdriana('AVULSO', 'contrato', linkAdriana)} target="_blank" rel="noopener noreferrer">
                           <Button size="sm" variant="ghost"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WhatsApp Adriana</Button>
                         </a>
                       )}
-                      {adv && avulsoResultado.contrato.linkAdvogado && (
-                        <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'contrato', avulsoResultado.contrato.linkAdvogado)} target="_blank" rel="noopener noreferrer">
+                      {adv && linkAdvogado && (
+                        <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'contrato', linkAdvogado)} target="_blank" rel="noopener noreferrer">
                           <Button size="sm" variant="ghost"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WhatsApp Advogado</Button>
                         </a>
+                      )}
+                    </div>
+                    {/* Links diretos de assinatura como fallback */}
+                    <div className="space-y-1 pt-1">
+                      {linkAdriana && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400 w-20 flex-shrink-0">Link Adriana:</span>
+                          <a href={linkAdriana} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />Abrir link
+                          </a>
+                        </div>
+                      )}
+                      {linkAdvogado && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400 w-20 flex-shrink-0">Link Advogado:</span>
+                          <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />Abrir link
+                          </a>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -787,17 +832,25 @@ function DocumentosContent() {
 
               {avulsoResultado.recibo && (() => {
                 const adv = advogadoMap.get(avulsoAdvogadoId)
+                const linkAdvogado = avulsoResultado.recibo!.linkAdvogado
                 return (
                   <div className="border border-slate-100 rounded-lg p-3 space-y-2">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recibo</p>
-                    <p className="text-xs text-slate-600 font-mono">{avulsoResultado.recibo.filename}</p>
                     <div className="flex gap-2 flex-wrap">
-                      {adv && avulsoResultado.recibo.linkAdvogado && (
-                        <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'recibo', avulsoResultado.recibo.linkAdvogado)} target="_blank" rel="noopener noreferrer">
+                      {adv && linkAdvogado && (
+                        <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'recibo', linkAdvogado)} target="_blank" rel="noopener noreferrer">
                           <Button size="sm" variant="ghost"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WhatsApp Advogado</Button>
                         </a>
                       )}
                     </div>
+                    {linkAdvogado && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-xs text-slate-400 w-20 flex-shrink-0">Link Advogado:</span>
+                        <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1">
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />Abrir link
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )
               })()}
