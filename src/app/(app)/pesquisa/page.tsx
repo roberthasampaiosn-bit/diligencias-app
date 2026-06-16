@@ -1105,12 +1105,16 @@ function PesquisaContent() {
                                   const tipoEvento = evDil?.tipoEvento ?? ev.tipoEvento ?? ''
                                   const mensagem = buildPesquisaMessage(nome, tipoEvento, empresaCliente, ev.dataEvento ?? undefined)
                                   const url = buildWhatsAppUrl(phone, mensagem)
-                                  window.open(url, '_blank')
+                                  // Registra ANTES de abrir o WhatsApp: ao abrir o WA o app perde o
+                                  // foco (especialmente no celular) e as chamadas ao banco que viessem
+                                  // depois poderiam não completar, deixando o envio sem registro.
                                   try {
                                     const dil = evDil ?? await criarDiligenciaDoEvento(ev)
                                     registrarWhatsApp(dil.id, mensagem)
                                   } catch (err) {
                                     addToast('error', `Erro ao registrar WA: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                  } finally {
+                                    window.open(url, '_blank')
                                   }
                                 }}
                                 className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${

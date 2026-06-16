@@ -76,12 +76,31 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       return fetchedData.map((fetched) => {
         const inMem = prev.find((x) => x.id === fetched.id)
         if (!inMem) return fetched
+        let pesquisa = fetched.pesquisa
+
+        // Preserva ligações em memória ainda não persistidas no banco
         const memLigs = inMem.pesquisa.historicoLigacoes
         const dbLigs  = fetched.pesquisa.historicoLigacoes
         if (memLigs.length > dbLigs.length) {
-          return { ...fetched, pesquisa: { ...fetched.pesquisa, historicoLigacoes: memLigs } }
+          pesquisa = { ...pesquisa, historicoLigacoes: memLigs }
         }
-        return fetched
+
+        // Preserva o "WhatsApp enviado" otimista quando o banco ainda não
+        // recebeu o UPDATE — evita que um refetch disparado pelo INSERT da
+        // diligência apague o registro recém-feito (race condition).
+        if (inMem.pesquisa.dataEnvioWhatsApp && !fetched.pesquisa.dataEnvioWhatsApp) {
+          pesquisa = {
+            ...pesquisa,
+            dataEnvioWhatsApp:  inMem.pesquisa.dataEnvioWhatsApp,
+            mensagemEnviada:    inMem.pesquisa.mensagemEnviada,
+            tentativasWhatsApp: Math.max(
+              inMem.pesquisa.tentativasWhatsApp ?? 0,
+              pesquisa.tentativasWhatsApp ?? 0,
+            ),
+          }
+        }
+
+        return pesquisa === fetched.pesquisa ? fetched : { ...fetched, pesquisa }
       })
     }
 
@@ -96,7 +115,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       // mesmo quando o refetch de diligencias ocorre antes de o INSERT completar.
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ligacoes' }, () => {
         fetchDiligencias()
-          .then((data) => setDiligencias(data))
+          .then((data) => setDiligencias((prev) => mergeComEstadoAtual(data, prev)))
           .catch((err) => console.error('[DiligenciasContext] ligacoes realtime refetch:', err))
       })
       .subscribe()
