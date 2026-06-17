@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Modal } from '@/components/ui/Modal'
 import { StatusDiligenciaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, tituloDiligencia } from '@/lib/utils'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoParaZapSign, gerarReciboParaZapSign, gerarContratoAvulsoParaZapSign, gerarReciboAvulsoParaZapSign } from '@/lib/pdf'
 import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import { fetchDocumentosAvulsos, insertDocumentoAvulso } from '@/services/documentosAvulsosDB'
@@ -299,10 +299,10 @@ function DocumentosContent() {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-0.5">
-                        <Link href={`/diligencias/${d.id}`} className="font-semibold text-slate-800 hover:text-blue-600 text-sm">{d.vitima}</Link>
+                        <Link href={`/diligencias/${d.id}`} className="font-semibold text-slate-800 hover:text-blue-600 text-sm">{tituloDiligencia(d)}</Link>
                         <StatusDiligenciaBadge status={d.status} />
                       </div>
-                      <p className="text-xs font-mono text-blue-600">{d.ccc}</p>
+                      {d.ccc && <p className="text-xs font-mono text-blue-600">{d.ccc}</p>}
                       <p className="text-xs text-slate-500">{adv?.nomeCompleto ?? '—'} · {formatCurrency(d.valorDiligencia)}</p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -422,7 +422,7 @@ function DocumentosContent() {
       </Card>
 
       {/* Modal gerenciar */}
-      <Modal open={!!modalDil} onClose={() => setModalDil(null)} title={`Documentos — ${modalDil?.vitima}`} size="lg">
+      <Modal open={!!modalDil} onClose={() => setModalDil(null)} title={`Documentos — ${modalDil ? tituloDiligencia(modalDil) : ''}`} size="lg">
         {modalDil && (() => {
           const currentDil = diligencias.find((d) => d.id === modalDil.id) ?? modalDil
           const adv = advogadoMap.get(currentDil.advogadoId)

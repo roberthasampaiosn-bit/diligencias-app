@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { Diligencia, EmpresaCliente, TipoDiligencia } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -202,6 +203,31 @@ export function buildPesquisaMessage(vitima: string, tipoEvento: string, empresa
     'Poderia, por gentileza, me informar o melhor dia e horário para entrarmos em contato?',
     'Agradeço desde já pela sua colaboração!',
   ].join('\n\n')
+}
+
+// ─── Identificação da diligência ──────────────────────────────────────────────
+
+// Rótulo que identifica uma diligência em listas, títulos e histórico.
+// BAT BRASIL usa o nome da vítima (sempre preenchido).
+// V.TAL não tem nome de vítima nem CCC fixo (ambos chegam "N/A"/vazios), então
+// monta um rótulo descritivo — Data · Cidade/UF · Tipo de diligência — para que
+// cada evento seja distinguível dos demais.
+export function tituloDiligencia(d: Diligencia): string {
+  if (d.empresaCliente !== EmpresaCliente.VTAL) return d.vitima
+
+  const data = d.dataAtendimento ?? d.createdAt?.split('T')[0]
+  const tipo = d.tipoDiligencia === TipoDiligencia.Outro && d.tipoDiligenciaDescricao
+    ? d.tipoDiligenciaDescricao
+    : d.tipoDiligencia
+  const local = d.cidade && d.uf ? `${d.cidade}/${d.uf}` : (d.cidade || d.uf || '')
+
+  const partes = [
+    data ? formatDate(data) : '',
+    local,
+    tipo || '',
+  ].filter(Boolean)
+
+  return partes.length > 0 ? partes.join(' · ') : 'Diligência V.TAL'
 }
 
 // ─── CCC BAT BRASIL ───────────────────────────────────────────────────────────

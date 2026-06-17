@@ -13,7 +13,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Input } from '@/components/ui/Input'
 import { StatusPagamentoBadge, StatusDiligenciaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
 import { StatusPagamento, StatusDiligencia, EmpresaCliente } from '@/types'
 import { useRef, useEffect } from 'react'
 import { EmpresaBadge } from '@/components/shared/StatusBadge'
@@ -208,10 +208,10 @@ export default function FinanceiroPage() {
             return (
               <div key={d.id} className={`px-4 py-3.5 ${atrasada ? 'bg-red-50' : ''}`}>
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <Link href={`/diligencias/${d.id}`} className="font-semibold text-slate-800 text-sm hover:text-blue-600">{d.vitima}</Link>
+                  <Link href={`/diligencias/${d.id}`} className="font-semibold text-slate-800 text-sm hover:text-blue-600">{tituloDiligencia(d)}</Link>
                   <StatusPagamentoBadge status={d.statusPagamento} />
                 </div>
-                <p className="text-xs text-blue-600 font-mono mb-0.5">{d.ccc}</p>
+                {d.ccc && <p className="text-xs text-blue-600 font-mono mb-0.5">{d.ccc}</p>}
                 <p className="text-xs text-slate-500 mb-2">{adv?.nomeCompleto} · Pix: {adv?.chavePix}</p>
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-slate-800">{formatCurrency(d.valorDiligencia)}</span>
@@ -253,8 +253,8 @@ export default function FinanceiroPage() {
                 return (
                   <tr key={d.id} className={`hover:bg-slate-50 transition-colors ${atrasada ? 'bg-red-50 hover:bg-red-100' : ''}`}>
                     <td className="px-4 py-3">
-                      <Link href={`/diligencias/${d.id}`} className="font-medium text-slate-800 hover:text-blue-600 block">{d.vitima}</Link>
-                      <span className="font-mono text-xs text-blue-600">{d.ccc}</span>
+                      <Link href={`/diligencias/${d.id}`} className="font-medium text-slate-800 hover:text-blue-600 block">{tituloDiligencia(d)}</Link>
+                      {d.ccc && <span className="font-mono text-xs text-blue-600">{d.ccc}</span>}
                       {atrasada && <span className="text-xs text-red-600 flex items-center gap-0.5 mt-0.5"><AlertCircle className="w-3 h-3" /> {daysSince(d.createdAt)}d atrasada</span>}
                     </td>
                     <td className="px-4 py-3"><EmpresaBadge empresaCliente={d.empresaCliente} /></td>

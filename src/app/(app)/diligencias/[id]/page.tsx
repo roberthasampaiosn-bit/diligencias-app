@@ -20,8 +20,8 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage } from '@/lib/utils'
-import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia } from '@/types'
+import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia } from '@/lib/utils'
+import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
 import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
 
@@ -361,9 +361,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-slate-800 truncate">{d.vitima}</h1>
+          <h1 className="text-xl font-bold text-slate-800 truncate">{tituloDiligencia(d)}</h1>
           <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-xs text-blue-600 font-mono">{d.ccc}</p>
+            {d.ccc && <p className="text-xs text-blue-600 font-mono">{d.ccc}</p>}
             <EmpresaBadge empresaCliente={d.empresaCliente} />
           </div>
         </div>
@@ -970,19 +970,21 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         </CardBody>
       </Card>
 
-      {/* Nova diligência CCC / Diligência Dobrada */}
-      <div className="pb-6 flex flex-wrap gap-2">
-        <Link href={`/diligencias/nova?ccc=${d.ccc}&fromId=${d.id}`}>
-          <Button variant="secondary" size="sm">
-            <Plus className="w-3.5 h-3.5" /> Nova diligência para {d.ccc}
-          </Button>
-        </Link>
-        <Link href={`/diligencias/nova?ccc=${d.ccc}&fromId=${d.id}&dobrada=true`}>
-          <Button variant="secondary" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-50">
-            <Plus className="w-3.5 h-3.5" /> Registrar Diligência Dobrada
-          </Button>
-        </Link>
-      </div>
+      {/* Nova diligência CCC / Diligência Dobrada — específico do fluxo BAT (depende do CCC) */}
+      {d.empresaCliente !== EmpresaCliente.VTAL && (
+        <div className="pb-6 flex flex-wrap gap-2">
+          <Link href={`/diligencias/nova?ccc=${d.ccc}&fromId=${d.id}`}>
+            <Button variant="secondary" size="sm">
+              <Plus className="w-3.5 h-3.5" /> Nova diligência para {d.ccc}
+            </Button>
+          </Link>
+          <Link href={`/diligencias/nova?ccc=${d.ccc}&fromId=${d.id}&dobrada=true`}>
+            <Button variant="secondary" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-50">
+              <Plus className="w-3.5 h-3.5" /> Registrar Diligência Dobrada
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Modal pendência documental — antes de finalizar */}
       <Modal open={modalPendencia} onClose={() => setModalPendencia(false)} title="Pendências documentais" size="sm">
@@ -1040,7 +1042,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
       {/* Modal finalizar ciclo — Anne Caroline (sem avaliação) */}
       <Modal open={modalFinalizarAnne} onClose={() => setModalFinalizarAnne(false)} title="Finalizar ciclo" size="sm">
         <div className="p-5 space-y-4">
-          <p className="text-sm text-slate-600">Confirma a finalização do ciclo da diligência de <strong>{d.vitima}</strong>?</p>
+          <p className="text-sm text-slate-600">Confirma a finalização do ciclo da diligência de <strong>{tituloDiligencia(d)}</strong>?</p>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalFinalizarAnne(false)}>Cancelar</Button>
             <Button autoFocus variant="success" size="sm" onClick={() => { finalizarCiclo(id); setModalFinalizarAnne(false) }}>Finalizar ciclo</Button>

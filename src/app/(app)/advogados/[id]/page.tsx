@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { StatusDiligenciaBadge, StatusPagamentoBadge } from '@/components/shared/StatusBadge'
-import { formatCPF, formatPhone, formatCurrency, formatDate } from '@/lib/utils'
+import { formatCPF, formatPhone, formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
 import { StatusPagamento } from '@/types'
 
 interface Params { id: string }
@@ -175,8 +175,8 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
                   <div className="flex-1 min-w-0">
                     {/* Linha 1: CCC + nome vítima */}
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="font-mono text-xs text-blue-600 font-semibold">{d.ccc}</span>
-                      <span className="text-sm font-medium text-slate-800 group-hover:text-blue-700 truncate">{d.vitima}</span>
+                      {d.ccc && <span className="font-mono text-xs text-blue-600 font-semibold">{d.ccc}</span>}
+                      <span className="text-sm font-medium text-slate-800 group-hover:text-blue-700 truncate">{tituloDiligencia(d)}</span>
                     </div>
                     {/* Linha 2: cidade/UF + valor + data */}
                     <div className="flex items-center gap-3 flex-wrap text-xs text-slate-500 mb-1">

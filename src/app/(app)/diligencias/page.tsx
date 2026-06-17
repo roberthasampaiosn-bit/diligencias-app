@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
 import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
 
 // ── Documentos faltando ───────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
         <span className="font-mono text-xs font-semibold text-blue-700">{d.ccc}</span>
       </td>
       <td className="px-4 py-3">
-        <p className="font-medium text-slate-800 truncate max-w-[180px]">{d.vitima}</p>
+        <p className="font-medium text-slate-800 truncate max-w-[180px]">{tituloDiligencia(d)}</p>
         <p className="text-xs text-slate-400">{d.tipoEvento}</p>
       </td>
       <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{(d.dataAtendimento || d.dataInformativo) ? formatDate(d.dataAtendimento ?? d.dataInformativo!) : '—'}</td>
@@ -314,7 +314,7 @@ function DiligenciasContent() {
               {lista.map((d) => (
                 <Link key={d.id} href={`/diligencias/${d.id}`} className="block px-4 py-3.5 hover:bg-slate-50">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="font-semibold text-slate-800 text-sm truncate">{d.vitima}</p>
+                    <p className="font-semibold text-slate-800 text-sm truncate">{tituloDiligencia(d)}</p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <EmpresaBadge empresaCliente={d.empresaCliente} />
                       <StatusDiligenciaBadge status={d.status} />

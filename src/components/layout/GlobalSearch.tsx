@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, X, ClipboardList, Users } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
-import { cn } from '@/lib/utils'
+import { cn, tituloDiligencia } from '@/lib/utils'
 
 interface Result {
   type: 'diligencia' | 'advogado'
@@ -59,8 +59,8 @@ const SearchDropdown = memo(function SearchDropdown({
         out.push({
           type: 'diligencia',
           id: d.id,
-          label: d.vitima,
-          sublabel: `${d.ccc} · ${d.cidade}/${d.uf} · ${d.status}`,
+          label: tituloDiligencia(d),
+          sublabel: `${d.ccc ? d.ccc + ' · ' : ''}${d.cidade}/${d.uf} · ${d.status}`,
           href: `/diligencias/${d.id}`,
         })
       }

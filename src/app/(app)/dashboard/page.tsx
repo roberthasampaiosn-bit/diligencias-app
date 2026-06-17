@@ -16,7 +16,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, tituloDiligencia } from '@/lib/utils'
 import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia, StatusPesquisa } from '@/types'
 
 type Filtro = 'todos' | EmpresaCliente
@@ -329,10 +329,10 @@ export default function DashboardPage() {
                     <Link href={`/diligencias/${d.id}`} className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="text-sm font-medium text-slate-800 truncate">{d.vitima}</p>
+                          <p className="text-sm font-medium text-slate-800 truncate">{tituloDiligencia(d)}</p>
                           <EmpresaBadge empresaCliente={d.empresaCliente} />
                         </div>
-                        <p className="text-xs text-slate-500 truncate">{d.ccc} · {d.cidade}/{d.uf}</p>
+                        <p className="text-xs text-slate-500 truncate">{d.ccc ? d.ccc + ' · ' : ''}{d.cidade}/{d.uf}</p>
                         {adv && <p className="text-xs text-slate-400 truncate">{adv.nomeCompleto}</p>}
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">

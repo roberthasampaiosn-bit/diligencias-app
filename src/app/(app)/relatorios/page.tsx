@@ -14,7 +14,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
 import { exportarExcelEstilizado } from '@/lib/excel'
 import { Diligencia, StatusDiligencia, StatusPagamento, StatusPesquisa, ModoDiligencia, EmpresaCliente } from '@/types'
 
@@ -709,7 +709,7 @@ export default function RelatoriosPage() {
                           href={`/diligencias/${d.id}`}
                           className="font-medium text-slate-800 hover:text-blue-600 block"
                         >
-                          {d.vitima}
+                          {tituloDiligencia(d)}
                         </Link>
                         <span className="font-mono text-xs text-blue-600">{d.ccc}</span>
                       </Td>
