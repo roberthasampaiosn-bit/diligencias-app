@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useMemo, useTransition, useEffect, Suspense } from 'react'
+import { useState, useMemo, useCallback, useTransition, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -42,12 +42,6 @@ function buildFormUrl(ccc: string, vitima: string, cargo: string, empresa: strin
   const ifq = btoa(unescape(encodeURIComponent(JSON.stringify(prefill))))
   return `${FORMS_BASE_URL}&ifq=${ifq}`
 }
-
-const FILTROS = [
-  { key: 'pendentes',  label: 'Pendentes'  },
-  { key: 'concluidas', label: 'Concluídas' },
-  { key: 'todas',      label: 'Todas'      },
-]
 
 const PERIODOS = [
   { key: 'semana', label: 'Esta semana'   },
@@ -238,6 +232,14 @@ function PesquisaContent() {
     [eventos],
   )
 
+  // Data de referência dos filtros de período = DATA DO EVENTO (data do fato).
+  // Evento vinculado → data_evento da diligência → dataAtendimento → createdAt (fallback).
+  const refDataEvento = useCallback((d: Diligencia): string => {
+    const ev = d.eventoId ? eventoMap[d.eventoId] : undefined
+    const raw = ev?.dataEvento ?? d.dataEvento ?? d.dataAtendimento ?? d.createdAt
+    return (raw ?? '').split('T')[0]
+  }, [eventoMap])
+
   const searchParams = useSearchParams()
   const paramFiltro = searchParams.get('filtro')
   const [search, setSearch] = useState('')
@@ -315,8 +317,8 @@ function PesquisaContent() {
     return () => clearTimeout(timer)
   }, [pinnedId, pinnedAt])
 
-  // Período / intervalo de datas
-  const [periodoFiltro, setPeriodoFiltro] = useState<string>('')
+  // Período / intervalo de datas — abre no mês atual por padrão
+  const [periodoFiltro, setPeriodoFiltro] = useState<string>('mes')
   const [dataFiltroInicio, setDataFiltroInicio] = useState('')
   const [dataFiltroFim, setDataFiltroFim] = useState('')
 
@@ -446,52 +448,16 @@ function PesquisaContent() {
     if (!range) return realizadas
     const { ini, fim } = range
     return realizadas.filter((d) => {
-      const ref = d.dataAtendimento ?? d.createdAt.split('T')[0]
+      const ref = refDataEvento(d)
       return ref >= ini && ref <= fim
     })
-  }, [realizadas, periodoFiltro, dataFiltroInicio, dataFiltroFim])
+  }, [realizadas, periodoFiltro, dataFiltroInicio, dataFiltroFim, refDataEvento])
 
   const stats = useMemo(() => ({
     total:     realizadasFiltradas.length,
     pendentes: realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente).length,
     concluidas: realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida).length,
   }), [realizadasFiltradas])
-
-  // Contadores para cada botão de período (considera o filtro de status atual)
-  const periodCounts = useMemo(() => {
-    const applyStatusFilter = (items: Diligencia[]) => {
-      if (filtro === 'pendentes') return items.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
-      if (filtro === 'concluidas') return items.filter((d) => d.pesquisa.status === StatusPesquisa.Concluida)
-      return items
-    }
-    const result: Record<string, number> = {}
-    for (const p of PERIODOS) {
-      if (p.key === 'custom') {
-        const ini = dataFiltroInicio || '2000-01-01'
-        const fim = dataFiltroFim || '9999-12-31'
-        const filtered = realizadas.filter((d) => {
-          const ref = d.dataAtendimento ?? d.createdAt.split('T')[0]
-          return ref >= ini && ref <= fim
-        })
-        result[p.key] = applyStatusFilter(filtered).length
-      } else if (p.key === '') {
-        result[p.key] = applyStatusFilter(realizadas).length
-      } else {
-        const range = periodoToRange(p.key)
-        if (range) {
-          const { ini, fim } = range
-          const filtered = realizadas.filter((d) => {
-            const ref = d.dataAtendimento ?? d.createdAt.split('T')[0]
-            return ref >= ini && ref <= fim
-          })
-          result[p.key] = applyStatusFilter(filtered).length
-        } else {
-          result[p.key] = 0
-        }
-      }
-    }
-    return result
-  }, [realizadas, filtro, dataFiltroInicio, dataFiltroFim])
 
   const lista = useMemo(() => {
     let l = realizadasFiltradas
@@ -690,18 +656,29 @@ function PesquisaContent() {
         </p>
       </div>
 
-      {/* Stats */}
+      {/* Stats — também são o filtro de status (clique para filtrar) */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total',      value: stats.total,     color: 'bg-slate-50 border-slate-200',   text: 'text-slate-800'  },
-          { label: 'Pendentes',  value: stats.pendentes, color: 'bg-amber-50 border-amber-200',   text: 'text-amber-800'  },
-          { label: 'Concluídas', value: stats.concluidas,color: 'bg-emerald-50 border-emerald-200',text:'text-emerald-800'},
-        ].map((s) => (
-          <div key={s.label} className={`border rounded-xl p-3 ${s.color}`}>
-            <p className="text-xs text-slate-500">{s.label}</p>
-            <p className={`text-2xl font-bold ${s.text}`}>{s.value}</p>
-          </div>
-        ))}
+          { key: 'todas',      label: 'Total',      value: stats.total,     color: 'bg-slate-50 border-slate-200',    text: 'text-slate-800',   ring: 'ring-slate-400'   },
+          { key: 'pendentes',  label: 'Pendentes',  value: stats.pendentes, color: 'bg-amber-50 border-amber-200',    text: 'text-amber-800',   ring: 'ring-amber-400'   },
+          { key: 'concluidas', label: 'Concluídas', value: stats.concluidas,color: 'bg-emerald-50 border-emerald-200',text: 'text-emerald-800', ring: 'ring-emerald-400' },
+        ].map((s) => {
+          const isActive = filtro === s.key
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => startTransition(() => setFiltro(s.key))}
+              aria-pressed={isActive}
+              className={`text-left border rounded-xl p-3 transition-all ${s.color} ${
+                isActive ? `ring-2 ${s.ring} shadow-sm` : 'opacity-75 hover:opacity-100'
+              }`}
+            >
+              <p className="text-xs text-slate-500">{s.label}</p>
+              <p className={`text-2xl font-bold ${s.text}`}>{s.value}</p>
+            </button>
+          )
+        })}
       </div>
 
       <Card>
@@ -748,40 +725,12 @@ function PesquisaContent() {
               )}
             </div>
 
-            {/* Filtro de status — com contadores do período atual */}
-            <div className="flex flex-wrap gap-1.5">
-              {FILTROS.map((f) => {
-                const count = f.key === 'pendentes' ? stats.pendentes
-                  : f.key === 'concluidas' ? stats.concluidas
-                  : stats.total
-                return (
-                  <button
-                    key={f.key}
-                    onClick={() => startTransition(() => setFiltro(f.key))}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      filtro === f.key
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {f.label}
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
-                      filtro === f.key ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
-                    }`}>
-                      {count}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Filtro de período — com contadores por status atual */}
+            {/* Filtro de período (status fica nos cards acima) */}
             <div className="flex flex-wrap gap-1.5 items-center">
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
                 Período:
               </span>
               {PERIODOS.map((p) => {
-                const count = periodCounts[p.key] ?? 0
                 const isActive = periodoFiltro === p.key
                 return (
                   <button
@@ -790,51 +739,48 @@ function PesquisaContent() {
                       setPeriodoFiltro(p.key)
                       if (p.key !== 'custom') { setDataFiltroInicio(''); setDataFiltroFim('') }
                     })}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                       isActive
                         ? 'bg-slate-700 text-white'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
                     {p.label}
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
-                      isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
-                    }`}>
-                      {count}
-                    </span>
                   </button>
                 )
               })}
             </div>
 
-            {/* Sub-filtros para pendentes */}
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
-                Pendentes:
-              </span>
-              {SUB_FILTROS.map((sf) => {
-                const count = subFiltrosCounts[sf.key as keyof typeof subFiltrosCounts] ?? 0
-                const isActive = subFiltro === sf.key
-                return (
-                  <button
-                    key={sf.key}
-                    onClick={() => startTransition(() => setSubFiltro(isActive ? '' : sf.key))}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {sf.label}
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
-                      isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
-                    }`}>
-                      {count}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            {/* Sub-filtros — só fazem sentido ao olhar pendentes */}
+            {filtro === 'pendentes' && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
+                  Refinar:
+                </span>
+                {SUB_FILTROS.map((sf) => {
+                  const count = subFiltrosCounts[sf.key as keyof typeof subFiltrosCounts] ?? 0
+                  const isActive = subFiltro === sf.key
+                  return (
+                    <button
+                      key={sf.key}
+                      onClick={() => startTransition(() => setSubFiltro(isActive ? '' : sf.key))}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {sf.label}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
+                        isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Inputs de data personalizada */}
             {periodoFiltro === 'custom' && (
