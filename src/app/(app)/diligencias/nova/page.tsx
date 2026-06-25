@@ -16,7 +16,7 @@ import {
   StatusDiligencia, StatusPagamento, StatusPesquisa,
   ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente, normalizeEmpresa,
 } from '@/types'
-import { cleanPhone, toTitleCase, normalizarCccBat, validarCccBat } from '@/lib/utils'
+import { cleanPhone, cleanPhones, toTitleCase, normalizarCccBat, validarCccBat } from '@/lib/utils'
 import { TIPOS_EVENTO_BAT, MACROS_VTAL, TIPOS_DILIGENCIA_BAT, TIPOS_DILIGENCIA_VTAL, OPERACOES_BAT, SEGMENTOS_BAT, SOBRA_MERCADORIA_OPS } from '@/lib/constants'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -292,7 +292,7 @@ function FormBatBrasil() {
         empresaCliente: EmpresaCliente.BatBrasil,
         ccc: form.ccc,
         vitima: toTitleCase(form.vitima),
-        telefoneVitima: cleanPhone(form.telefoneVitima),
+        telefoneVitima: cleanPhones(form.telefoneVitima),
         cargo: form.cargo,
         empresa: form.empresa,
         cidade: toTitleCase(form.cidade),

@@ -47,6 +47,17 @@ export function cleanPhone(phone: string): string {
   return phone.replace(/\D/g, '')
 }
 
+// Limpa um campo de telefone que pode conter VÁRIOS números separados por ";"
+// (ex.: 2 vítimas). Limpa os dígitos de cada um e rejunta com ";" — preservando
+// a separação. Usar ao salvar; cleanPhone() apaga o ";" e cola os números.
+export function cleanPhones(phones: string): string {
+  return phones
+    .split(';')
+    .map((p) => p.trim().replace(/\D/g, ''))
+    .filter(Boolean)
+    .join(';')
+}
+
 const TITLE_PREPS = new Set(['de', 'da', 'do', 'dos', 'das', 'e', 'a', 'o', 'em', 'na', 'no', 'nas', 'nos'])
 
 export function toTitleCase(str: string): string {

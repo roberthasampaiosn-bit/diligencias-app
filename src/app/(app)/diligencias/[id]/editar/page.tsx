@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligencia, StatusPagamento, ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente } from '@/types'
-import { cleanPhone, normalizarCccBat, validarCccBat } from '@/lib/utils'
+import { cleanPhone, cleanPhones, normalizarCccBat, validarCccBat } from '@/lib/utils'
 import { TIPOS_EVENTO_BAT } from '@/lib/constants'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -130,9 +130,9 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
     if (!f.vitima) e.vitima = 'Obrigatório'
     if (!f.cidade) e.cidade = 'Obrigatório'
     if (!f.uf) e.uf = 'Obrigatório'
-    if (f.telefoneVitima) {
+    if (f.telefoneVitima && !f.telefoneVitima.includes(';')) {
       const d = cleanPhone(f.telefoneVitima)
-      if (d.length < 10 || d.length > 11) e.telefoneVitima = '10 ou 11 dígitos'
+      if (d.length < 10 || d.length > 11) e.telefoneVitima = '10 ou 11 dígitos (ou separe múltiplos com ;)'
     }
     if (!f.advogadoId) e.advogadoId = 'Selecione um advogado'
     return e
@@ -159,7 +159,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         ccc: form.ccc,
         dataAtendimento: form.dataAtendimento || undefined,
         vitima: form.vitima,
-        telefoneVitima: cleanPhone(form.telefoneVitima),
+        telefoneVitima: cleanPhones(form.telefoneVitima),
         cargo: form.cargo,
         empresa: form.empresa,
         empresaCliente: form.empresaCliente,
