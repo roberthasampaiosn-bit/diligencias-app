@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
 import { StatusPesquisa, ResultadoLigacao, Pesquisa } from '@/types'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
@@ -102,7 +102,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
     )
   }
 
-  const whatsappUrl = buildWhatsAppUrl(diligencia.telefoneVitima, buildPesquisaMessage(diligencia.vitima, diligencia.tipoEvento, diligencia.empresaCliente, diligencia.dataEvento ?? diligencia.dataAtendimento))
+  const telefones = diligencia.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
   const hasRetornoAgendado = !!pesquisa.dataCombinada
 
   const [copied, setCopied] = useState<string | null>(null)
@@ -184,18 +184,26 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
         </div>
       </div>
 
-      {/* Contato rápido com a vítima */}
-      <div className="flex flex-wrap gap-2">
-        <a href={`tel:+55${cleanPhone(diligencia.telefoneVitima)}`}>
-          <Button variant="primary" size="sm">
-            <Phone className="w-3.5 h-3.5" /> Ligar — {formatPhone(diligencia.telefoneVitima)}
-          </Button>
-        </a>
-        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-          <Button variant="secondary" size="sm">
-            <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp vítima
-          </Button>
-        </a>
+      {/* Contato rápido com a vítima — um par por telefone, nome pareado */}
+      <div className="flex flex-col gap-2">
+        {telefones.map((phone) => {
+          const nome = nomeDoTelefone(diligencia.vitima, diligencia.telefoneVitima, phone)
+          const waUrl = buildWhatsAppUrl(phone, buildPesquisaMessage(nome, diligencia.tipoEvento, diligencia.empresaCliente, diligencia.dataEvento ?? diligencia.dataAtendimento))
+          return (
+            <div key={phone} className="flex flex-wrap gap-2 items-center">
+              <a href={`tel:+55${cleanPhone(phone)}`}>
+                <Button variant="primary" size="sm">
+                  <Phone className="w-3.5 h-3.5" /> Ligar — {formatPhone(phone)}
+                </Button>
+              </a>
+              <a href={waUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="secondary" size="sm">
+                  <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp{telefones.length > 1 ? ` — ${nome.split(' ')[0]}` : ' vítima'}
+                </Button>
+              </a>
+            </div>
+          )
+        })}
       </div>
 
       {/* Card Entrevista Plataforma 6S */}

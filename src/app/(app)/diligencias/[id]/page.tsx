@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
 import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -120,7 +120,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const linkContratoZap = d.linkAssinaturaAdvogadoContrato ?? null
   const linkReciboZap = d.linkAssinaturaAdvogadoRecibo ?? null
 
-  const whatsappVitima = buildWhatsAppUrl(d.telefoneVitima, buildPesquisaMessage(d.vitima, d.tipoEvento, d.empresaCliente))
+  const telefonesVitima = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
+  const telPrincipal = telefonesVitima[0] ?? ''
+  const whatsappVitima = buildWhatsAppUrl(telPrincipal, buildPesquisaMessage(nomeDoTelefone(d.vitima, d.telefoneVitima, telPrincipal), d.tipoEvento, d.empresaCliente))
   const isRemoto = d.modoDiligencia === 'Remoto'
   const podeFinalizar = d.status === StatusDiligencia.Realizada
     && (isRemoto || d.dispensarDocumentos || d.statusPagamento === StatusPagamento.Pago)
@@ -524,9 +526,13 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             <DR label="Cargo" value={d.cargo} />
             <DR label="Empresa" value={d.empresa} />
             <DR label="Telefone" value={
-              <a href={`tel:${d.telefoneVitima}`} className="flex items-center gap-1.5 text-blue-600 hover:underline">
-                <Phone className="w-3.5 h-3.5" />{formatPhone(d.telefoneVitima)}
-              </a>
+              <span className="flex flex-col gap-0.5">
+                {telefonesVitima.map((phone) => (
+                  <a key={phone} href={`tel:${phone}`} className="flex items-center gap-1.5 text-blue-600 hover:underline">
+                    <Phone className="w-3.5 h-3.5" />{formatPhone(phone)}
+                  </a>
+                ))}
+              </span>
             } />
             <DR label="Cidade/UF" value={<span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400" />{d.cidade}/{d.uf}</span>} />
             {d.dpRegistrou && <DR label="DP" value={d.dpRegistrou} />}
