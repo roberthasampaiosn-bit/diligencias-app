@@ -95,7 +95,7 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
       {/* LINHA 4: Telefone • Motorista agredido */}
       <p className="text-xs text-slate-500 mb-3">
         {e.telefoneVitima
-          ? <span>{formatPhone(e.telefoneVitima)}</span>
+          ? <span>{e.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean).map((p) => formatPhone(p)).join(' / ')}</span>
           : <span className="italic text-slate-400">Telefone não informado</span>
         }
         <span className="mx-1.5 text-slate-300">•</span>
@@ -114,7 +114,7 @@ export const EventoCard = memo(function EventoCard({ evento: e, diligenciaFinali
             <Button size="sm" variant="secondary"><Plus className="w-3.5 h-3.5" /> Remota</Button>
           </Link>
           {e.telefoneVitima && (
-            <a href={`tel:${e.telefoneVitima}`}>
+            <a href={`tel:${e.telefoneVitima.split(';')[0]?.trim() ?? ''}`}>
               <Button size="sm" variant="ghost" className="text-slate-500">
                 <Phone className="w-3.5 h-3.5" />
               </Button>
