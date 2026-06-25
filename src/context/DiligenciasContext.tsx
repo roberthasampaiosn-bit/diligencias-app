@@ -46,6 +46,20 @@ function localISOString(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 }
 
+// Repete uma gravação algumas vezes antes de desistir — cobre falhas transitórias
+// de rede que, em fire-and-forget, fariam o dado se perder silenciosamente.
+async function comRetry<T>(fn: () => Promise<T>, tentativas = 3, baseMs = 600): Promise<T> {
+  let ultimoErro: unknown
+  for (let i = 0; i < tentativas; i++) {
+    try { return await fn() }
+    catch (err) {
+      ultimoErro = err
+      if (i < tentativas - 1) await new Promise((r) => setTimeout(r, baseMs * (i + 1)))
+    }
+  }
+  throw ultimoErro
+}
+
 export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const [diligencias, setDiligencias] = useState<Diligencia[]>([])
   const [loading, setLoading] = useState(true)
@@ -226,6 +240,13 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
 
   const registrarWhatsApp = useCallback((id: string, mensagem: string) => {
     const d = diligenciasRef.current.find((x) => x.id === id)
+    // Guarda o estado anterior para reverter se a gravação falhar de vez —
+    // assim nunca mostramos "enviado" sem ter salvo no banco.
+    const anterior: Partial<Pesquisa> = {
+      dataEnvioWhatsApp: d?.pesquisa.dataEnvioWhatsApp,
+      mensagemEnviada: d?.pesquisa.mensagemEnviada,
+      tentativasWhatsApp: d?.pesquisa.tentativasWhatsApp ?? 0,
+    }
     const novoCount = (d?.pesquisa.tentativasWhatsApp ?? 0) + 1
     const pp = {
       dataEnvioWhatsApp: new Date().toISOString().split('T')[0],
@@ -233,9 +254,13 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       tentativasWhatsApp: novoCount,
     }
     patchP(id, pp)
-    patchPesquisa(id, pp)
+    comRetry(() => patchPesquisa(id, pp))
       .then(() => logAudit({ usuarioEmail: userEmail, acao: 'enviou_whatsapp', entidadeId: id, detalhes: d?.ccc }))
-      .catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
+      .catch((err) => {
+        console.error('[registrarWhatsApp] falha ao persistir após retries:', err)
+        patchP(id, anterior) // reverte o badge local: a pessoa volta para "Sem WA"
+        addToast('error', 'Não consegui registrar o envio (sem conexão). A pessoa segue como "Sem WA" — reenvie quando a internet voltar.')
+      })
   }, [patchP, addToast, userEmail])
 
   const registrarLigacao = useCallback(async (id: string, ligacao: Omit<Ligacao, 'id'>): Promise<void> => {
