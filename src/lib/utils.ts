@@ -58,6 +58,17 @@ export function cleanPhones(phones: string): string {
     .join(';')
 }
 
+// Pareia nome<->telefone por POSIÇÃO. Nomes e telefones podem ter vários itens
+// separados por ";" (2 vítimas). Devolve o nome da vítima na mesma posição do
+// telefone informado, para não saudar a pessoa errada. Sem correspondência
+// (listas de tamanhos diferentes), cai para o primeiro nome.
+export function nomeDoTelefone(vitimas: string, telefones: string, telefone: string): string {
+  const nomes = (vitimas ?? '').split(';').map((n) => n.trim()).filter(Boolean)
+  const fones = (telefones ?? '').split(';').map((p) => p.trim()).filter(Boolean)
+  const idx = fones.findIndex((p) => cleanPhone(p) === cleanPhone(telefone))
+  return (idx >= 0 ? nomes[idx] : undefined) ?? nomes[0] ?? (vitimas ?? '')
+}
+
 const TITLE_PREPS = new Set(['de', 'da', 'do', 'dos', 'das', 'e', 'a', 'o', 'em', 'na', 'no', 'nas', 'nos'])
 
 export function toTitleCase(str: string): string {

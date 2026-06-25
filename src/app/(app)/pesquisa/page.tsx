@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { PushButton } from '@/components/shared/PushButton'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
 import {
   StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
   EmpresaCliente, TipoDiligencia, ModoDiligencia, TipoEvento,
@@ -375,17 +375,22 @@ function PesquisaContent() {
   }
 
   // Fila guiada de WA em lote
-  type BatchItem = { d: Diligencia; phone: string; mensagem: string; waUrl: string }
+  type BatchItem = { d: Diligencia; phone: string; nome: string; mensagem: string; waUrl: string }
   const [batchQueue, setBatchQueue] = useState<BatchItem[]>([])
   const [batchIdx, setBatchIdx] = useState(0)
 
   function startBatchWA() {
     const alvo = lista.filter((d) => selectedIds.has(d.id) && d.pesquisa.status === StatusPesquisa.Pendente)
-    const queue: BatchItem[] = alvo.map((d) => {
-      const phone = d.telefoneVitima.split(';')[0].trim()
-      const nome = sanitizeName(d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima)
-      const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
-      return { d, phone, mensagem, waUrl: buildWhatsAppUrl(phone, mensagem) }
+    // Uma entrada por telefone (contata todas as vítimas), cada uma saudando o
+    // nome pareado àquele telefone — evita chamar a 2ª vítima pelo nome da 1ª.
+    const queue: BatchItem[] = alvo.flatMap((d) => {
+      const nomes = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
+      const fones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
+      return (fones.length ? fones : ['']).map((phone) => {
+        const nome = sanitizeName(nomeDoTelefone(nomes, d.telefoneVitima, phone))
+        const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
+        return { d, phone, nome, mensagem, waUrl: buildWhatsAppUrl(phone, mensagem) }
+      })
     })
     setBatchQueue(queue)
     setBatchIdx(0)
@@ -570,7 +575,8 @@ function PesquisaContent() {
   }
 
   function handleEnviarWhatsApp(d: Diligencia, phone: string) {
-    const nome = sanitizeName(d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima)
+    const nomes = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
+    const nome = sanitizeName(nomeDoTelefone(nomes, d.telefoneVitima, phone))
     const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
     registrarWhatsApp(d.id, mensagem)
     window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
@@ -996,7 +1002,7 @@ function PesquisaContent() {
                               <button
                                 disabled={criandoTriagem === ev.id}
                                 onClick={async () => {
-                                  const nome = sanitizeName(evDil?.vitima || ev.nomeVitima)
+                                  const nome = sanitizeName(nomeDoTelefone(evDil?.vitima || ev.nomeVitima || '', ev.telefoneVitima ?? '', phone))
                                   const empresaCliente = evDil?.empresaCliente ?? normalizeEmpresa(ev.empresa ?? '')
                                   const tipoEvento = evDil?.tipoEvento ?? ev.tipoEvento ?? ''
                                   const mensagem = buildPesquisaMessage(nome, tipoEvento, empresaCliente, ev.dataEvento ?? undefined)
@@ -1457,7 +1463,7 @@ function PesquisaContent() {
 
               {/* Pessoa atual */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-0.5">
-                <p className="font-semibold text-slate-800">{current.d.vitima}</p>
+                <p className="font-semibold text-slate-800">{current.nome || current.d.vitima}</p>
                 <p className="text-xs text-slate-500">{formatPhone(current.phone)}</p>
               </div>
 
