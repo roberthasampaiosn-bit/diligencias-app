@@ -152,6 +152,11 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const createDiligencia = useCallback(async (
     data: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Diligencia> => {
+    // Fadel quase nunca tem documento a anexar → já nasce com "sem documentos"
+    // marcado, evitando ficar como pendência. Continua podendo anexar/desmarcar.
+    if (data.dispensarDocumentos == null && /fadel/i.test(data.empresa ?? '')) {
+      data = { ...data, dispensarDocumentos: true }
+    }
     const nova = await insertDiligencia(data)
     setDiligencias((prev) => [nova, ...prev])
     logAudit({ usuarioEmail: userEmail, acao: 'criou_diligencia', entidadeId: nova.id, detalhes: nova.ccc })
