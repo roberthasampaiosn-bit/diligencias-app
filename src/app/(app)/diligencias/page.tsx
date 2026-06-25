@@ -39,11 +39,19 @@ function dataDiligencia(d: Diligencia): string {
   return d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
+// Data usada para ORDENAR a lista: prioriza a data do evento (o fato em si).
+// Mantida separada de dataDiligencia (que é usada no filtro de "últimos 30 dias").
+function dataEventoOrd(d: Diligencia): string {
+  return d.dataEvento ?? d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
+}
+
 function sortDiligencias(list: Diligencia[]): Diligencia[] {
   return [...list].sort((a, b) => {
     const pa = prioridade(a), pb = prioridade(b)
-    if (pa !== pb) return pa - pb
-    return dataDiligencia(b).localeCompare(dataDiligencia(a))
+    if (pa !== pb) return pa - pb                          // em andamento primeiro
+    const da = dataEventoOrd(a), db = dataEventoOrd(b)
+    if (da !== db) return db.localeCompare(da)             // evento mais recente em cima
+    return (b.ccc ?? '').localeCompare(a.ccc ?? '')        // desempate: CCC decrescente
   })
 }
 
@@ -53,6 +61,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
   d, adv,
 }: { d: Diligencia; adv: Advogado | undefined }) {
   const router = useRouter()
+  const dataEv = d.dataEvento ?? d.dataAtendimento ?? d.dataInformativo
   return (
     <tr
       className="hover:bg-slate-50 cursor-pointer transition-colors"
@@ -61,13 +70,13 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
       <td className="px-4 py-3">
         <span className="font-mono text-xs font-semibold text-blue-700">{d.ccc}</span>
       </td>
+      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{dataEv ? formatDate(dataEv) : '—'}</td>
+      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{d.cidade}/{d.uf}</td>
       <td className="px-4 py-3">
         <p className="font-medium text-slate-800 truncate max-w-[180px]">{tituloDiligencia(d)}</p>
         <p className="text-xs text-slate-400">{d.tipoEvento}</p>
       </td>
-      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{(d.dataAtendimento || d.dataInformativo) ? formatDate(d.dataAtendimento ?? d.dataInformativo!) : '—'}</td>
       <td className="px-4 py-3"><EmpresaBadge empresaCliente={d.empresaCliente} /></td>
-      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{d.cidade}/{d.uf}</td>
       <td className="px-4 py-3">
         <p className="text-slate-600 truncate max-w-[160px]">{adv?.nomeCompleto ?? '—'}</p>
       </td>
@@ -340,7 +349,7 @@ function DiligenciasContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['CCC', 'Vítima', 'Data', 'Cliente', 'Cidade/UF', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
+                    {['CCC', 'Data do evento', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
