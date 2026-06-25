@@ -55,6 +55,23 @@ function sortDiligencias(list: Diligencia[]): Diligencia[] {
   })
 }
 
+// ── Situação do ciclo (coluna "Situação") ─────────────────────────────────────
+
+type SitTone = 'slate' | 'amber' | 'blue' | 'emerald'
+const SIT_TONE: Record<SitTone, string> = {
+  slate: 'text-slate-400', amber: 'text-amber-600', blue: 'text-blue-600', emerald: 'text-emerald-600',
+}
+
+function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docs: number } {
+  if (d.cicloFinalizado) return { label: 'Concluída', tone: 'emerald', docs: docsFaltando(d).length }
+  if (d.status === StatusDiligencia.EmAndamento) return { label: 'Em andamento', tone: 'slate', docs: 0 }
+  // Realizada, ciclo ainda aberto: pode fechar (remota/sem docs/paga) ou trava no pagamento
+  const podeConcluir = d.modoDiligencia === ModoDiligencia.Remoto || !!d.dispensarDocumentos || d.statusPagamento === StatusPagamento.Pago
+  return podeConcluir
+    ? { label: 'Pronta p/ concluir', tone: 'blue', docs: 0 }
+    : { label: 'Aguardando pagamento', tone: 'amber', docs: 0 }
+}
+
 // ── Row memoizado ─────────────────────────────────────────────────────────────
 
 const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
@@ -62,6 +79,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
 }: { d: Diligencia; adv: Advogado | undefined }) {
   const router = useRouter()
   const dataEv = d.dataEvento ?? d.dataAtendimento ?? d.dataInformativo
+  const sit = situacaoCiclo(d)
   return (
     <tr
       className="hover:bg-slate-50 cursor-pointer transition-colors"
@@ -89,21 +107,19 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
         }
       </td>
       <td className="px-4 py-3">
-        {d.cicloFinalizado ? (
-          <div className="space-y-1">
-            <span className="text-xs text-emerald-600 font-medium">✓ Diligência concluída</span>
-            {docsFaltando(d).length > 0 && (
-              <div className="flex items-center gap-1 text-amber-600">
-                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                <span className="text-xs font-medium">
-                  {docsFaltando(d).length} doc{docsFaltando(d).length > 1 ? 's' : ''} faltando
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-slate-400">—</span>
-        )}
+        <div className="space-y-1">
+          <span className={`text-xs font-medium ${SIT_TONE[sit.tone]}`}>
+            {sit.tone === 'emerald' ? '✓ ' : ''}{sit.label}
+          </span>
+          {sit.docs > 0 && (
+            <div className="flex items-center gap-1 text-amber-600">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+              <span className="text-xs font-medium">
+                {sit.docs} doc{sit.docs > 1 ? 's' : ''} faltando
+              </span>
+            </div>
+          )}
+        </div>
       </td>
     </tr>
   )
@@ -320,7 +336,9 @@ function DiligenciasContent() {
           <CardBody className="p-0">
             {/* Mobile */}
             <div className="sm:hidden divide-y divide-slate-50">
-              {lista.map((d) => (
+              {lista.map((d) => {
+                const sit = situacaoCiclo(d)
+                return (
                 <Link key={d.id} href={`/diligencias/${d.id}`} className="block px-4 py-3.5 hover:bg-slate-50">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="font-semibold text-slate-800 text-sm truncate">{tituloDiligencia(d)}</p>
@@ -341,15 +359,20 @@ function DiligenciasContent() {
                       : <StatusPagamentoBadge status={d.statusPagamento} />
                     }
                   </div>
+                  <p className={`text-xs font-medium mt-1 ${SIT_TONE[sit.tone]}`}>
+                    {sit.tone === 'emerald' ? '✓ ' : ''}{sit.label}
+                    {sit.docs > 0 ? ` · ${sit.docs} doc${sit.docs > 1 ? 's' : ''} faltando` : ''}
+                  </p>
                 </Link>
-              ))}
+                )
+              })}
             </div>
             {/* Desktop */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['CCC', 'Data do evento', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Conclusão'].map((h) => (
+                    {['CCC', 'Data do evento', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Situação'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
