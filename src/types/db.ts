@@ -19,6 +19,23 @@ export interface AdvogadoRow {
   updated_at: string
 }
 
+export interface CadastroAdvogadoRow {
+  id: string
+  nome_completo: string
+  cpf: string | null
+  oab: string | null
+  endereco: string | null
+  cidade_principal: string | null
+  uf: string | null
+  cidades_atendidas: string[]
+  telefone: string | null
+  chave_pix: string | null
+  observacoes: string | null
+  status: string
+  advogado_id: string | null
+  created_at: string
+}
+
 export interface LigacaoRow {
   id: string
   diligencia_id: string

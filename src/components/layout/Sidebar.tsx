@@ -4,17 +4,19 @@ import { memo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, FileSearch, ClipboardList, Users,
+  LayoutDashboard, FileSearch, ClipboardList, Users, UserPlus,
   DollarSign, MessageSquare, FileText, Scale, X, BarChart3, CarFront, LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useCadastros } from '@/context/CadastrosContext'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/triagem', label: 'Triagem', icon: FileSearch },
   { href: '/diligencias', label: 'Diligências', icon: ClipboardList },
   { href: '/advogados', label: 'Advogados', icon: Users },
+  { href: '/cadastros', label: 'Cadastros', icon: UserPlus },
   { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
   { href: '/pesquisa', label: 'Pesquisa', icon: MessageSquare },
   { href: '/documentos', label: 'Documentos', icon: FileText },
@@ -31,6 +33,7 @@ export const Sidebar = memo(function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, signOut } = useAuth()
+  const { count: cadastrosPendentes } = useCadastros()
 
   async function handleSignOut() {
     await signOut()
@@ -86,7 +89,12 @@ export const Sidebar = memo(function Sidebar({ open, onClose }: SidebarProps) {
                     )}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {item.href === '/cadastros' && cadastrosPendentes > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold rounded-full bg-amber-500 text-white">
+                        {cadastrosPendentes}
+                      </span>
+                    )}
                   </Link>
                 </li>
               )

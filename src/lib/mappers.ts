@@ -4,8 +4,9 @@ import {
   StatusDiligencia, StatusPagamento, StatusPesquisa,
   ResultadoLigacao, TipoOperador, StatusEvento,
   ConsultaPlaca, ResultadoConsultaPlaca, EmpresaCliente,
+  CadastroAdvogado, StatusCadastro,
 } from '@/types'
-import { AdvogadoRow, DiligenciaRow, LigacaoRow, EventoRow, ConsultaPlacaRow } from '@/types/db'
+import { AdvogadoRow, DiligenciaRow, LigacaoRow, EventoRow, ConsultaPlacaRow, CadastroAdvogadoRow } from '@/types/db'
 
 const LEGACY_PESQUISA_CONCLUIDA = new Set(['Respondida', 'Sem contato'])
 
@@ -52,6 +53,27 @@ export function fromAdvogado(
     whatsapp: a.whatsapp ?? null,
     chave_pix: a.chavePix ?? null,
     observacoes: a.observacoes ?? null,
+  }
+}
+
+// ─── Cadastro de Advogado (link público) ──────────────────────────────────────
+
+export function toCadastroAdvogado(row: CadastroAdvogadoRow): CadastroAdvogado {
+  return {
+    id: row.id,
+    nomeCompleto: row.nome_completo,
+    cpf: row.cpf ?? undefined,
+    oab: row.oab ?? undefined,
+    endereco: row.endereco ?? undefined,
+    cidadePrincipal: row.cidade_principal ?? undefined,
+    uf: row.uf ?? undefined,
+    cidadesAtendidas: row.cidades_atendidas ?? [],
+    telefone: row.telefone ?? undefined,
+    chavePix: row.chave_pix ?? undefined,
+    observacoes: row.observacoes ?? undefined,
+    status: (row.status as StatusCadastro) ?? 'pendente',
+    advogadoId: row.advogado_id ?? undefined,
+    createdAt: row.created_at,
   }
 }
 

@@ -107,6 +107,27 @@ export interface Advogado {
   createdAt: string
 }
 
+// ─── Cadastro de Advogado (link público) ──────────────────────────────────────
+
+export type StatusCadastro = 'pendente' | 'aprovado' | 'descartado'
+
+export interface CadastroAdvogado {
+  id: string
+  nomeCompleto: string
+  cpf?: string
+  oab?: string
+  endereco?: string
+  cidadePrincipal?: string
+  uf?: string
+  cidadesAtendidas: string[]
+  telefone?: string
+  chavePix?: string
+  observacoes?: string
+  status: StatusCadastro
+  advogadoId?: string
+  createdAt: string
+}
+
 // ─── Evento ───────────────────────────────────────────────────────────────────
 
 export interface Evento {
