@@ -39,10 +39,10 @@ function dataDiligencia(d: Diligencia): string {
   return d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
-// Data usada para ORDENAR a lista: prioriza a data do evento (o fato em si).
+// Data usada para ORDENAR a lista: prioriza atendimento, depois ligação ao advogado, depois evento.
 // Mantida separada de dataDiligencia (que é usada no filtro de "últimos 30 dias").
 function dataEventoOrd(d: Diligencia): string {
-  return d.dataEvento ?? d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
+  return d.dataAtendimento ?? d.dataLigacaoAdvogado ?? d.dataEvento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
 function sortDiligencias(list: Diligencia[]): Diligencia[] {
@@ -78,7 +78,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
   d, adv,
 }: { d: Diligencia; adv: Advogado | undefined }) {
   const router = useRouter()
-  const dataEv = d.dataEvento ?? d.dataAtendimento ?? d.dataInformativo
+  const dataRef = d.dataAtendimento ?? d.dataLigacaoAdvogado ?? d.dataEvento ?? d.dataInformativo
   const sit = situacaoCiclo(d)
   return (
     <tr
@@ -88,7 +88,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
       <td className="px-4 py-3">
         <span className="font-mono text-xs font-semibold text-blue-700">{d.ccc}</span>
       </td>
-      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{dataEv ? formatDate(dataEv) : '—'}</td>
+      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{dataRef ? formatDate(dataRef) : '—'}</td>
       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{d.cidade}/{d.uf}</td>
       <td className="px-4 py-3">
         <p className="font-medium text-slate-800 truncate max-w-[180px]">{tituloDiligencia(d)}</p>
@@ -372,7 +372,7 @@ function DiligenciasContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['CCC', 'Data do evento', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Situação'].map((h) => (
+                    {['CCC', 'Data', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Situação'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
