@@ -33,6 +33,7 @@ export default function CadastroPublicoPage() {
   })
   const [cidadesAtendidas, setCidadesAtendidas] = useState<string[]>([])
   const [novaCidade, setNovaCidade] = useState('')
+  const [semOab, setSemOab] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [sent, setSent] = useState(false)
@@ -59,8 +60,10 @@ export default function CadastroPublicoPage() {
     if (!form.nomeCompleto.trim()) e.nomeCompleto = 'Por favor, preencha seu nome.'
     if (!form.cpf) e.cpf = 'Por favor, preencha seu CPF.'
     else if (!validarCPF(form.cpf)) e.cpf = 'Esse CPF não parece válido. Confira os números.'
-    if (!form.oabUf) e.oabUf = 'Selecione o estado da OAB.'
-    if (!form.oabNumero.trim()) e.oabNumero = 'Preencha o número da OAB.'
+    if (!semOab) {
+      if (!form.oabUf) e.oabUf = 'Selecione o estado da OAB.'
+      if (!form.oabNumero.trim()) e.oabNumero = 'Preencha o número da OAB.'
+    }
     if (!form.telefone) e.telefone = 'Por favor, preencha seu telefone.'
     else {
       const d = cleanPhone(form.telefone)
@@ -89,7 +92,7 @@ export default function CadastroPublicoPage() {
         body: JSON.stringify({
           nomeCompleto: toTitleCase(form.nomeCompleto),
           cpf: form.cpf.replace(/\D/g, ''),
-          oab: `${form.oabUf} ${form.oabNumero.trim()}`,
+          oab: semOab ? '' : `${form.oabUf} ${form.oabNumero.trim()}`,
           endereco: form.endereco.trim(),
           cidadePrincipal: form.cidadePrincipal.trim(),
           uf: form.uf,
@@ -176,28 +179,42 @@ export default function CadastroPublicoPage() {
           {/* OAB: estado (sigla maiúscula) + número */}
           <div>
             <p className="text-xs font-medium text-slate-600 mb-1">OAB</p>
-            <div className="grid grid-cols-[110px_1fr] gap-2">
-              <div data-error={!!errors.oabUf}>
-                <Select
-                  value={form.oabUf}
-                  onChange={(e) => set('oabUf', e.target.value)}
-                  options={UFS.map((u) => ({ value: u, label: u }))}
-                  placeholder="UF"
-                  error={errors.oabUf}
-                  aria-label="Estado da OAB"
-                />
+            {!semOab && (
+              <div className="grid grid-cols-[110px_1fr] gap-2">
+                <div data-error={!!errors.oabUf}>
+                  <Select
+                    value={form.oabUf}
+                    onChange={(e) => set('oabUf', e.target.value)}
+                    options={UFS.map((u) => ({ value: u, label: u }))}
+                    placeholder="UF"
+                    error={errors.oabUf}
+                    aria-label="Estado da OAB"
+                  />
+                </div>
+                <div data-error={!!errors.oabNumero}>
+                  <Input
+                    value={form.oabNumero}
+                    onChange={(e) => set('oabNumero', e.target.value.replace(/\D/g, ''))}
+                    error={errors.oabNumero}
+                    placeholder="Número (ex.: 123456)"
+                    inputMode="numeric"
+                    aria-label="Número da OAB"
+                  />
+                </div>
               </div>
-              <div data-error={!!errors.oabNumero}>
-                <Input
-                  value={form.oabNumero}
-                  onChange={(e) => set('oabNumero', e.target.value.replace(/\D/g, ''))}
-                  error={errors.oabNumero}
-                  placeholder="Número (ex.: 123456)"
-                  inputMode="numeric"
-                  aria-label="Número da OAB"
-                />
-              </div>
-            </div>
+            )}
+            <label className="flex items-center gap-2 mt-2 text-sm text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={semOab}
+                onChange={(e) => {
+                  setSemOab(e.target.checked)
+                  if (e.target.checked) { set('oabUf', ''); set('oabNumero', '') }
+                }}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Ainda não tenho OAB (sou bacharel)
+            </label>
           </div>
 
           <div data-error={!!errors.telefone}>

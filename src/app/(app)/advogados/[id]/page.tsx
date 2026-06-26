@@ -65,7 +65,7 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
           </Link>
           <div>
             <h1 className="text-xl font-bold text-slate-800">{advogado.nomeCompleto}</h1>
-            <p className="text-xs text-slate-500">{advogado.oab}</p>
+            <p className="text-xs text-slate-500">{advogado.oab || 'Bacharel'}</p>
           </div>
         </div>
         <Link href={`/advogados/${id}/editar`}>
@@ -92,7 +92,7 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
           <CardBody className="space-y-3">
             <DetailRow label="Nome completo" value={advogado.nomeCompleto} />
             {advogado.cpf && <DetailRow label="CPF" value={formatCPF(advogado.cpf)} />}
-            <DetailRow label="OAB" value={advogado.oab} />
+            <DetailRow label="OAB" value={advogado.oab || 'Bacharel (sem OAB)'} />
             <DetailRow label="Endereço" value={advogado.endereco} />
             {advogado.chavePix && <DetailRow label="Chave Pix" value={advogado.chavePix} />}
             {advogado.observacoes && <DetailRow label="Observações" value={advogado.observacoes} />}

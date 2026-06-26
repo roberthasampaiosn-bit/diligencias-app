@@ -132,11 +132,9 @@ export default function CadastrosPage() {
                       <h3 className="font-semibold text-slate-800">{c.nomeCompleto}</h3>
                       <p className="text-xs text-slate-400 mt-0.5">Recebido {timeElapsed(c.createdAt)}</p>
                     </div>
-                    {c.oab && (
-                      <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md whitespace-nowrap">
-                        OAB {c.oab}
-                      </span>
-                    )}
+                    <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md whitespace-nowrap">
+                      {c.oab ? `OAB ${c.oab}` : 'Bacharel'}
+                    </span>
                   </div>
 
                   {/* Dados enviados */}

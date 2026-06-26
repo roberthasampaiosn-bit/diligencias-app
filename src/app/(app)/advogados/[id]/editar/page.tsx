@@ -38,6 +38,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
   })
   const [cidadesAtendidas, setCidadesAtendidas] = useState<string[]>([])
   const [novaCidade, setNovaCidade] = useState('')
+  const [semOab, setSemOab] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -56,6 +57,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
         observacoes: advogado.observacoes ?? '',
       })
       setCidadesAtendidas(advogado.cidadesAtendidas)
+      setSemOab(!advogado.oab)
       setInitialized(true)
     }
   }, [advogado, initialized])
@@ -91,7 +93,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
     const e: Record<string, string> = {}
     if (!form.nomeCompleto) e.nomeCompleto = 'Campo obrigatório'
     if (form.cpf && !validarCPF(form.cpf)) e.cpf = 'CPF inválido'
-    if (!form.oab) e.oab = 'Campo obrigatório'
+    if (!semOab && !form.oab) e.oab = 'Informe a OAB ou marque "Não possui OAB"'
     if (!form.endereco) e.endereco = 'Campo obrigatório'
     if (!form.cidadePrincipal) e.cidadePrincipal = 'Campo obrigatório'
     if (!form.uf) e.uf = 'Campo obrigatório'
@@ -113,7 +115,7 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
       await updateAdvogado(id, {
         nomeCompleto: toTitleCase(form.nomeCompleto),
         cpf: form.cpf ? form.cpf.replace(/\D/g, '') : undefined,
-        oab: form.oab,
+        oab: semOab ? '' : form.oab,
         endereco: form.endereco,
         cidadePrincipal: toTitleCase(form.cidadePrincipal),
         uf: form.uf,
@@ -166,14 +168,26 @@ export default function EditarAdvogadoPage({ params }: { params: Promise<Params>
             error={errors.cpf}
             placeholder="000.000.000-00"
           />
-          <Input
-            label="OAB nº"
-            value={form.oab}
-            onChange={(e) => set('oab', e.target.value)}
-            error={errors.oab}
-            placeholder="SP 123456"
-            helper="Usado em contratos e recibos"
-          />
+          <div>
+            <Input
+              label="OAB nº"
+              value={form.oab}
+              onChange={(e) => set('oab', e.target.value)}
+              error={errors.oab}
+              placeholder="SP 123456"
+              helper="Usado em contratos e recibos"
+              disabled={semOab}
+            />
+            <label className="flex items-center gap-2 mt-2 text-sm text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={semOab}
+                onChange={(e) => { setSemOab(e.target.checked); if (e.target.checked) set('oab', '') }}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Não possui OAB (bacharel)
+            </label>
+          </div>
           <div className="sm:col-span-2">
             <Input label="Endereço completo" value={form.endereco} onChange={(e) => set('endereco', e.target.value)} error={errors.endereco} placeholder="Rua, número, bairro, cidade - UF, CEP" />
           </div>

@@ -466,8 +466,9 @@ function _buildContratoVTALDoc(diligencia: Diligencia, advogado: Advogado): { do
   y += 5
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
+  const oabClausula = advogado.oab ? `inscrito(a) na OAB sob o nº ${advogado.oab}, ` : ''
   const contratadoLinhas = doc.splitTextToSize(
-    `${advogado.nomeCompleto}, inscrito(a) na OAB sob o nº ${advogado.oab}, CPF ${advogado.cpf || ''}, residente e domiciliado(a) em ${advogado.cidadePrincipal}/${advogado.uf}, doravante denominado(a) CONTRATADO(A).`,
+    `${advogado.nomeCompleto}, ${oabClausula}CPF ${advogado.cpf || ''}, residente e domiciliado(a) em ${advogado.cidadePrincipal}/${advogado.uf}, doravante denominado(a) CONTRATADO(A).`,
     pw - 30,
   )
   doc.text(contratadoLinhas, 15, y)
@@ -575,7 +576,7 @@ function _buildContratoVTALDoc(diligencia: Diligencia, advogado: Advogado): { do
   doc.text('Ana Rodrigues Advocacia', col1, y, { align: 'center' })
   doc.text(advogado.nomeCompleto, col2, y, { align: 'center' })
   y += 4
-  doc.text(`OAB: ${advogado.oab}`, col2, y, { align: 'center' })
+  if (advogado.oab) doc.text(`OAB: ${advogado.oab}`, col2, y, { align: 'center' })
 
   // Rodapé V.TAL
   doc.setFontSize(8)
