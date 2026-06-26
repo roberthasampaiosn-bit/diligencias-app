@@ -135,9 +135,10 @@ export default function CadastroPublicoPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl mb-3">
             <Scale className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-slate-800">Cadastro de Advogado</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Preencha seus dados abaixo. Leva menos de 2 minutos.
+          <h1 className="text-2xl font-bold text-slate-800">Cadastro de Advogado</h1>
+          <p className="text-base text-slate-600 mt-2 leading-relaxed">
+            Que bom ter você com a gente! Preencha seus dados abaixo — leva só
+            alguns minutos e dá pra fazer pelo celular.
           </p>
         </div>
 
@@ -231,25 +232,32 @@ export default function CadastroPublicoPage() {
               error={errors.chavePix}
               placeholder="CPF, telefone, e-mail ou chave aleatória"
             />
-            <div className="flex flex-wrap gap-2 mt-2">
+            <p className="text-xs text-slate-500 mt-2 mb-1.5">
+              Sua chave Pix é o CPF ou o telefone? Toque para preencher automaticamente:
+            </p>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => set('chavePix', maskCPF(form.cpf))}
                 disabled={!form.cpf}
-                className="text-xs font-medium text-blue-600 disabled:text-slate-300 hover:text-blue-800 hover:underline disabled:no-underline"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Usar meu CPF
               </button>
-              <span className="text-slate-300">·</span>
               <button
                 type="button"
                 onClick={() => set('chavePix', cleanPhone(form.telefone))}
                 disabled={!form.telefone}
-                className="text-xs font-medium text-blue-600 disabled:text-slate-300 hover:text-blue-800 hover:underline disabled:no-underline"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Usar meu telefone
               </button>
             </div>
+            {!form.cpf && !form.telefone && (
+              <p className="text-xs text-slate-400 mt-1.5">
+                Preencha o CPF ou o telefone acima para liberar os atalhos.
+              </p>
+            )}
           </div>
         </div>
 
