@@ -119,8 +119,7 @@ export default function CadastroPublicoPage() {
           </div>
           <h1 className="text-xl font-bold text-slate-800 mb-2">Cadastro recebido!</h1>
           <p className="text-sm text-slate-500 leading-relaxed">
-            Obrigado, <span className="font-medium text-slate-700">{toTitleCase(form.nomeCompleto).split(' ')[0]}</span>!
-            Recebemos seus dados com sucesso. Não precisa enviar de novo — entraremos em contato em breve.
+            Obrigado, <span className="font-medium text-slate-700">{toTitleCase(form.nomeCompleto).split(' ')[0]}</span>! Recebemos seus dados com sucesso.
           </p>
         </div>
       </main>
@@ -137,8 +136,7 @@ export default function CadastroPublicoPage() {
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Cadastro de Advogado</h1>
           <p className="text-base text-slate-600 mt-2 leading-relaxed">
-            Que bom ter você com a gente! Preencha seus dados abaixo — leva só
-            alguns minutos e dá pra fazer pelo celular.
+            Preencha seus dados abaixo. Leva só alguns minutos e dá pra fazer pelo celular.
           </p>
         </div>
 
