@@ -372,7 +372,7 @@ function DiligenciasContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['CCC', 'Data', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Situação'].map((h) => (
+                    {['CCC', 'Data do evento', 'Local', 'Vítima', 'Cliente', 'Advogado', 'Valor', 'Status', 'Pagamento', 'Situação'].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
