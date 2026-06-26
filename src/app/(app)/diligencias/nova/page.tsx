@@ -523,13 +523,12 @@ function FormBatBrasil() {
 
       <div className="flex gap-3 justify-end pb-6">
         <Link href="/diligencias"><Button variant="secondary" type="button">Cancelar</Button></Link>
-        {isCriarEConcluir ? (
+        <Button type="submit" loading={saving}><Save className="w-4 h-4" /> Criar diligência</Button>
+        {isCriarEConcluir && (
           <Button type="button" loading={saving} onClick={(e) => handleSubmit(e as unknown as React.FormEvent, true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <CheckCircle2 className="w-4 h-4" /> Criar e Concluir
           </Button>
-        ) : (
-          <Button type="submit" loading={saving}><Save className="w-4 h-4" /> Criar diligência</Button>
         )}
       </div>
 
