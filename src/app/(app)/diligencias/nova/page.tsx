@@ -128,6 +128,7 @@ function FormBatBrasil() {
       cidade: d.cidade || prev.cidade,
       uf: (d.uf && UFS.includes(d.uf)) ? d.uf : prev.uf,
       tipoEvento: d.tipoEvento || prev.tipoEvento,
+      dataEvento: d.dataEvento || prev.dataEvento,
       horaEvento: d.horaEvento || prev.horaEvento,
       tipoDiligencia: d.tipoDiligencia || prev.tipoDiligencia,
       modoDiligencia: d.modoDiligencia || prev.modoDiligencia,
