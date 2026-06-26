@@ -323,7 +323,7 @@ function FormBatBrasil() {
         horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: concluir ? StatusDiligencia.Realizada : StatusDiligencia.EmAndamento,
         dataAtendimento: concluir ? hoje : undefined,
-        statusPagamento: (incluirNaPlanilha && valorNumerico === 0) ? StatusPagamento.Pago : StatusPagamento.Pendente,
+        statusPagamento: (valorNumerico === 0 && (concluir || incluirNaPlanilha)) ? StatusPagamento.Pago : StatusPagamento.Pendente,
         incluirNaPlanilha: incluirNaPlanilha || undefined,
         dispensarDocumentos: dispensarDocumentos || undefined,
         cicloFinalizado: concluir,
