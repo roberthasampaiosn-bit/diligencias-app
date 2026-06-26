@@ -308,6 +308,85 @@ function _buildContratoDoc(diligencia: Diligencia, advogado: Advogado): { doc: j
   return { doc, filename }
 }
 
+// Renderiza um parágrafo justificado permitindo trechos em negrito no meio do
+// texto. Mantém o mesmo espaçamento vertical do jsPDF (lineHeight) e deixa a
+// última linha sem esticar — igual ao align:'justify' nativo. Retorna o número
+// de linhas desenhadas (para o avanço de y continuar idêntico ao anterior).
+// Requer que doc.setFontSize() já tenha sido chamado antes.
+type RichSeg = { text: string; bold: boolean }
+function drawParagrafoJustificadoRich(
+  doc: jsPDF,
+  segs: RichSeg[],
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  fontFamily: string,
+): number {
+  const setW = (b: boolean) => doc.setFont(fontFamily, b ? 'bold' : 'normal')
+  const widthOf = (t: string, b: boolean) => { setW(b); return doc.getTextWidth(t) }
+
+  // 1) Tokeniza em palavras; cada palavra pode conter sub-trechos com pesos
+  //    diferentes (ex.: "reais)," = "reais)" em negrito + "," normal).
+  type Sub = { text: string; bold: boolean }
+  type Word = { subs: Sub[]; w: number }
+  const words: Word[] = []
+  let curSubs: Sub[] = []
+  const flush = () => {
+    if (curSubs.length) {
+      const w = curSubs.reduce((s, sub) => s + widthOf(sub.text, sub.bold), 0)
+      words.push({ subs: curSubs, w })
+      curSubs = []
+    }
+  }
+  for (const seg of segs) {
+    for (const p of seg.text.split(/(\s+)/)) {
+      if (p === '') continue
+      if (/^\s+$/.test(p)) flush()                 // espaço encerra a palavra
+      else curSubs.push({ text: p, bold: seg.bold })
+    }
+  }
+  flush()
+
+  const spaceW = widthOf(' ', false)
+
+  // 2) Quebra de linha gulosa (mesma lógica do splitTextToSize)
+  const lines: Word[][] = []
+  let line: Word[] = []
+  let lineW = 0
+  for (const word of words) {
+    const add = line.length === 0 ? word.w : lineW + spaceW + word.w
+    if (line.length > 0 && add > maxWidth) {
+      lines.push(line); line = [word]; lineW = word.w
+    } else {
+      line.push(word); lineW = add
+    }
+  }
+  if (line.length) lines.push(line)
+
+  // 3) Desenha justificando todas as linhas, exceto a última
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i]
+    const isLast = i === lines.length - 1
+    const wordsW = ln.reduce((s, w) => s + w.w, 0)
+    const gaps = ln.length - 1
+    const gap = (!isLast && gaps > 0) ? (maxWidth - wordsW) / gaps : spaceW
+    let cx = x
+    for (let j = 0; j < ln.length; j++) {
+      for (const sub of ln[j].subs) {
+        setW(sub.bold)
+        doc.text(sub.text, cx, y)
+        cx += doc.getTextWidth(sub.text)
+      }
+      if (j < ln.length - 1) cx += gap
+    }
+    y += lineHeight
+  }
+
+  setW(false)                                       // restaura peso normal
+  return lines.length
+}
+
 function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsPDF; filename: string } {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pw = doc.internal.pageSize.getWidth()   // 210 mm
@@ -344,15 +423,26 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   doc.setTextColor(...DARK)
 
   // ── Parágrafo 1 ───────────────────────────────────────────────────────────
-  const para1 =
-    `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf}, ` +
-    `declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88, ` +
-    `a importância de ${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)}), ` +
-    `referente à prestação de serviços profissionais realizados de forma AUTÔNOMA, ` +
-    `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`
-  const lines1 = doc.splitTextToSize(para1, TW)
-  doc.text(lines1, M, y, { align: 'justify', maxWidth: TW })
-  y += lines1.length * BLH + PARA
+  // Valor em negrito (único destaque do recibo); o resto em peso normal.
+  const valorRecibo = `${formatCurrency(diligencia.valorDiligencia)} (${valorPorExtenso(diligencia.valorDiligencia)})`
+  const para1Segs: RichSeg[] = [
+    {
+      text:
+        `Eu, ${advogado.nomeCompleto?.toUpperCase() || '_______________________________'}, inscrito(a) no CPF nº ${cpf}, ` +
+        `declaro que recebi de ADRIANA RODRIGUES SOCIEDADE INDIVIDUAL DE ADVOCACIA LTDA, pessoa jurídica inscrita no CNPJ nº 32.536.156/0001-88, ` +
+        `a importância de `,
+      bold: false,
+    },
+    { text: valorRecibo, bold: true },
+    {
+      text:
+        `, referente à prestação de serviços profissionais realizados de forma AUTÔNOMA, ` +
+        `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`,
+      bold: false,
+    },
+  ]
+  const nLines1 = drawParagrafoJustificadoRich(doc, para1Segs, M, y, TW, BLH, 'times')
+  y += nLines1 * BLH + PARA
 
   // ── Parágrafo 2 ───────────────────────────────────────────────────────────
   const para2 =
