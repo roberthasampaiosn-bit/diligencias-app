@@ -317,6 +317,8 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   const TW   = pw - M - M    // 150mm de largura de texto
   const LH   = 5.8           // line-height corpo
   const SEC  = 10            // espaço entre seções
+  const BLH  = 11.5 * 25.4 / 72 * 1.15   // altura REAL da linha nos parágrafos (≈4.67mm)
+  const PARA = 6             // espaço entre parágrafos do corpo (proporcional à linha)
   const BLUE: [number, number, number] = [54, 95, 145]   // #365F91
   const DARK: [number, number, number] = [20, 20, 20]
 
@@ -350,7 +352,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
     `sem vínculo empregatício, no dia ${dataServico} para ${tipo}.`
   const lines1 = doc.splitTextToSize(para1, TW)
   doc.text(lines1, M, y, { align: 'justify', maxWidth: TW })
-  y += lines1.length * LH + SEC
+  y += lines1.length * BLH + PARA
 
   // ── Parágrafo 2 ───────────────────────────────────────────────────────────
   const para2 =
@@ -359,7 +361,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
     'não cabendo à contratante qualquer responsabilidade trabalhista, previdenciária ou fiscal.'
   const lines2 = doc.splitTextToSize(para2, TW)
   doc.text(lines2, M, y, { align: 'justify', maxWidth: TW })
-  y += lines2.length * LH + SEC
+  y += lines2.length * BLH + PARA
 
   // ── Forma de pagamento ────────────────────────────────────────────────────
   doc.text('Forma de pagamento: PIX / Transferência Bancária', M, y)
