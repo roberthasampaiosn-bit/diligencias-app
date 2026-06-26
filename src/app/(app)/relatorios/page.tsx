@@ -113,6 +113,17 @@ export default function RelatoriosPage() {
       const batCC = bat.filter((d) => (d.valorDiligencia ?? 0) > 0 || d.incluirNaPlanilha)
       const vtal  = porPeriodo.filter((d) => d.empresaCliente === EmpresaCliente.VTAL)
 
+      // Nova aba: só CCCs cujo mês/ano está dentro do período selecionado
+      // CCC formato BR-YYYYMMXXXX — extrai ano e mês do próprio código
+      const periodoInicio = new Date(dataInicio + 'T00:00:00')
+      const periodoFim    = new Date(dataFim    + 'T00:00:00')
+      const batMes = bat.filter((d) => {
+        const m = d.ccc.match(/^[A-Z]+-(\d{4})(\d{2})/)
+        if (!m) return false
+        const cccData = new Date(`${m[1]}-${m[2]}-01T00:00:00`)
+        return cccData >= periodoInicio && cccData <= periodoFim
+      })
+
       function dateBR(s?: string) {
         if (!s) return ''
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -201,6 +212,30 @@ export default function RelatoriosPage() {
         d.centroCusto ?? '', d.valorDiligencia,
       ])
 
+      // ── Aba 4: BAT — Só CCCs do mês (equivalente ao formato da Anne) ────────
+      // Advogado: FADEL → nome real; rede ARodrigues → "Anne Caroline - ARodrigues"
+      function nomeAdvMes(d: Diligencia): string {
+        const nome = advogadoMap.get(d.advogadoId)?.nomeCompleto ?? ''
+        if (nome.toLowerCase().includes('fadel')) return nome
+        return nome ? 'Anne Caroline - ARodrigues' : '—'
+      }
+
+      const linhasMes = batMes.map((d) => [
+        d.ccc, d.vitima,
+        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+        d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
+        d.horaEvento ?? '', dateBR(d.dataInformativo), d.horaInformativo ?? '',
+        d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
+        dateBR(d.dataLigacaoAdvogado), d.horaLigacaoAdvogado ?? '',
+        nomeAdvMes(d),
+        d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
+        d.segmento ?? '', d.motoristaAgredido ?? '', d.dpRegistrou ?? '',
+        d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
+        d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
+        d.pesquisa.dataCombinada ? formatDate(d.pesquisa.dataCombinada) : '',
+        d.pesquisa.horaEntrevista ?? '',
+      ])
+
       await exportarExcelEstilizado([
         {
           nome: 'BAT - Suporte Jurídico', headers: headersSJR, linhas: [...linhasSJR].reverse(), tema: 'bat',
@@ -215,6 +250,11 @@ export default function RelatoriosPage() {
           nome: 'V.TAL', headers: headersVTAL, linhas: [...linhasVTAL].reverse(), tema: 'vtal',
           widths: [6,6,6,6,12,6,18,28,22,30,40,22,25,14,14,28,14,14],
           colsMoeda: [17],
+        },
+        {
+          nome: 'BAT - CCCs do Mês', headers: headersSJR, linhas: [...linhasMes].reverse(), tema: 'bat',
+          widths: [18,30,16,18,6,6,6,22,10,18,18,14,18,16,28,6,14,18,14,25,14,12,22,30,12,12,14,14,30,14,10],
+          resumo: `Apenas CCCs do período: ${dataInicio} a ${dataFim} · Total: ${batMes.length}`,
         },
       ], `diligencias_${dataInicio}_${dataFim}.xlsx`)
     } finally {

@@ -87,13 +87,14 @@ function FormBatBrasil() {
   const [saving, setSaving] = useState(false)
   const [incluirNaPlanilha, setIncluirNaPlanilha] = useState(false)
   const [showConfirmIncluir, setShowConfirmIncluir] = useState(false)
+  const [dispensarDocumentos, setDispensarDocumentos] = useState(modoParam === 'remoto')
 
   const valorNumerico = parseFloat(form.valorDiligencia || '0') || 0
   const isValorZero = valorNumerico === 0
 
-  // Remoto OU empresa Fadel vindos da triagem → botão "Criar e Concluir"
+  // Remoto (sempre) OU empresa Fadel vinda da triagem → botão "Criar e Concluir"
   const isFadel = form.empresa.toLowerCase().includes('fadel')
-  const isCriarEConcluir = !!eventoId && (modoParam === 'remoto' || isFadel)
+  const isCriarEConcluir = form.modoDiligencia === ModoDiligencia.Remoto || (!!eventoId && isFadel)
 
   // Restaurar form do sessionStorage ao voltar da criação de advogado
   useEffect(() => {
@@ -173,12 +174,14 @@ function FormBatBrasil() {
       regiaoGtsc: evento.gtsc || prev.regiaoGtsc,
       motoristaAgredido: evento.motoristaAgredido ? 'Sim' : prev.motoristaAgredido,
       dataEvento: evento.dataEvento || prev.dataEvento,
-      dataLigacaoAdvogado: evento.dataEvento || prev.dataLigacaoAdvogado,
+      dataLigacaoAdvogado: evento.dataRecebimento || evento.dataEvento || prev.dataLigacaoAdvogado,
+      horaLigacaoAdvogado: isRemoto ? (evento.horaRecebimento || prev.horaLigacaoAdvogado) : prev.horaLigacaoAdvogado,
       advogadoId: anneCaro ? anneCaro.id : prev.advogadoId,
       observacoes: isRemoto
         ? 'Aguardando atendimento no local.'
         : (evento.empresa?.toLowerCase().includes('fadel') ? 'Advogada Fadel em atendimento.' : prev.observacoes),
     }))
+    if (isRemoto) setDispensarDocumentos(true)
     setAutoFilled(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evento, autoFilled])
@@ -322,6 +325,7 @@ function FormBatBrasil() {
         dataAtendimento: concluir ? hoje : undefined,
         statusPagamento: (incluirNaPlanilha && valorNumerico === 0) ? StatusPagamento.Pago : StatusPagamento.Pendente,
         incluirNaPlanilha: incluirNaPlanilha || undefined,
+        dispensarDocumentos: dispensarDocumentos || undefined,
         cicloFinalizado: false,
         pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
         anexos: {},
@@ -382,6 +386,7 @@ function FormBatBrasil() {
           <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => setHora('horaEvento', e.target.value)} placeholder="HH:MM" />
           <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => {
             const modo = e.target.value
+            setDispensarDocumentos(modo === ModoDiligencia.Remoto)
             setForm((prev) => ({
               ...prev,
               modoDiligencia: modo as ModoDiligencia,
@@ -393,6 +398,19 @@ function FormBatBrasil() {
             }))
           }} options={Object.values(ModoDiligencia).map((v) => ({ value: v, label: v }))} />
           <Select label="Tipo de diligência" value={form.tipoDiligencia} onChange={(e) => set('tipoDiligencia', e.target.value)} options={TIPOS_DILIGENCIA_BAT.map((v) => ({ value: v, label: v }))} />
+          {form.modoDiligencia === ModoDiligencia.Remoto && (
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={dispensarDocumentos}
+                  onChange={(e) => setDispensarDocumentos(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer"
+                />
+                <span className="text-sm text-slate-700">Dispensar documentos (contrato e recibo)</span>
+              </label>
+            </div>
+          )}
           <Select label="Operação" value={form.operacao} onChange={(e) => set('operacao', e.target.value)} options={OPERACOES_BAT.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
           <Select label="Segmento" value={form.segmento} onChange={(e) => set('segmento', e.target.value)} options={SEGMENTOS_BAT.map((v) => ({ value: v, label: v }))} placeholder="Selecione" />
           {form.tipoDiligencia === TipoDiligencia.Outro && (
