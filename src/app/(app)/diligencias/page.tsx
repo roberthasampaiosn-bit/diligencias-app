@@ -79,6 +79,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
 }: { d: Diligencia; adv: Advogado | undefined }) {
   const router = useRouter()
   const dataEv = d.dataEvento ?? d.dataAtendimento ?? d.dataInformativo
+  const dataAbertura = d.createdAt.split('T')[0]
   const sit = situacaoCiclo(d)
   return (
     <tr
@@ -88,7 +89,12 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
       <td className="px-4 py-3">
         <span className="font-mono text-xs font-semibold text-blue-700">{d.ccc}</span>
       </td>
-      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{dataEv ? formatDate(dataEv) : '—'}</td>
+      <td className="px-4 py-3 whitespace-nowrap text-xs">
+        <p className="text-slate-500">{dataEv ? formatDate(dataEv) : '—'}</p>
+        {dataAbertura !== dataEv && (
+          <p className="text-slate-400 mt-0.5">Aberta: {formatDate(dataAbertura)}</p>
+        )}
+      </td>
       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{d.cidade}/{d.uf}</td>
       <td className="px-4 py-3">
         <p className="font-medium text-slate-800 truncate max-w-[180px]">{tituloDiligencia(d)}</p>

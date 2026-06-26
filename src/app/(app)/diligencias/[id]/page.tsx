@@ -562,6 +562,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                 })()}
               />
             )}
+            <DR label="Diligência aberta em" value={formatDate(d.createdAt.split('T')[0])} />
             {d.dataAtendimento && <DR label="Data do atendimento" value={formatDate(d.dataAtendimento)} />}
             <DR label="Tipo de evento" value={d.tipoEvento} />
             <DR label="Tipo de diligência" value={d.tipoDiligencia} />
