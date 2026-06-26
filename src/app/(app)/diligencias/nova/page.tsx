@@ -326,7 +326,7 @@ function FormBatBrasil() {
         statusPagamento: (incluirNaPlanilha && valorNumerico === 0) ? StatusPagamento.Pago : StatusPagamento.Pendente,
         incluirNaPlanilha: incluirNaPlanilha || undefined,
         dispensarDocumentos: dispensarDocumentos || undefined,
-        cicloFinalizado: concluir && form.modoDiligencia === ModoDiligencia.Remoto,
+        cicloFinalizado: concluir,
         pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
         anexos: {},
         eventoId: eventoId || undefined,
