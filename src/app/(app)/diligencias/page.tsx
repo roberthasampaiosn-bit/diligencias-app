@@ -31,8 +31,9 @@ function docsFaltando(d: Diligencia): string[] {
 
 function prioridade(d: Diligencia): number {
   if (d.status === StatusDiligencia.EmAndamento) return 0
-  if (d.status === StatusDiligencia.Realizada && !d.cicloFinalizado) return 1
-  return 2
+  const sit = situacaoCiclo(d)
+  const precisaAcao = sit.tone === 'amber' || sit.docs > 0   // aguardando pagamento ou docs faltando
+  return precisaAcao ? 1 : 2                                  // 2 = concluída sem pendência
 }
 
 function dataDiligencia(d: Diligencia): string {
