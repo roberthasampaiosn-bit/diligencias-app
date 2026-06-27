@@ -32,7 +32,7 @@ function docsFaltando(d: Diligencia): string[] {
 function prioridade(d: Diligencia): number {
   if (d.status === StatusDiligencia.EmAndamento) return 0
   const sit = situacaoCiclo(d)
-  const precisaAcao = sit.tone === 'amber' || sit.docs > 0   // aguardando pagamento ou docs faltando
+  const precisaAcao = sit.tone === 'amber' || sit.docsFaltam.length > 0   // aguardando pagamento ou docs faltando
   return precisaAcao ? 1 : 2                                  // 2 = concluída sem pendência
 }
 
@@ -63,15 +63,23 @@ const SIT_TONE: Record<SitTone, string> = {
   slate: 'text-slate-400', amber: 'text-amber-600', blue: 'text-blue-600', emerald: 'text-emerald-600',
 }
 
-function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docs: number } {
-  if (d.status === StatusDiligencia.EmAndamento) return { label: 'Em andamento', tone: 'slate', docs: 0 }
+// Rótulos curtos dos documentos, para caber na coluna Situação.
+const DOC_CURTO: Record<string, string> = {
+  'Contrato assinado': 'Contrato',
+  'Recibo assinado': 'Recibo',
+  'Comprovante de pagamento': 'Comp. pagamento',
+  'Comprovante de serviço': 'Comp. serviço',
+}
+
+function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docsFaltam: string[] } {
+  if (d.status === StatusDiligencia.EmAndamento) return { label: 'Em andamento', tone: 'slate', docsFaltam: [] }
   // Realizada: só é pendência real um pagamento presencial com valor em aberto.
   const aguardaPagamento = d.modoDiligencia !== ModoDiligencia.Remoto
     && (d.valorDiligencia ?? 0) > 0
     && d.statusPagamento !== StatusPagamento.Pago
-  if (aguardaPagamento) return { label: 'Aguardando pagamento', tone: 'amber', docs: 0 }
+  if (aguardaPagamento) return { label: 'Aguardando pagamento', tone: 'amber', docsFaltam: [] }
   // Sem pendência → concluída. Mantém o aviso de docs só se o ciclo foi finalizado.
-  return { label: 'Concluída', tone: 'emerald', docs: d.cicloFinalizado ? docsFaltando(d).length : 0 }
+  return { label: 'Concluída', tone: 'emerald', docsFaltam: d.cicloFinalizado ? docsFaltando(d) : [] }
 }
 
 // ── Row memoizado ─────────────────────────────────────────────────────────────
@@ -113,11 +121,11 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
           <span className={`text-xs font-medium ${SIT_TONE[sit.tone]}`}>
             {sit.tone === 'emerald' ? '✓ ' : ''}{sit.label}
           </span>
-          {sit.docs > 0 && (
-            <div className="flex items-center gap-1 text-amber-600">
-              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-              <span className="text-xs font-medium">
-                {sit.docs} doc{sit.docs > 1 ? 's' : ''} faltando
+          {sit.docsFaltam.length > 0 && (
+            <div className="flex items-start gap-1 text-amber-600">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+              <span className="text-xs font-medium max-w-[180px]">
+                Falta: {sit.docsFaltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}
               </span>
             </div>
           )}
@@ -363,7 +371,7 @@ function DiligenciasContent() {
                   </div>
                   <p className={`text-xs font-medium mt-1 ${SIT_TONE[sit.tone]}`}>
                     {sit.tone === 'emerald' ? '✓ ' : ''}{sit.label}
-                    {sit.docs > 0 ? ` · ${sit.docs} doc${sit.docs > 1 ? 's' : ''} faltando` : ''}
+                    {sit.docsFaltam.length > 0 ? ` · falta ${sit.docsFaltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}` : ''}
                   </p>
                 </Link>
                 )
