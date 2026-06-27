@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
-import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
+import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
 
 interface Params { id: string }
@@ -145,8 +145,10 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   ].join('\n') : ''
   const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(msgFinanceiro)}` : '#'
 
-  // Pendência documental: verificada após ciclo finalizado, exceto se documentos dispensados
-  const pendenciasDocumentais = !d.dispensarDocumentos ? [
+  // Pendência documental: só para presenciais não-Fadel não dispensadas (remotas e
+  // Fadel não têm documento a anexar).
+  const semDocumentos = isRemoto || /fadel/i.test(d.empresa ?? '') || d.dispensarDocumentos
+  const pendenciasDocumentais = !semDocumentos ? [
     !d.anexos.contratoAssinado && 'Contrato assinado',
     !d.anexos.reciboAssinado && 'Recibo assinado',
     (d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento && 'Comprovante de pagamento',
@@ -160,6 +162,15 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
 
   const whatsappZapRecibo = adv && linkReciboZap
     ? buildWhatsAppZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'recibo', linkReciboZap)
+    : null
+
+  // Lembrete (já recebeu o link e ainda não assinou)
+  const lembreteZapContrato = adv && linkContratoZap
+    ? buildWhatsAppLembreteZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'contrato', linkContratoZap)
+    : null
+
+  const lembreteZapRecibo = adv && linkReciboZap
+    ? buildWhatsAppLembreteZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'recibo', linkReciboZap)
     : null
 
   const whatsappZapAdriana = d.linkAssinaturaAdriana
@@ -437,6 +448,20 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <a href={whatsappZapRecibo} target="_blank" rel="noopener noreferrer">
             <Button variant="ghost" size="sm">
               <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WA advogado — recibo
+            </Button>
+          </a>
+        )}
+        {linkContratoZap && lembreteZapContrato && d.statusAssinaturaContrato !== 'assinado' && (
+          <a href={lembreteZapContrato} target="_blank" rel="noopener noreferrer">
+            <Button variant="ghost" size="sm">
+              <MessageCircle className="w-3.5 h-3.5 text-amber-600" /> Lembrar — contrato
+            </Button>
+          </a>
+        )}
+        {linkReciboZap && lembreteZapRecibo && d.statusAssinaturaRecibo !== 'assinado' && (
+          <a href={lembreteZapRecibo} target="_blank" rel="noopener noreferrer">
+            <Button variant="ghost" size="sm">
+              <MessageCircle className="w-3.5 h-3.5 text-amber-600" /> Lembrar — recibo
             </Button>
           </a>
         )}

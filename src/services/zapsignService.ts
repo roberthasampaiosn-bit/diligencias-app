@@ -136,6 +136,21 @@ export function buildWhatsAppZapSign(
   return `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
 }
 
+// ─── Helper: lembrete de assinatura (já recebeu o link e ainda não assinou) ──
+
+export function buildWhatsAppLembreteZapSign(
+  whatsapp: string | undefined,
+  nomeAdvogado: string,
+  ccc: string,
+  tipoDoc: 'contrato' | 'recibo',
+  signUrl: string,
+): string {
+  const primeiro = nomeAdvogado.split(' ')[0]
+  const msg = `Olá ${primeiro}, tudo bem? 😊 Passando só pra lembrar da assinatura do ${tipoDoc} referente à diligência ${ccc} — vi que ainda está pendente. Quando puder, é rapidinho por aqui:\n${signUrl}\nQualquer dúvida, me avise. Obrigada!`
+  const numero = (whatsapp ?? '').replace(/\D/g, '')
+  return `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
+}
+
 // ─── Helper: monta URL do WhatsApp para Adriana (contratante) ────────────────
 
 export function buildWhatsAppAdriana(

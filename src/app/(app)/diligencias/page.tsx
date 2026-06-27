@@ -17,7 +17,11 @@ import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaC
 // ── Documentos faltando ───────────────────────────────────────────────────────
 
 function docsFaltando(d: Diligencia): string[] {
-  if (!d.cicloFinalizado || d.dispensarDocumentos) return []
+  // Não têm documento a anexar: remotas, Fadel (quase nunca têm) ou dispensadas à mão.
+  const semDocumentos = d.modoDiligencia === ModoDiligencia.Remoto
+    || /fadel/i.test(d.empresa ?? '')
+    || !!d.dispensarDocumentos
+  if (!d.cicloFinalizado || semDocumentos) return []
   const faltam: string[] = []
   if (!d.anexos.contratoAssinado) faltam.push('Contrato assinado')
   if (!d.anexos.reciboAssinado) faltam.push('Recibo assinado')
