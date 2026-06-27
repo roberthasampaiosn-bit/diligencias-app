@@ -63,13 +63,14 @@ const SIT_TONE: Record<SitTone, string> = {
 }
 
 function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docs: number } {
-  if (d.cicloFinalizado) return { label: 'Concluída', tone: 'emerald', docs: docsFaltando(d).length }
   if (d.status === StatusDiligencia.EmAndamento) return { label: 'Em andamento', tone: 'slate', docs: 0 }
-  // Realizada, ciclo ainda aberto: pode fechar (remota/sem docs/paga) ou trava no pagamento
-  const podeConcluir = d.modoDiligencia === ModoDiligencia.Remoto || !!d.dispensarDocumentos || d.statusPagamento === StatusPagamento.Pago
-  return podeConcluir
-    ? { label: 'Pronta p/ concluir', tone: 'blue', docs: 0 }
-    : { label: 'Aguardando pagamento', tone: 'amber', docs: 0 }
+  // Realizada: só é pendência real um pagamento presencial com valor em aberto.
+  const aguardaPagamento = d.modoDiligencia !== ModoDiligencia.Remoto
+    && (d.valorDiligencia ?? 0) > 0
+    && d.statusPagamento !== StatusPagamento.Pago
+  if (aguardaPagamento) return { label: 'Aguardando pagamento', tone: 'amber', docs: 0 }
+  // Sem pendência → concluída. Mantém o aviso de docs só se o ciclo foi finalizado.
+  return { label: 'Concluída', tone: 'emerald', docs: d.cicloFinalizado ? docsFaltando(d).length : 0 }
 }
 
 // ── Row memoizado ─────────────────────────────────────────────────────────────
