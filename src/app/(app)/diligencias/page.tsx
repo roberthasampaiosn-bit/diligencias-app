@@ -125,7 +125,7 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
             <div className="flex items-start gap-1 text-amber-600">
               <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
               <span className="text-xs font-medium max-w-[180px]">
-                Falta: {sit.docsFaltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}
+                {sit.docsFaltam.length} doc{sit.docsFaltam.length > 1 ? 's' : ''} faltando: {sit.docsFaltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}
               </span>
             </div>
           )}
@@ -371,7 +371,7 @@ function DiligenciasContent() {
                   </div>
                   <p className={`text-xs font-medium mt-1 ${SIT_TONE[sit.tone]}`}>
                     {sit.tone === 'emerald' ? '✓ ' : ''}{sit.label}
-                    {sit.docsFaltam.length > 0 ? ` · falta ${sit.docsFaltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}` : ''}
+                    {sit.docsFaltam.length > 0 ? ` · ${sit.docsFaltam.length} doc${sit.docsFaltam.length > 1 ? 's' : ''} faltando: ${sit.docsFaltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}` : ''}
                   </p>
                 </Link>
                 )
