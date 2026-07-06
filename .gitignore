@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# scripts locais de uso único (podem conter segredos, não versionar)
+/scripts
+
 # debug
 npm-debug.log*
 yarn-debug.log*
