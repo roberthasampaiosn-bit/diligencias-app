@@ -44,10 +44,8 @@ function buildFormUrl(ccc: string, vitima: string, cargo: string, empresa: strin
 }
 
 const PERIODOS = [
-  { key: 'semana',     label: 'Esta semana'   },
   { key: 'mes',        label: 'Este mês'      },
   { key: 'mesPassado', label: 'Mês passado'   },
-  { key: 'ano',        label: 'Este ano'      },
   { key: 'custom',     label: 'Personalizado' },
   { key: '',           label: 'Todos'         },
 ]
@@ -334,6 +332,9 @@ function PesquisaContent() {
   // Sub-filtros pendentes
   const [subFiltro, setSubFiltro] = useState('')
 
+  // Filtro por empresa (transportadora da vítima: BAT, FADEL, ZOOM, ...)
+  const [empresaFiltro, setEmpresaFiltro] = useState('')
+
   // Notificações
   // Modal: Agendar retorno
   const [modalRetorno, setModalRetorno] = useState<ModalRetornoState | null>(null)
@@ -461,6 +462,16 @@ function PesquisaContent() {
     [diligencias],
   )
 
+  // Empresas (transportadoras) presentes na fila — para o filtro por empresa
+  const empresasDisponiveis = useMemo(() => {
+    const set = new Set<string>()
+    for (const d of realizadas) {
+      const nome = (d.empresa ?? '').trim()
+      if (nome) set.add(nome)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [realizadas])
+
   // Pesquisas dispensadas (não são caso de entrevista) — separadas, restauráveis
   const dispensadas = useMemo(
     () => diligencias.filter((d) =>
@@ -471,6 +482,10 @@ function PesquisaContent() {
   )
 
   const realizadasFiltradas = useMemo(() => {
+    let base = realizadas
+    if (empresaFiltro) {
+      base = base.filter((d) => (d.empresa ?? '').trim() === empresaFiltro)
+    }
     let range: { ini: string; fim: string } | null = null
     if (periodoFiltro === 'custom') {
       if (dataFiltroInicio || dataFiltroFim) {
@@ -479,13 +494,13 @@ function PesquisaContent() {
     } else {
       range = periodoToRange(periodoFiltro)
     }
-    if (!range) return realizadas
+    if (!range) return base
     const { ini, fim } = range
-    return realizadas.filter((d) => {
+    return base.filter((d) => {
       const ref = refDataEvento(d)
       return ref >= ini && ref <= fim
     })
-  }, [realizadas, periodoFiltro, dataFiltroInicio, dataFiltroFim, refDataEvento])
+  }, [realizadas, empresaFiltro, periodoFiltro, dataFiltroInicio, dataFiltroFim, refDataEvento])
 
   const stats = useMemo(() => ({
     total:     realizadasFiltradas.length,
@@ -808,6 +823,33 @@ function PesquisaContent() {
                 )
               })}
             </div>
+
+            {/* Filtro por empresa (transportadora) — ex: BAT, FADEL, ZOOM */}
+            {empresasDisponiveis.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
+                  Empresa:
+                </span>
+                <select
+                  value={empresaFiltro}
+                  onChange={(e) => startTransition(() => setEmpresaFiltro(e.target.value))}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 max-w-[220px]"
+                >
+                  <option value="">Todas ({empresasDisponiveis.length})</option>
+                  {empresasDisponiveis.map((emp) => (
+                    <option key={emp} value={emp}>{emp}</option>
+                  ))}
+                </select>
+                {empresaFiltro && (
+                  <button
+                    onClick={() => setEmpresaFiltro('')}
+                    className="text-[11px] font-medium text-slate-400 hover:text-slate-600 px-1.5 py-1 rounded transition-colors"
+                  >
+                    ✕ limpar
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Sub-filtros — só fazem sentido ao olhar pendentes */}
             {filtro === 'pendentes' && (
