@@ -153,6 +153,7 @@ export interface Evento {
   statusEvento: StatusEvento
   foiAtualizado?: boolean
   diligenciaId?: string
+  motivoArquivamento?: string
   createdAt: string
 }
 

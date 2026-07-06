@@ -34,6 +34,7 @@ export interface DiligenciasContextValue {
   agendarRetorno: (id: string, data: string) => void
   marcarRespondida: (id: string, resposta: string) => void
   encerrarSemResposta: (id: string, observacao: string) => void
+  reabrirPesquisa: (id: string) => void
   atualizarPesquisa: (id: string, patch: Partial<Pesquisa>) => Promise<void>
 }
 
@@ -318,6 +319,26 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
   }, [patchP, addToast])
 
+  // Reabre uma pesquisa concluída: volta para Pendente e limpa a conclusão
+  // (resposta / motivo de encerramento / data). Usado quando a pessoa que havia
+  // sido encerrada sem contato depois respondeu — permite refazer o resultado.
+  const reabrirPesquisa = useCallback((id: string) => {
+    const pp: Partial<Pesquisa> = {
+      status: StatusPesquisa.Pendente,
+      respostaVitima: undefined,
+      observacoes: undefined,
+      dataConclusao: undefined,
+    }
+    patchP(id, pp)
+    patchPesquisa(id, pp)
+      .then(() => {
+        addToast('success', 'Pesquisa reaberta.')
+        const d = diligenciasRef.current.find((x) => x.id === id)
+        logAudit({ usuarioEmail: userEmail, acao: 'reabriu_pesquisa', entidadeId: id, detalhes: d?.ccc })
+      })
+      .catch((err) => { console.error(err); addToast('error', 'Não foi possível reabrir. Verifique sua conexão.') })
+  }, [patchP, addToast, userEmail])
+
   const atualizarPesquisa = useCallback(async (id: string, patch: Partial<Pesquisa>): Promise<void> => {
     patchP(id, patch)
     try {
@@ -337,7 +358,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       diligencias, loading, error,
       createDiligencia, updateDiligencia, marcarRealizada, marcarPago, finalizarCiclo,
       atualizarAnexo, uploadAnexo, removerAnexo, registrarWhatsApp, registrarLigacao, agendarRetorno,
-      marcarRespondida, encerrarSemResposta, atualizarPesquisa,
+      marcarRespondida, encerrarSemResposta, reabrirPesquisa, atualizarPesquisa,
     }}>
       {children}
     </DiligenciasContext.Provider>

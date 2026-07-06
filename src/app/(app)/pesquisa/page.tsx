@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import {
   MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Trash2, RotateCcw, Archive,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
@@ -44,11 +44,12 @@ function buildFormUrl(ccc: string, vitima: string, cargo: string, empresa: strin
 }
 
 const PERIODOS = [
-  { key: 'semana', label: 'Esta semana'   },
-  { key: 'mes',    label: 'Este mês'      },
-  { key: 'ano',    label: 'Este ano'      },
-  { key: 'custom', label: 'Personalizado' },
-  { key: '',       label: 'Todos'         },
+  { key: 'semana',     label: 'Esta semana'   },
+  { key: 'mes',        label: 'Este mês'      },
+  { key: 'mesPassado', label: 'Mês passado'   },
+  { key: 'ano',        label: 'Este ano'      },
+  { key: 'custom',     label: 'Personalizado' },
+  { key: '',           label: 'Todos'         },
 ]
 
 const SUB_FILTROS = [
@@ -74,6 +75,14 @@ function periodoToRange(periodo: string): { ini: string; fim: string } | null {
     return { ini: mon.toISOString().split('T')[0], fim: hojeStr }
   }
   if (periodo === 'mes') return { ini: hojeStr.slice(0, 8) + '01', fim: hojeStr }
+  if (periodo === 'mesPassado') {
+    // Primeiro ao último dia do mês anterior
+    const primeiroDesteMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+    const ultimoMesPassado = new Date(primeiroDesteMes.getTime() - 86400000)
+    const ini = `${ultimoMesPassado.getFullYear()}-${String(ultimoMesPassado.getMonth() + 1).padStart(2, '0')}-01`
+    const fim = ultimoMesPassado.toISOString().split('T')[0]
+    return { ini, fim }
+  }
   if (periodo === 'ano') return { ini: hojeStr.slice(0, 5) + '01-01', fim: hojeStr }
   return null
 }
@@ -221,11 +230,11 @@ function getUltimaTentativa(p: Pesquisa): { label: string; dateStr: string } | n
 function PesquisaContent() {
   const {
     diligencias, registrarWhatsApp, registrarLigacao,
-    agendarRetorno, marcarRespondida, encerrarSemResposta, atualizarPesquisa,
+    agendarRetorno, marcarRespondida, encerrarSemResposta, reabrirPesquisa, atualizarPesquisa,
     createDiligencia,
   } = useDiligencias()
 
-  const { eventos, processarEvento } = useEventos()
+  const { eventos, arquivarEvento, restaurarEvento } = useEventos()
   const { addToast } = useToast()
   const eventoMap = useMemo(
     () => Object.fromEntries(eventos.map((e) => [e.id, e])),
@@ -338,6 +347,11 @@ function PesquisaContent() {
   // Modal: Encerrar sem resposta
   const [modalEncerramento, setModalEncerramento] = useState<ModalEncerramentoState | null>(null)
   const [obsEncerramento, setObsEncerramento] = useState('')
+
+  // Modal: Arquivar evento da triagem (lixeira) + visão de arquivados
+  const [modalArquivar, setModalArquivar] = useState<{ eventoId: string; nome: string } | null>(null)
+  const [motivoArquivar, setMotivoArquivar] = useState('')
+  const [mostrarArquivados, setMostrarArquivados] = useState(false)
 
   // Copiar dados para entrevista
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -533,11 +547,13 @@ function PesquisaContent() {
     const base = eventos.filter((e) => {
       if (e.statusEvento !== StatusEvento.Pendente) return false
       if (!e.dataEvento || e.dataEvento > cutoff24h) return false
+      // Evento sem CCC não gera pesquisa — não polui a fila (arquive na triagem se quiser)
+      if (!e.ccc?.trim()) return false
       // Pesquisa só para BAT BRASIL — VTAL não usa este fluxo
       if (normalizeEmpresa(e.empresa ?? '') === EmpresaCliente.VTAL) return false
-      // Se já tem diligência vinculada e pesquisa concluída, sai da fila
-      const dil = dilPorEventoId[e.id]
-      if (dil && dil.pesquisa.status === StatusPesquisa.Concluida) return false
+      // Se já existe diligência vinculada, o card normal (em `lista`) assume o
+      // acompanhamento — não mostramos também o card de triagem (evita duplicar).
+      if (dilPorEventoId[e.id]) return false
       return true
     })
     if (!search) return base
@@ -549,6 +565,15 @@ function PesquisaContent() {
       e.ccc.toLowerCase().includes(ql)
     )
   }, [eventos, filtro, search, dilPorEventoId])
+
+  // Eventos arquivados (lixeira) — só BAT, para poder restaurar depois
+  const eventosArquivados = useMemo(
+    () => eventos.filter((e) =>
+      e.statusEvento === StatusEvento.Arquivado &&
+      normalizeEmpresa(e.empresa ?? '') !== EmpresaCliente.VTAL
+    ),
+    [eventos],
+  )
 
   const subFiltrosCounts = useMemo(() => {
     const pendentes = realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
@@ -608,6 +633,12 @@ function PesquisaContent() {
     if (!modalEncerramento || !obsEncerramento.trim()) return
     encerrarSemResposta(modalEncerramento.diligenciaId, obsEncerramento.trim())
     setModalEncerramento(null); setObsEncerramento('')
+  }
+
+  function handleConfirmarArquivamento() {
+    if (!modalArquivar) return
+    arquivarEvento(modalArquivar.eventoId, motivoArquivar.trim() || 'Sem motivo informado')
+    setModalArquivar(null); setMotivoArquivar('')
   }
 
   async function handleExportarPesquisas() {
@@ -881,6 +912,14 @@ function PesquisaContent() {
                           {criandoTriagem === ev.id && (
                             <span className="text-[11px] text-amber-600 font-medium animate-pulse">Salvando...</span>
                           )}
+                          {/* Excluir (arquivar) — para eventos que não têm pesquisa */}
+                          <button
+                            onClick={() => { setModalArquivar({ eventoId: ev.id, nome: sanitizeName(ev.nomeVitima) || ev.ccc }); setMotivoArquivar('') }}
+                            className="ml-auto shrink-0 inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-red-600 hover:bg-red-50 px-1.5 py-0.5 rounded transition-colors"
+                            title="Excluir da fila (arquiva com motivo — recuperável)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Excluir
+                          </button>
                         </div>
 
                         {/* Dados principais */}
@@ -1404,9 +1443,18 @@ function PesquisaContent() {
                             : <span className="text-slate-400">✖ {d.pesquisa.observacoes}</span>
                           }
                         </span>
-                        <Link href={`/pesquisa/${d.id}`}>
-                          <Button size="sm" variant="ghost">Ver detalhes</Button>
-                        </Link>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => reabrirPesquisa(d.id)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors"
+                            title="Voltar para pendente (ex: a pessoa respondeu depois de encerrada)"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" /> Reabrir
+                          </button>
+                          <Link href={`/pesquisa/${d.id}`}>
+                            <Button size="sm" variant="ghost">Ver detalhes</Button>
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1416,6 +1464,45 @@ function PesquisaContent() {
           </CardBody>
         )}
       </Card>
+
+      {/* Lixeira — eventos arquivados (recuperáveis) */}
+      {eventosArquivados.length > 0 && (
+        <div>
+          <button
+            onClick={() => setMostrarArquivados((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Archive className="w-3.5 h-3.5" />
+            {mostrarArquivados ? 'Ocultar' : 'Ver'} arquivados ({eventosArquivados.length})
+          </button>
+          {mostrarArquivados && (
+            <div className="mt-3 flex flex-col gap-2">
+              {eventosArquivados.map((ev) => (
+                <div key={ev.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-slate-700 truncate">
+                        {sanitizeName(ev.nomeVitima) || '(vítima não informada)'}
+                      </span>
+                      {ev.ccc && <span className="font-mono text-xs text-slate-400">{ev.ccc}</span>}
+                    </div>
+                    {ev.motivoArquivamento && (
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">Motivo: {ev.motivoArquivamento}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => restaurarEvento(ev.id)}
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
+                    title="Restaurar para a fila de pesquisa"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Restaurar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Barra flutuante — WA em lote */}
       {selectedIds.size > 0 && (
@@ -1605,6 +1692,39 @@ function PesquisaContent() {
               disabled={!obsEncerramento.trim()}
             >
               <PhoneOff className="w-3.5 h-3.5" /> Encerrar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Arquivar evento (lixeira) */}
+      <Modal
+        open={!!modalArquivar}
+        onClose={() => { setModalArquivar(null); setMotivoArquivar('') }}
+        title={`Excluir da fila — ${modalArquivar?.nome}`}
+        size="sm"
+      >
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-600">
+            O evento sai da fila de pesquisa e da triagem. Ele fica{' '}
+            <strong>arquivado</strong> e pode ser restaurado depois em “Ver arquivados”.
+          </p>
+          <Textarea
+            label="Motivo (opcional)"
+            value={motivoArquivar}
+            onChange={(e) => setMotivoArquivar(e.target.value)}
+            placeholder="Ex: evento sem CCC, não gera pesquisa, duplicado..."
+            rows={3}
+          />
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary" size="sm"
+              onClick={() => { setModalArquivar(null); setMotivoArquivar('') }}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleConfirmarArquivamento}>
+              <Trash2 className="w-3.5 h-3.5" /> Excluir
             </Button>
           </div>
         </div>

@@ -184,5 +184,6 @@ export interface EventoRow {
   status_evento: string
   foi_atualizado: boolean
   diligencia_id: string | null
+  motivo_arquivamento?: string | null
   created_at: string
 }

@@ -54,6 +54,25 @@ function extractNivelAgressao(text: string): number {
   return m ? parseInt(m[1], 10) : 0
 }
 
+// Fatia uma sequência de dígitos que pode conter VÁRIOS telefones grudados
+// (ex.: 2 vítimas cujos números vieram colados: "11999999999" + "21988888888"
+// = "1199999999921988888888"). Telefones BR têm 11 dígitos (celular, 3º dígito
+// após o DDD costuma ser 9) ou 10 (fixo). Enquanto sobrar bloco válido, consome
+// 11 quando parece celular, senão 10 — assim não vira um número gigante único.
+function splitPhoneDigits(digits: string): string[] {
+  if (!digits) return []
+  if (digits.length <= 11) return [digits]
+  const out: string[] = []
+  let rest = digits
+  while (rest.length >= 12) {
+    const take = rest[2] === '9' ? 11 : 10
+    out.push(rest.slice(0, take))
+    rest = rest.slice(take)
+  }
+  if (rest.length) out.push(rest)
+  return out
+}
+
 function isoToDateAndTime(iso: string): { date: string; time: string } {
   // receivedAt chega como UTC; converter para horário de Brasília (UTC-3)
   const d = new Date(iso)
@@ -134,10 +153,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const nomeVitima     = extractAfterSection(text, 'Envolvidos', 'Nome')
   const cargoVitima    = extractAfterSection(text, 'Envolvidos', 'Cargo')
   const telefoneVitimaRaw = extractAfterSection(text, 'Envolvidos', 'Telefone')
-  // Normaliza múltiplos telefones separados por ";" → limpa dígitos e rejunta com ";"
+  // Normaliza múltiplos telefones (2 vítimas). Separa por ";" "," "/" " e " ou
+  // quebra de linha; para cada trecho, limpa os dígitos e, se vierem grudados,
+  // fatia em telefones válidos. Rejunta com ";" para o pareamento nome<->telefone.
   const telefoneVitima = telefoneVitimaRaw
-    .split(';')
-    .map((p) => p.trim().replace(/\D/g, ''))
+    .split(/[;,/]|\s+e\s+|\n/i)
+    .flatMap((p) => splitPhoneDigits(p.replace(/\D/g, '')))
     .filter(Boolean)
     .join(';')
 

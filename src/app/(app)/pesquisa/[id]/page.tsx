@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -60,7 +60,7 @@ function formatISOBR(s: string | undefined): string {
 
 export default function PesquisaDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
-  const { diligencias, atualizarPesquisa, registrarLigacao, marcarRespondida, encerrarSemResposta } = useDiligencias()
+  const { diligencias, atualizarPesquisa, registrarLigacao, marcarRespondida, encerrarSemResposta, reabrirPesquisa } = useDiligencias()
 
   const diligencia = useMemo(() => diligencias.find((d) => d.id === id), [diligencias, id])
 
@@ -303,6 +303,18 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
               <Button size="sm" variant="ghost" onClick={() => setModalEncerramento(true)}>
                 <PhoneOff className="w-3.5 h-3.5 text-slate-400" /> Encerrar sem resposta
               </Button>
+            </div>
+          )}
+
+          {/* Reabrir — quando já concluída (ex: pessoa respondeu depois de encerrada) */}
+          {pesquisa.status === StatusPesquisa.Concluida && (
+            <div>
+              <Button size="sm" variant="secondary" onClick={() => reabrirPesquisa(id)}>
+                <RotateCcw className="w-3.5 h-3.5" /> Reabrir pesquisa
+              </Button>
+              <p className="text-xs text-slate-400 mt-1.5">
+                Volta para pendente e limpa o resultado, para você refazer o contato e registrar de novo.
+              </p>
             </div>
           )}
 

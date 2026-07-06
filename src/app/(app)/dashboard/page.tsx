@@ -72,11 +72,14 @@ export default function DashboardPage() {
   const statsVtal = useMemo(() => statsCliente(diligencias, EmpresaCliente.VTAL), [diligencias])
 
   const pendencias = useMemo(() => {
+    const mesAtual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
     const emAndamento = diligencias.filter((d) => d.status === StatusDiligencia.EmAndamento)
     const pesqPendentes = diligencias.filter((d) =>
       d.pesquisa.status === StatusPesquisa.Pendente &&
       d.status === StatusDiligencia.Realizada &&
-      d.empresaCliente !== EmpresaCliente.VTAL
+      d.empresaCliente !== EmpresaCliente.VTAL &&
+      // Só as pendências do mês corrente (data do fato → atendimento → criação)
+      (d.dataEvento ?? d.dataAtendimento ?? d.createdAt).startsWith(mesAtual)
     )
     const pgtoPendente = diligencias.filter((d) =>
       d.statusPagamento === StatusPagamento.Pendente &&

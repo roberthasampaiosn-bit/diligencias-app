@@ -20,6 +20,8 @@ export interface EventosContextValue {
   error: string | null
   processarEvento: (eventoId: string, diligenciaId: string) => void
   deletarEvento: (eventoId: string) => void
+  arquivarEvento: (eventoId: string, motivo: string) => void
+  restaurarEvento: (eventoId: string) => void
   marcarRevisado: (eventoId: string) => void
   importarSimulados: () => Promise<ImportResult>
 }
@@ -704,6 +706,32 @@ export function EventosProvider({ children }: { children: ReactNode }) {
       .catch((err) => { console.error(err); addToast('error', 'Não foi possível excluir o evento.') })
   }, [addToast])
 
+  // Arquiva um evento (lixeira recuperável): sai da fila de triagem/pesquisa,
+  // mas continua no banco com o motivo registrado. Restaurável depois.
+  const arquivarEvento = useCallback((eventoId: string, motivo: string) => {
+    setEventos((prev) =>
+      prev.map((e) =>
+        e.id === eventoId
+          ? { ...e, statusEvento: StatusEvento.Arquivado, motivoArquivamento: motivo }
+          : e
+      )
+    )
+    patchEvento(eventoId, { status_evento: StatusEvento.Arquivado, motivo_arquivamento: motivo })
+      .catch((err) => { console.error(err); addToast('error', 'Não foi possível arquivar o evento.') })
+  }, [addToast])
+
+  const restaurarEvento = useCallback((eventoId: string) => {
+    setEventos((prev) =>
+      prev.map((e) =>
+        e.id === eventoId
+          ? { ...e, statusEvento: StatusEvento.Pendente, motivoArquivamento: undefined }
+          : e
+      )
+    )
+    patchEvento(eventoId, { status_evento: StatusEvento.Pendente, motivo_arquivamento: null })
+      .catch((err) => { console.error(err); addToast('error', 'Não foi possível restaurar o evento.') })
+  }, [addToast])
+
   const marcarRevisado = useCallback((eventoId: string) => {
     setEventos((prev) =>
       prev.map((e) => e.id === eventoId ? { ...e, foiAtualizado: false } : e)
@@ -736,7 +764,7 @@ export function EventosProvider({ children }: { children: ReactNode }) {
   }, [eventos])
 
   return (
-    <EventosContext.Provider value={{ eventos, loading, error, processarEvento, deletarEvento, marcarRevisado, importarSimulados }}>
+    <EventosContext.Provider value={{ eventos, loading, error, processarEvento, deletarEvento, arquivarEvento, restaurarEvento, marcarRevisado, importarSimulados }}>
       {children}
     </EventosContext.Provider>
   )

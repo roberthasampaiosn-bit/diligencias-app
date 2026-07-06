@@ -9,6 +9,7 @@ export type AcaoLog =
   | 'registrou_ligacao'
   | 'enviou_whatsapp'
   | 'atualizou_pesquisa'
+  | 'reabriu_pesquisa'
   | 'removeu_anexo'
   | 'adicionou_anexo'
 

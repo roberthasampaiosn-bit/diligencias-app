@@ -312,6 +312,7 @@ export function toEvento(row: EventoRow): Evento {
     statusEvento: row.status_evento as StatusEvento,
     foiAtualizado: row.foi_atualizado ?? false,
     diligenciaId: row.diligencia_id ?? undefined,
+    motivoArquivamento: row.motivo_arquivamento ?? undefined,
     createdAt: row.created_at,
   }
 }
