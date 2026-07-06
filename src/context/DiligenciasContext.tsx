@@ -41,6 +41,12 @@ export interface DiligenciasContextValue {
 
 const DiligenciasContext = createContext<DiligenciasContextValue | null>(null)
 
+// Nome amigável do entrevistador a partir do e-mail logado (o Supabase Auth
+// nem sempre traz nome). Fallback: metadata do usuário → e-mail.
+const NOME_POR_EMAIL: Record<string, string> = {
+  'roberthasampaiosn@gmail.com': 'Roberta Sampaio',
+}
+
 // Retorna string ISO local (sem conversão UTC) para evitar drift de fuso horário.
 function localISOString(): string {
   const now = new Date()
@@ -69,6 +75,12 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const { addToast } = useToast()
   const { user } = useAuth()
   const userEmail = user?.email ?? 'desconhecido'
+  // Quem está registrando a pesquisa — vira o "entrevistador" no relatório
+  const entrevistadorNome =
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    NOME_POR_EMAIL[userEmail] ||
+    (userEmail !== 'desconhecido' ? userEmail : undefined)
 
   // Ref sincronizado com o estado — permite leituras síncronas dentro de useCallback
   // sem adicionar `diligencias` nas dependências e gerar loops.
@@ -305,20 +317,22 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       status: StatusPesquisa.Concluida,
       respostaVitima: resposta || undefined,
       dataConclusao: localISOString(),
+      entrevistador: entrevistadorNome,
     }
     patchP(id, pp)
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
-  }, [patchP, addToast])
+  }, [patchP, addToast, entrevistadorNome])
 
   const encerrarSemResposta = useCallback((id: string, observacao: string) => {
     const pp: Partial<Pesquisa> = {
       status: StatusPesquisa.Concluida,
       observacoes: observacao,
       dataConclusao: localISOString(),
+      entrevistador: entrevistadorNome,
     }
     patchP(id, pp)
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
-  }, [patchP, addToast])
+  }, [patchP, addToast, entrevistadorNome])
 
   // Dispensa a pesquisa: o caso não é de entrevista (audiência, sem vítima, V.TAL
   // rotulado como BAT, etc.). Sai da fila de pendentes SEM contar como concluída.
