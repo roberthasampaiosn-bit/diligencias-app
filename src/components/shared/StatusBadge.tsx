@@ -13,6 +13,7 @@ export function StatusPagamentoBadge({ status }: { status: StatusPagamento }) {
 
 export function StatusPesquisaBadge({ status }: { status: StatusPesquisa }) {
   if (status === StatusPesquisa.Concluida) return <Badge variant="success">{status}</Badge>
+  if (status === StatusPesquisa.Dispensada) return <Badge variant="slate">{status}</Badge>
   return <Badge variant="warning">{status}</Badge>
 }
 

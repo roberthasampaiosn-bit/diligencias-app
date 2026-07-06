@@ -154,6 +154,24 @@ export default function RelatoriosPage() {
       // Local de atendimento: BAT usa dpRegistrou; VTAL usa localAtendimento
       function localAt(d: Diligencia) { return d.dpRegistrou ?? d.localAtendimento ?? '' }
 
+      // Data/hora da entrevista para o relatório:
+      //  - Concluída → quando foi finalizada (dataConclusao, ISO "YYYY-MM-DDTHH:MM:SS")
+      //  - Pendente  → o retorno agendado (dataCombinada + horaEntrevista)
+      // Antes só usava o retorno agendado, então as concluídas saíam em branco.
+      function entrevistaData(d: Diligencia): string {
+        const p = d.pesquisa
+        if (p.dataConclusao) {
+          const [y, mm, dd] = p.dataConclusao.split('T')[0].split('-')
+          return y && mm && dd ? `${dd}/${mm}/${y}` : ''
+        }
+        return p.dataCombinada ? formatDate(p.dataCombinada) : ''
+      }
+      function entrevistaHora(d: Diligencia): string {
+        const p = d.pesquisa
+        if (p.dataConclusao) return (p.dataConclusao.split('T')[1] ?? '').slice(0, 5)
+        return p.horaEntrevista ?? ''
+      }
+
       // ── Aba 1: BAT — Suporte Jurídico ────────────────────────────────────────
       const headersSJR = [
         'CCC','Vítima','Telefone','Cargo','Ano','Mês','Dia','Tipo de evento',
@@ -175,8 +193,8 @@ export default function RelatoriosPage() {
         d.segmento ?? '', d.motoristaAgredido ?? '', d.dpRegistrou ?? '',
         d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
         d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
-        d.pesquisa.dataCombinada ? formatDate(d.pesquisa.dataCombinada) : '',
-        d.pesquisa.horaEntrevista ?? '',
+        entrevistaData(d),
+        entrevistaHora(d),
       ])
 
       // ── Aba 2: BAT — Com Custo ───────────────────────────────────────────────
@@ -232,8 +250,8 @@ export default function RelatoriosPage() {
         d.segmento ?? '', d.motoristaAgredido ?? '', d.dpRegistrou ?? '',
         d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
         d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
-        d.pesquisa.dataCombinada ? formatDate(d.pesquisa.dataCombinada) : '',
-        d.pesquisa.horaEntrevista ?? '',
+        entrevistaData(d),
+        entrevistaHora(d),
       ])
 
       await exportarExcelEstilizado([

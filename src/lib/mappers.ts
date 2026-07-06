@@ -14,6 +14,7 @@ function normalizePesquisaStatus(raw: string | null | undefined): StatusPesquisa
   if (!raw) return StatusPesquisa.Pendente
   if (LEGACY_PESQUISA_CONCLUIDA.has(raw)) return StatusPesquisa.Concluida
   if (raw === StatusPesquisa.Concluida) return StatusPesquisa.Concluida
+  if (raw === StatusPesquisa.Dispensada) return StatusPesquisa.Dispensada
   return StatusPesquisa.Pendente
 }
 

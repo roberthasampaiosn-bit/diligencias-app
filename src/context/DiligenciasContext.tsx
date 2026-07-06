@@ -34,6 +34,7 @@ export interface DiligenciasContextValue {
   agendarRetorno: (id: string, data: string) => void
   marcarRespondida: (id: string, resposta: string) => void
   encerrarSemResposta: (id: string, observacao: string) => void
+  dispensarPesquisa: (id: string, motivo: string) => void
   reabrirPesquisa: (id: string) => void
   atualizarPesquisa: (id: string, patch: Partial<Pesquisa>) => Promise<void>
 }
@@ -319,6 +320,24 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     patchPesquisa(id, pp).catch((err) => { console.error(err); addToast('error', 'Não foi possível salvar. Verifique sua conexão.') })
   }, [patchP, addToast])
 
+  // Dispensa a pesquisa: o caso não é de entrevista (audiência, sem vítima, V.TAL
+  // rotulado como BAT, etc.). Sai da fila de pendentes SEM contar como concluída.
+  const dispensarPesquisa = useCallback((id: string, motivo: string) => {
+    const pp: Partial<Pesquisa> = {
+      status: StatusPesquisa.Dispensada,
+      observacoes: motivo || 'Não é caso de pesquisa',
+      dataConclusao: undefined,
+      respostaVitima: undefined,
+    }
+    patchP(id, pp)
+    patchPesquisa(id, pp)
+      .then(() => {
+        const d = diligenciasRef.current.find((x) => x.id === id)
+        logAudit({ usuarioEmail: userEmail, acao: 'dispensou_pesquisa', entidadeId: id, detalhes: d?.ccc })
+      })
+      .catch((err) => { console.error(err); addToast('error', 'Não foi possível dispensar. Verifique sua conexão.') })
+  }, [patchP, addToast, userEmail])
+
   // Reabre uma pesquisa concluída: volta para Pendente e limpa a conclusão
   // (resposta / motivo de encerramento / data). Usado quando a pessoa que havia
   // sido encerrada sem contato depois respondeu — permite refazer o resultado.
@@ -358,7 +377,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       diligencias, loading, error,
       createDiligencia, updateDiligencia, marcarRealizada, marcarPago, finalizarCiclo,
       atualizarAnexo, uploadAnexo, removerAnexo, registrarWhatsApp, registrarLigacao, agendarRetorno,
-      marcarRespondida, encerrarSemResposta, reabrirPesquisa, atualizarPesquisa,
+      marcarRespondida, encerrarSemResposta, dispensarPesquisa, reabrirPesquisa, atualizarPesquisa,
     }}>
       {children}
     </DiligenciasContext.Provider>

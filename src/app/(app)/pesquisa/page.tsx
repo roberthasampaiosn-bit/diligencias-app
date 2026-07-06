@@ -230,7 +230,7 @@ function getUltimaTentativa(p: Pesquisa): { label: string; dateStr: string } | n
 function PesquisaContent() {
   const {
     diligencias, registrarWhatsApp, registrarLigacao,
-    agendarRetorno, marcarRespondida, encerrarSemResposta, reabrirPesquisa, atualizarPesquisa,
+    agendarRetorno, marcarRespondida, encerrarSemResposta, dispensarPesquisa, reabrirPesquisa, atualizarPesquisa,
     createDiligencia,
   } = useDiligencias()
 
@@ -353,6 +353,11 @@ function PesquisaContent() {
   const [motivoArquivar, setMotivoArquivar] = useState('')
   const [mostrarArquivados, setMostrarArquivados] = useState(false)
 
+  // Modal: Dispensar pesquisa (não é caso de entrevista) + visão de dispensadas
+  const [modalDispensar, setModalDispensar] = useState<{ diligenciaId: string; nome: string } | null>(null)
+  const [motivoDispensar, setMotivoDispensar] = useState('')
+  const [mostrarDispensadas, setMostrarDispensadas] = useState(false)
+
   // Copiar dados para entrevista
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
@@ -450,6 +455,16 @@ function PesquisaContent() {
   const realizadas = useMemo(
     () => diligencias.filter((d) =>
       d.status === StatusDiligencia.Realizada &&
+      d.empresaCliente !== EmpresaCliente.VTAL &&
+      d.pesquisa.status !== StatusPesquisa.Dispensada   // dispensadas ficam fora da fila
+    ),
+    [diligencias],
+  )
+
+  // Pesquisas dispensadas (não são caso de entrevista) — separadas, restauráveis
+  const dispensadas = useMemo(
+    () => diligencias.filter((d) =>
+      d.pesquisa.status === StatusPesquisa.Dispensada &&
       d.empresaCliente !== EmpresaCliente.VTAL
     ),
     [diligencias],
@@ -639,6 +654,12 @@ function PesquisaContent() {
     if (!modalArquivar) return
     arquivarEvento(modalArquivar.eventoId, motivoArquivar.trim() || 'Sem motivo informado')
     setModalArquivar(null); setMotivoArquivar('')
+  }
+
+  function handleConfirmarDispensa() {
+    if (!modalDispensar) return
+    dispensarPesquisa(modalDispensar.diligenciaId, motivoDispensar.trim() || 'Não é caso de pesquisa')
+    setModalDispensar(null); setMotivoDispensar('')
   }
 
   async function handleExportarPesquisas() {
@@ -1424,6 +1445,13 @@ function PesquisaContent() {
                           >
                             <PhoneOff className="w-3.5 h-3.5" /> Encerrar
                           </button>
+                          <button
+                            onClick={() => { setModalDispensar({ diligenciaId: d.id, nome: nomeEfetivo }); setMotivoDispensar('') }}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+                            title="Não é caso de entrevista — tira da fila sem contar como concluída"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Não é pesquisa
+                          </button>
                         </div>
                         {/* Linha 4: Formulário de entrevista */}
                         <a
@@ -1496,6 +1524,45 @@ function PesquisaContent() {
                     title="Restaurar para a fila de pesquisa"
                   >
                     <RotateCcw className="w-3.5 h-3.5" /> Restaurar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dispensadas — não são caso de entrevista (recuperáveis) */}
+      {dispensadas.length > 0 && (
+        <div>
+          <button
+            onClick={() => setMostrarDispensadas((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {mostrarDispensadas ? 'Ocultar' : 'Ver'} dispensadas ({dispensadas.length})
+          </button>
+          {mostrarDispensadas && (
+            <div className="mt-3 flex flex-col gap-2">
+              {dispensadas.map((d) => (
+                <div key={d.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-slate-700 truncate">
+                        {sanitizeName(d.vitima) || '(sem nome)'}
+                      </span>
+                      {d.ccc && <span className="font-mono text-xs text-slate-400">{d.ccc}</span>}
+                    </div>
+                    {d.pesquisa.observacoes && (
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">Motivo: {d.pesquisa.observacoes}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => reabrirPesquisa(d.id)}
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
+                    title="Voltar para a fila de pesquisa (pendente)"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Voltar à fila
                   </button>
                 </div>
               ))}
@@ -1725,6 +1792,39 @@ function PesquisaContent() {
             </Button>
             <Button variant="danger" size="sm" onClick={handleConfirmarArquivamento}>
               <Trash2 className="w-3.5 h-3.5" /> Excluir
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Dispensar pesquisa (não é caso de entrevista) */}
+      <Modal
+        open={!!modalDispensar}
+        onClose={() => { setModalDispensar(null); setMotivoDispensar('') }}
+        title={`Não é pesquisa — ${modalDispensar?.nome}`}
+        size="sm"
+      >
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-600">
+            Sai da fila de pendentes e <strong>não conta como pesquisa concluída</strong>.
+            Fica separada em “Ver dispensadas” e pode voltar à fila depois.
+          </p>
+          <Textarea
+            label="Motivo (opcional)"
+            value={motivoDispensar}
+            onChange={(e) => setMotivoDispensar(e.target.value)}
+            placeholder="Ex: audiência, sem vítima para entrevistar, V.TAL..."
+            rows={3}
+          />
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary" size="sm"
+              onClick={() => { setModalDispensar(null); setMotivoDispensar('') }}
+            >
+              Cancelar
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleConfirmarDispensa}>
+              <Trash2 className="w-3.5 h-3.5" /> Dispensar
             </Button>
           </div>
         </div>

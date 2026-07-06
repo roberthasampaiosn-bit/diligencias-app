@@ -306,8 +306,8 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
             </div>
           )}
 
-          {/* Reabrir — quando já concluída (ex: pessoa respondeu depois de encerrada) */}
-          {pesquisa.status === StatusPesquisa.Concluida && (
+          {/* Reabrir — quando já concluída ou dispensada (ex: pessoa respondeu depois) */}
+          {pesquisa.status !== StatusPesquisa.Pendente && (
             <div>
               <Button size="sm" variant="secondary" onClick={() => reabrirPesquisa(id)}>
                 <RotateCcw className="w-3.5 h-3.5" /> Reabrir pesquisa

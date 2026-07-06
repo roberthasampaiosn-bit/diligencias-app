@@ -13,7 +13,7 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
   const pesquisasPendentes = diligencias.filter(
     (d) =>
       d.status === StatusDiligencia.Realizada &&
-      d.pesquisa.status !== StatusPesquisa.Concluida &&
+      d.pesquisa.status === StatusPesquisa.Pendente &&
       d.empresaCliente !== EmpresaCliente.VTAL
   )
   const pesquisasConcluidas = diligencias.filter(

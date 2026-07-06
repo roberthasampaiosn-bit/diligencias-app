@@ -55,6 +55,7 @@ export enum TipoEvento {
 export enum StatusPesquisa {
   Pendente = 'Pendente',
   Concluida = 'Concluída',
+  Dispensada = 'Dispensada',   // não é caso de entrevista (audiência, sem vítima, etc.)
 }
 
 export enum ResultadoLigacao {
