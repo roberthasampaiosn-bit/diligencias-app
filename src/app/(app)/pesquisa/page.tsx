@@ -1506,14 +1506,33 @@ function PesquisaContent() {
                         </a>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                        <span className="text-xs">
-                          {d.pesquisa.respostaVitima
-                            ? <span className="text-emerald-600 font-medium">✔ Pesquisa respondida</span>
-                            : <span className="text-slate-400">✖ {d.pesquisa.observacoes}</span>
-                          }
-                        </span>
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-start justify-between gap-2 pt-1 border-t border-slate-100">
+                        <div className="text-xs space-y-0.5 min-w-0">
+                          {/* Resultado: respondeu (sem motivo de encerramento) ou não */}
+                          <div>
+                            {(!!d.pesquisa.respostaVitima || !d.pesquisa.observacoes)
+                              ? <span className="text-emerald-600 font-medium">✔ Respondeu</span>
+                              : <span className="text-slate-500 font-medium">✖ Não respondeu</span>
+                            }
+                            {!d.pesquisa.respostaVitima && d.pesquisa.observacoes && (
+                              <span className="text-slate-400"> — {d.pesquisa.observacoes}</span>
+                            )}
+                          </div>
+                          {/* Resposta registrada (se houver) */}
+                          {d.pesquisa.respostaVitima && (
+                            <div className="text-slate-500 italic truncate">"{d.pesquisa.respostaVitima}"</div>
+                          )}
+                          {/* Data/hora da conclusão + entrevistador */}
+                          {d.pesquisa.dataConclusao ? (
+                            <div className="text-slate-400">
+                              Concluída em {formatDateTimeBR(d.pesquisa.dataConclusao)}
+                              {d.pesquisa.entrevistador ? ` · ${d.pesquisa.entrevistador}` : ''}
+                            </div>
+                          ) : (
+                            <div className="text-slate-300">Concluída (sem data registrada)</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => reabrirPesquisa(d.id)}
                             className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors"
