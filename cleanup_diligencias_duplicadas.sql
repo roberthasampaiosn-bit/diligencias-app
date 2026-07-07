@@ -1,30 +1,31 @@
--- Remove diligências duplicadas criadas para o MESMO evento (bug antigo da triagem,
--- que gerava 2 cards com o mesmo CCC). Deduplica por evento_id (não por CCC), então
--- placeholders como "AUDIENCIA"/"N/A" (que não têm evento) NÃO são afetados.
+-- Remove diligências duplicadas do MESMO CCC (bug antigo da triagem, que gerava
+-- 2 cards com o mesmo CCC). Deduplica por CCC, mas SÓ nos CCCs reais de evento
+-- ("BR-..."). Placeholders como "AUDIENCIA"/"N/A" não começam com "BR-" e por isso
+-- NÃO são tocados (são audiências/casos legítimos que só repetem o rótulo).
 --
--- Regra de qual manter, por evento: concluída > mais ligações > mais WA > mais antiga.
--- As demais do mesmo evento são removidas.
+-- Regra de qual manter, por CCC: concluída > mais ligações > mais WA > mais antiga.
+-- As demais do mesmo CCC são removidas.
 --
--- Cada consulta abaixo é INDEPENDENTE (não guarda nada entre Runs). Rode uma por vez.
+-- Cada consulta abaixo é INDEPENDENTE. Rode uma por vez (selecione do "with"/"create"
+-- até o ";" e clique Run).
 -- ═════════════════════════════════════════════════════════════════════════════
 
 
 -- ── CONSULTA A — CONFERIR (só leitura, não apaga nada) ───────────────────────
--- Selecione da linha "with" até o ";" e rode. Mostra o que será apagado.
 with ranked as (
   select
     d.id,
     row_number() over (
-      partition by d.evento_id
+      partition by d.ccc
       order by
         (d.pesquisa_status = 'Concluída') desc,
         (select count(*) from ligacoes l where l.diligencia_id = d.id) desc,
         coalesce(d.pesquisa_tentativas_whatsapp, 0) desc,
         d.created_at asc
     ) as rn,
-    count(*) over (partition by d.evento_id) as grp
+    count(*) over (partition by d.ccc) as grp
   from diligencias d
-  where d.evento_id is not null
+  where d.empresa_cliente <> 'V.TAL' and d.ccc like 'BR-%'
 )
 select d.ccc, d.vitima, d.pesquisa_status, d.created_at
 from diligencias d
@@ -33,21 +34,21 @@ order by d.ccc;
 
 
 -- ── CONSULTA B — APAGAR (um único comando; faz tudo de uma vez) ──────────────
--- Só rode depois de conferir a Consulta A. Selecione da linha "with" até o ";".
+-- Só rode depois de conferir a Consulta A.
 with ranked as (
   select
     d.id,
     row_number() over (
-      partition by d.evento_id
+      partition by d.ccc
       order by
         (d.pesquisa_status = 'Concluída') desc,
         (select count(*) from ligacoes l where l.diligencia_id = d.id) desc,
         coalesce(d.pesquisa_tentativas_whatsapp, 0) desc,
         d.created_at asc
     ) as rn,
-    count(*) over (partition by d.evento_id) as grp
+    count(*) over (partition by d.ccc) as grp
   from diligencias d
-  where d.evento_id is not null
+  where d.empresa_cliente <> 'V.TAL' and d.ccc like 'BR-%'
 ),
 to_del as (
   select id from ranked where grp > 1 and rn > 1
@@ -61,7 +62,7 @@ upd_ev as (
 delete from diligencias where id in (select id from to_del);
 
 
--- ── CONSULTA C — TRAVA (impede novas duplicatas por evento) ──────────────────
+-- ── CONSULTA C — TRAVA (impede novas duplicatas do mesmo CCC "BR-...") ───────
 -- Rode por último. Se der erro, sobrou alguma duplicata — me avise.
-create unique index if not exists diligencias_evento_id_unico
-  on diligencias (evento_id) where evento_id is not null;
+create unique index if not exists diligencias_ccc_bat_unico
+  on diligencias (ccc) where ccc like 'BR-%';

@@ -166,13 +166,14 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const createDiligencia = useCallback(async (
     data: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Diligencia> => {
-    // Trava anti-duplicata: se já existe diligência para este evento, devolve a
-    // existente em vez de criar outra (evita 2 cards do mesmo CCC por cliques
-    // rápidos na triagem antes do estado atualizar).
-    if (data.eventoId) {
-      const existente = diligenciasRef.current.find((d) => d.eventoId === data.eventoId)
-      if (existente) return existente
-    }
+    // Trava anti-duplicata: se já existe diligência para este evento (mesmo
+    // evento_id) ou para o mesmo CCC de evento ("BR-..."), devolve a existente em
+    // vez de criar outra — evita 2 cards do mesmo CCC por cliques rápidos na triagem.
+    const jaExiste = diligenciasRef.current.find((d) =>
+      (!!data.eventoId && d.eventoId === data.eventoId) ||
+      (!!data.ccc && data.ccc.startsWith('BR-') && d.ccc === data.ccc)
+    )
+    if (jaExiste) return jaExiste
     // Fadel quase nunca tem documento a anexar → já nasce com "sem documentos"
     // marcado, evitando ficar como pendência. Continua podendo anexar/desmarcar.
     if (data.dispensarDocumentos == null && /fadel/i.test(data.empresa ?? '')) {
