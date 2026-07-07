@@ -42,9 +42,21 @@ export interface DiligenciasContextValue {
 const DiligenciasContext = createContext<DiligenciasContextValue | null>(null)
 
 // Nome amigável do entrevistador a partir do e-mail logado (o Supabase Auth
-// nem sempre traz nome). Fallback: metadata do usuário → e-mail.
+// nem sempre traz nome). Mapa de e-mails conhecidos → nome exato.
 const NOME_POR_EMAIL: Record<string, string> = {
   'roberthasampaiosn@gmail.com': 'Roberta Sampaio',
+  'roberta.sampaio@arodriguesadv.com.br': 'Roberta Sampaio',
+}
+
+// Deriva um nome legível a partir do e-mail quando ele não está no mapa acima —
+// ex.: "roberta.sampaio@..." → "Roberta Sampaio". Evita gravar o e-mail cru.
+function nomeDoEmail(email: string): string {
+  const local = email.split('@')[0]
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
 }
 
 // Retorna string ISO local (sem conversão UTC) para evitar drift de fuso horário.
@@ -80,7 +92,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     (user?.user_metadata?.full_name as string | undefined) ||
     (user?.user_metadata?.name as string | undefined) ||
     NOME_POR_EMAIL[userEmail] ||
-    (userEmail !== 'desconhecido' ? userEmail : undefined)
+    (userEmail !== 'desconhecido' ? nomeDoEmail(userEmail) : undefined)
 
   // Ref sincronizado com o estado — permite leituras síncronas dentro de useCallback
   // sem adicionar `diligencias` nas dependências e gerar loops.
