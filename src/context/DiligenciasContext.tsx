@@ -29,7 +29,7 @@ export interface DiligenciasContextValue {
   atualizarAnexo: (id: string, campo: keyof Anexos, valor: string) => void
   uploadAnexo: (id: string, campo: keyof Anexos, file: File) => Promise<string>
   removerAnexo: (id: string, campo: keyof Anexos) => Promise<void>
-  registrarWhatsApp: (id: string, mensagem: string) => void
+  registrarWhatsApp: (id: string, mensagem: string) => Promise<boolean>
   registrarLigacao: (id: string, ligacao: Omit<Ligacao, 'id'>) => Promise<void>
   agendarRetorno: (id: string, data: string) => void
   marcarRespondida: (id: string, resposta: string) => void
@@ -277,7 +277,10 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     await removerAnexoDB(id, campo)
   }, [])
 
-  const registrarWhatsApp = useCallback((id: string, mensagem: string) => {
+  // Retorna true só quando o envio foi gravado no banco. Quem chama deve esperar
+  // esse retorno e só abrir o WhatsApp se vier true — assim a pessoa nunca manda
+  // a mensagem achando que registrou e depois reaparece como "Sem WA".
+  const registrarWhatsApp = useCallback(async (id: string, mensagem: string): Promise<boolean> => {
     const d = diligenciasRef.current.find((x) => x.id === id)
     // Guarda o estado anterior para reverter se a gravação falhar de vez —
     // assim nunca mostramos "enviado" sem ter salvo no banco.
@@ -292,14 +295,17 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       mensagemEnviada: mensagem,
       tentativasWhatsApp: novoCount,
     }
-    patchP(id, pp)
-    comRetry(() => patchPesquisa(id, pp))
-      .then(() => logAudit({ usuarioEmail: userEmail, acao: 'enviou_whatsapp', entidadeId: id, detalhes: d?.ccc }))
-      .catch((err) => {
-        console.error('[registrarWhatsApp] falha ao persistir após retries:', err)
-        patchP(id, anterior) // reverte o badge local: a pessoa volta para "Sem WA"
-        addToast('error', 'Não consegui registrar o envio (sem conexão). A pessoa segue como "Sem WA" — reenvie quando a internet voltar.')
-      })
+    patchP(id, pp) // otimista: badge já mostra "WA enviado" enquanto grava
+    try {
+      await comRetry(() => patchPesquisa(id, pp))
+      logAudit({ usuarioEmail: userEmail, acao: 'enviou_whatsapp', entidadeId: id, detalhes: d?.ccc })
+      return true
+    } catch (err) {
+      console.error('[registrarWhatsApp] falha ao persistir após retries:', err)
+      patchP(id, anterior) // reverte o badge local: a pessoa volta para "Sem WA"
+      addToast('error', 'Não consegui registrar o envio (conexão/banco instável). A pessoa segue como "Sem WA" — tente novamente em instantes.')
+      return false
+    }
   }, [patchP, addToast, userEmail])
 
   const registrarLigacao = useCallback(async (id: string, ligacao: Omit<Ligacao, 'id'>): Promise<void> => {

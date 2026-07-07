@@ -629,12 +629,14 @@ function PesquisaContent() {
     setPinnedAt(Date.now())
   }
 
-  function handleEnviarWhatsApp(d: Diligencia, phone: string) {
+  async function handleEnviarWhatsApp(d: Diligencia, phone: string) {
     const nomes = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
     const nome = sanitizeName(nomeDoTelefone(nomes, d.telefoneVitima, phone))
     const mensagem = buildPesquisaMessage(nome, d.tipoEvento, d.empresaCliente, getDataEvento(d))
-    registrarWhatsApp(d.id, mensagem)
-    window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
+    // Só abre o WhatsApp se o registro salvou no banco — se falhar, a pessoa
+    // segue como "Sem WA" (com aviso) em vez de mandar sem ficar registrado.
+    const ok = await registrarWhatsApp(d.id, mensagem)
+    if (ok) window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
   }
 
   function handleSalvarRetorno() {
@@ -1109,16 +1111,16 @@ function PesquisaContent() {
                                   const tipoEvento = evDil?.tipoEvento ?? ev.tipoEvento ?? ''
                                   const mensagem = buildPesquisaMessage(nome, tipoEvento, empresaCliente, ev.dataEvento ?? undefined)
                                   const url = buildWhatsAppUrl(phone, mensagem)
-                                  // Registra ANTES de abrir o WhatsApp: ao abrir o WA o app perde o
-                                  // foco (especialmente no celular) e as chamadas ao banco que viessem
-                                  // depois poderiam não completar, deixando o envio sem registro.
+                                  // Só abre o WhatsApp DEPOIS de confirmar que gravou no banco
+                                  // (criar a diligência + registrar o WA). Se qualquer passo falhar,
+                                  // NÃO abrimos — assim a pessoa nunca manda a mensagem achando que
+                                  // registrou e depois reaparece como "Sem WA".
                                   try {
                                     const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                    registrarWhatsApp(dil.id, mensagem)
+                                    const ok = await registrarWhatsApp(dil.id, mensagem)
+                                    if (ok) window.open(url, '_blank')
                                   } catch (err) {
-                                    addToast('error', `Erro ao registrar WA: ${err instanceof Error ? err.message : 'Tente novamente'}`)
-                                  } finally {
-                                    window.open(url, '_blank')
+                                    addToast('error', `Não consegui registrar (conexão/banco instável): ${err instanceof Error ? err.message : 'tente de novo em instantes'}. Não abri o WhatsApp para você não mandar sem registro.`)
                                   }
                                 }}
                                 className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
