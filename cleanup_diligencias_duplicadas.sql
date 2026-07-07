@@ -7,10 +7,14 @@
 --   2) mais ligações
 --   3) mais envios de WhatsApp
 --   4) a mais antiga (registro original)
--- As demais do mesmo evento são removidas.
+--
+-- OBS: usa uma tabela auxiliar NORMAL (não temporária) porque o Supabase roda
+-- cada "Run" numa sessão diferente — tabela temp não sobrevive entre passos.
+-- Pode rodar um passo por vez.
 
--- ── PASSO 1: montar a lista das duplicatas a remover ─────────────────────────
-create temp table _dups_del as
+-- ── PASSO 1: monta a lista das duplicatas a remover ──────────────────────────
+drop table if exists dups_a_remover;
+create table dups_a_remover as
 with ranked as (
   select
     d.id,
@@ -31,18 +35,16 @@ select id from ranked where grp > 1 and rn > 1;
 -- ── PASSO 2 (confira!): veja exatamente o que será apagado ───────────────────
 select ccc, vitima, pesquisa_status, created_at
 from diligencias
-where id in (select id from _dups_del)
+where id in (select id from dups_a_remover)
 order by ccc;
 
 -- ── PASSO 3: só rode depois de conferir o passo 2 ────────────────────────────
--- Remove dependências e as diligências duplicadas.
-delete from ligacoes where diligencia_id in (select id from _dups_del);
-update eventos set diligencia_id = null where diligencia_id in (select id from _dups_del);
-delete from diligencias where id in (select id from _dups_del);
+delete from ligacoes where diligencia_id in (select id from dups_a_remover);
+update eventos set diligencia_id = null where diligencia_id in (select id from dups_a_remover);
+delete from diligencias where id in (select id from dups_a_remover);
 
-drop table _dups_del;
-
--- ── PASSO 4: trava definitiva — impede 2 diligências para o mesmo evento ─────
--- (só roda limpo se não sobrar nenhuma duplicata; se falhar, ainda há dups)
+-- ── PASSO 4: limpa a tabela auxiliar e cria a trava definitiva ───────────────
+-- (índice único impede 2 diligências para o mesmo evento; se falhar, sobrou dup)
+drop table dups_a_remover;
 create unique index if not exists diligencias_evento_id_unico
   on diligencias (evento_id) where evento_id is not null;
