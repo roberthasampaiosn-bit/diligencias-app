@@ -166,6 +166,13 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const createDiligencia = useCallback(async (
     data: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Diligencia> => {
+    // Trava anti-duplicata: se já existe diligência para este evento, devolve a
+    // existente em vez de criar outra (evita 2 cards do mesmo CCC por cliques
+    // rápidos na triagem antes do estado atualizar).
+    if (data.eventoId) {
+      const existente = diligenciasRef.current.find((d) => d.eventoId === data.eventoId)
+      if (existente) return existente
+    }
     // Fadel quase nunca tem documento a anexar → já nasce com "sem documentos"
     // marcado, evitando ficar como pendência. Continua podendo anexar/desmarcar.
     if (data.dispensarDocumentos == null && /fadel/i.test(data.empresa ?? '')) {
