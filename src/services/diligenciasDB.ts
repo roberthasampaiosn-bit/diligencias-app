@@ -14,17 +14,32 @@ const CAMPO_TO_FILENAME: Record<keyof Anexos, string> = {
   comprovanteServico: 'comprovante-servico',
 }
 
+// MIME por extensão. No iOS/Safari o File vindo do app Arquivos costuma chegar
+// com file.type vazio; se o bucket restringe tipos, o upload é rejeitado só no
+// celular. Por isso passamos o contentType explicitamente em vez de confiar no File.
+const EXT_TO_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
 export async function uploadArquivoAnexo(
   diligenciaId: string,
   campo: keyof Anexos,
   file: File,
 ): Promise<string> {
-  const ext = file.name.split('.').pop() ?? 'pdf'
+  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase()
   const path = `diligencias/${diligenciaId}/${CAMPO_TO_FILENAME[campo]}.${ext}`
+  const contentType = EXT_TO_MIME[ext] || file.type || 'application/octet-stream'
 
   const { error: upError } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(path, file, { upsert: true })
+    .upload(path, file, { upsert: true, contentType })
 
   if (upError) throw new Error(`Storage upload: ${upError.message}`)
 

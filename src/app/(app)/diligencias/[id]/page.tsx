@@ -205,8 +205,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     } catch (err) {
       console.error('[upload anexo]', err)
       setUploadState((s) => ({ ...s, [campo]: 'error' }))
+      addToast('error', `Falha no upload: ${(err as Error).message}`)
     }
-  }, [id, uploadAnexo])
+  }, [id, uploadAnexo, addToast])
 
   function handleFinalizar() {
     if (!notaAdv) return
