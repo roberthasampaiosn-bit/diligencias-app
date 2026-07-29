@@ -22,38 +22,45 @@ function detectarTipo(url: string, contentType: string): 'pdf' | 'jpg' | 'png' |
 export async function gerarPDFFinal(ccc: string, itens: ItemPDFFinal[]): Promise<void> {
   const merged = await PDFDocument.create()
 
+  // Baixa e decodifica todos os arquivos em paralelo, mas preserva a ordem do array `itens`
+  // (allSettled resolve na ordem de entrada, independentemente de qual download terminar antes).
   const resultados = await Promise.allSettled(
     itens.map(async ({ url, nome }) => {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`Falha ao buscar ${nome}: ${res.status}`)
       const contentType = res.headers.get('content-type') ?? ''
       const tipo = detectarTipo(url, contentType)
+      if (tipo === 'desconhecido') throw new Error(`Formato não suportado para ${nome}`)
       const bytes = await res.arrayBuffer()
-
-      if (tipo === 'pdf') {
-        const srcDoc = await PDFDocument.load(bytes)
-        const indices = srcDoc.getPageIndices()
-        const paginas = await merged.copyPages(srcDoc, indices)
-        paginas.forEach((p) => merged.addPage(p))
-      } else if (tipo === 'jpg') {
-        const img = await merged.embedJpg(bytes)
-        const { width, height } = img.scale(1)
-        const page = merged.addPage([width, height])
-        page.drawImage(img, { x: 0, y: 0, width, height })
-      } else if (tipo === 'png') {
-        const img = await merged.embedPng(bytes)
-        const { width, height } = img.scale(1)
-        const page = merged.addPage([width, height])
-        page.drawImage(img, { x: 0, y: 0, width, height })
-      } else {
-        throw new Error(`Formato não suportado para ${nome}`)
-      }
+      return { tipo, bytes }
     }),
   )
 
-  const erros = resultados
-    .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-    .map((r) => r.reason as Error)
+  // Adiciona as páginas em sequência, respeitando a ordem de `itens`.
+  const erros: Error[] = []
+  for (const r of resultados) {
+    if (r.status === 'rejected') {
+      erros.push(r.reason as Error)
+      continue
+    }
+    const { tipo, bytes } = r.value
+    if (tipo === 'pdf') {
+      const srcDoc = await PDFDocument.load(bytes)
+      const indices = srcDoc.getPageIndices()
+      const paginas = await merged.copyPages(srcDoc, indices)
+      paginas.forEach((p) => merged.addPage(p))
+    } else if (tipo === 'jpg') {
+      const img = await merged.embedJpg(bytes)
+      const { width, height } = img.scale(1)
+      const page = merged.addPage([width, height])
+      page.drawImage(img, { x: 0, y: 0, width, height })
+    } else if (tipo === 'png') {
+      const img = await merged.embedPng(bytes)
+      const { width, height } = img.scale(1)
+      const page = merged.addPage([width, height])
+      page.drawImage(img, { x: 0, y: 0, width, height })
+    }
+  }
 
   if (erros.length > 0 && erros.length === itens.length) {
     throw new Error('Nenhum arquivo pôde ser processado.')

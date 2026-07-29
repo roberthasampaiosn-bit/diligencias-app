@@ -343,14 +343,21 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
 
   async function handleBaixarPDF() {
     const dLocal = d!   // seguro: função só é acessível após o guard `if (!d) return`
-    const itens = itensUpload
+    // Ordem fixa do PDF final: contrato, recibo, comprovante de pagamento, comprovante de serviço.
+    const ordemPDF = [
+      { campo: 'contratoAssinado' as const, nome: 'Contrato assinado' },
+      { campo: 'reciboAssinado' as const, nome: 'Recibo assinado' },
+      { campo: 'comprovantePagamento' as const, nome: 'Comprovante de pagamento' },
+      { campo: 'comprovanteServico' as const, nome: 'Comprovante de serviço' },
+    ]
+    const itens = ordemPDF
       .filter((i) => {
         const url = dLocal.anexos[i.campo]
         return url && url.startsWith('http')
       })
       .map((i) => ({
         url: dLocal.anexos[i.campo]!,
-        nome: i.label,
+        nome: i.nome,
       }))
 
     if (itens.length === 0) return
