@@ -86,6 +86,7 @@ function FormBatBrasil() {
     regiaoGtsc: '',
     motoristaAgredido: '',
     dataEvento: '',
+    dataAtendimento: '',
     dataLigacaoAdvogado: '',
     horaLigacaoAdvogado: '',
   })
@@ -103,7 +104,9 @@ function FormBatBrasil() {
 
   // Remoto (sempre) OU empresa Fadel vinda da triagem → botão "Criar e Concluir"
   const isFadel = form.empresa.toLowerCase().includes('fadel')
-  const isCriarEConcluir = form.modoDiligencia === ModoDiligencia.Remoto || (!!eventoId && isFadel)
+  // Remoto (sempre), Fadel da triagem, ou nova diligência de um CCC existente
+  // (aditamento — em geral já foi realizado) → oferece "Criar e Concluir".
+  const isCriarEConcluir = form.modoDiligencia === ModoDiligencia.Remoto || (!!eventoId && isFadel) || !!fromId
 
   // Restaurar form do sessionStorage ao voltar da criação de advogado
   useEffect(() => {
@@ -127,8 +130,10 @@ function FormBatBrasil() {
   useEffect(() => {
     if (!fromDiligencia || autoFilled) return
     const d = fromDiligencia
+    const hojeStr = new Date().toISOString().split('T')[0]
     setForm((prev) => ({
       ...prev,
+      // ── Dados do EVENTO/vítima — se repetem numa 2ª diligência do mesmo CCC ──
       ccc: d.ccc || prev.ccc,
       vitima: d.vitima || prev.vitima,
       telefoneVitima: d.telefoneVitima || prev.telefoneVitima,
@@ -139,16 +144,21 @@ function FormBatBrasil() {
       tipoEvento: d.tipoEvento || prev.tipoEvento,
       dataEvento: d.dataEvento || prev.dataEvento,
       horaEvento: d.horaEvento || prev.horaEvento,
-      tipoDiligencia: d.tipoDiligencia || prev.tipoDiligencia,
       modoDiligencia: d.modoDiligencia || prev.modoDiligencia,
-      advogadoId: d.advogadoId || prev.advogadoId,
-      valorDiligencia: d.valorDiligencia ? String(d.valorDiligencia) : prev.valorDiligencia,
       operacao: d.operacao || prev.operacao,
       segmento: d.segmento || prev.segmento,
       regiaoGtsc: d.regiaoGtsc || prev.regiaoGtsc,
+      // ── Dados do SERVIÇO — próprios de cada diligência ──
+      // "Dobrada" copia (é o mesmo serviço replicado). "Nova diligência"
+      // (aditamento) começa limpa: outro dia, muitas vezes outro advogado/valor.
+      tipoDiligencia: isDobrada ? (d.tipoDiligencia || prev.tipoDiligencia) : prev.tipoDiligencia,
+      advogadoId: isDobrada ? (d.advogadoId || prev.advogadoId) : '',
+      valorDiligencia: isDobrada ? (d.valorDiligencia ? String(d.valorDiligencia) : prev.valorDiligencia) : '',
+      // Data em que ESTA diligência está sendo feita (hoje) — não confundir com data do evento
+      dataAtendimento: hojeStr,
       observacoes: isDobrada
         ? `Diligência dobrada — referente à ${d.ccc}`
-        : (d.observacoes || prev.observacoes),
+        : '',
     }))
     setAutoFilled(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,7 +372,7 @@ function FormBatBrasil() {
       const nova = await createDiligencia({
         ...base,
         status: concluir ? StatusDiligencia.Realizada : StatusDiligencia.EmAndamento,
-        dataAtendimento: concluir ? hoje : undefined,
+        dataAtendimento: form.dataAtendimento || (concluir ? hoje : undefined),
         statusPagamento: statusPagamentoFinal,
         cicloFinalizado: concluir,
         pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
@@ -427,8 +437,11 @@ function FormBatBrasil() {
           )}
           <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
-          <Input label="Data do evento" type="date" value={form.dataEvento} onChange={(e) => set('dataEvento', e.target.value)} />
+          <Input label="Data do evento" type="date" value={form.dataEvento} onChange={(e) => set('dataEvento', e.target.value)} helper="Quando o fato aconteceu (não muda num aditamento)." />
           <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => setHora('horaEvento', e.target.value)} placeholder="HH:MM" />
+          <div className="sm:col-span-2">
+            <Input label="Data da diligência (quando foi realizada)" type="date" value={form.dataAtendimento} onChange={(e) => set('dataAtendimento', e.target.value)} helper="Data em que o serviço foi feito — ex.: hoje, no caso de um aditamento. É esta data que vai no PDF e no financeiro." />
+          </div>
           <Select label="Modo de assistência" value={form.modoDiligencia} onChange={(e) => {
             const modo = e.target.value
             setDispensarDocumentos(modo === ModoDiligencia.Remoto)
