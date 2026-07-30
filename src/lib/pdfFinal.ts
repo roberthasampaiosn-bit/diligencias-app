@@ -37,6 +37,8 @@ export async function gerarPDFFinal(ccc: string, itens: ItemPDFFinal[]): Promise
   )
 
   // Adiciona as páginas em sequência, respeitando a ordem de `itens`.
+  // Cada item é isolado em try/catch: um arquivo problemático não derruba o PDF
+  // inteiro, apenas entra na lista de erros (gera o restante mesmo assim).
   const erros: Error[] = []
   for (const r of resultados) {
     if (r.status === 'rejected') {
@@ -44,21 +46,27 @@ export async function gerarPDFFinal(ccc: string, itens: ItemPDFFinal[]): Promise
       continue
     }
     const { tipo, bytes } = r.value
-    if (tipo === 'pdf') {
-      const srcDoc = await PDFDocument.load(bytes)
-      const indices = srcDoc.getPageIndices()
-      const paginas = await merged.copyPages(srcDoc, indices)
-      paginas.forEach((p) => merged.addPage(p))
-    } else if (tipo === 'jpg') {
-      const img = await merged.embedJpg(bytes)
-      const { width, height } = img.scale(1)
-      const page = merged.addPage([width, height])
-      page.drawImage(img, { x: 0, y: 0, width, height })
-    } else if (tipo === 'png') {
-      const img = await merged.embedPng(bytes)
-      const { width, height } = img.scale(1)
-      const page = merged.addPage([width, height])
-      page.drawImage(img, { x: 0, y: 0, width, height })
+    try {
+      if (tipo === 'pdf') {
+        // ignoreEncryption: PDFs assinados (ZapSign) costumam vir criptografados;
+        // sem isso o pdf-lib recusa carregar e o PDF final falha por inteiro.
+        const srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+        const indices = srcDoc.getPageIndices()
+        const paginas = await merged.copyPages(srcDoc, indices)
+        paginas.forEach((p) => merged.addPage(p))
+      } else if (tipo === 'jpg') {
+        const img = await merged.embedJpg(bytes)
+        const { width, height } = img.scale(1)
+        const page = merged.addPage([width, height])
+        page.drawImage(img, { x: 0, y: 0, width, height })
+      } else if (tipo === 'png') {
+        const img = await merged.embedPng(bytes)
+        const { width, height } = img.scale(1)
+        const page = merged.addPage([width, height])
+        page.drawImage(img, { x: 0, y: 0, width, height })
+      }
+    } catch (err) {
+      erros.push(err as Error)
     }
   }
 
