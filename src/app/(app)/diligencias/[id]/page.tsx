@@ -63,6 +63,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [dataRealizacao, setDataRealizacao] = useState(() => new Date().toISOString().split('T')[0])
   const [modalPago, setModalPago] = useState(false)
   const [modalFinalizar, setModalFinalizar] = useState(false)
+  const [modalRecibo, setModalRecibo] = useState(false)
+  const [dataRecibo, setDataRecibo] = useState('')
   const [modalFinalizarAnne, setModalFinalizarAnne] = useState(false)
   const [modalPendencia, setModalPendencia] = useState(false)
   const [showDownloads, setShowDownloads] = useState(false)
@@ -327,11 +329,11 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     }
   }
 
-  async function handleGerarRecibo() {
+  async function handleGerarRecibo(dataRecibo?: string) {
     if (!adv) { addToast('error', 'Advogado não encontrado para esta diligência.'); return }
     setGerandoRecibo(true)
     try {
-      const filename = gerarReciboPDF(d!, adv)
+      const filename = gerarReciboPDF(d!, adv, dataRecibo)
       atualizarAnexo(id, 'reciboGerado', filename)
       addToast('success', 'Recibo gerado com sucesso.')
     } catch (err) {
@@ -424,7 +426,15 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </Button>
         )}
         {!isRemoto && (
-          <Button variant="secondary" size="sm" loading={gerandoRecibo} onClick={handleGerarRecibo}>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={gerandoRecibo}
+            onClick={() => {
+              setDataRecibo(d.dataAtendimento || new Date().toISOString().split('T')[0])
+              setModalRecibo(true)
+            }}
+          >
             <FileText className="w-3.5 h-3.5" /> Gerar recibo
           </Button>
         )}
@@ -1063,6 +1073,34 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setModalRealizada(false)}>Cancelar</Button>
             <Button autoFocus variant="success" size="sm" onClick={() => { marcarRealizada(id, dataRealizacao || undefined); setModalRealizada(false) }}>Confirmar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal gerar recibo — escolher a data */}
+      <Modal open={modalRecibo} onClose={() => setModalRecibo(false)} title="Gerar recibo" size="sm">
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-600">Escolha a <strong>data do recibo</strong> (dia do pagamento). Aparece no campo &quot;Local e data&quot;.</p>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Data do recibo</label>
+            <input
+              type="date"
+              value={dataRecibo}
+              onChange={(e) => setDataRecibo(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setModalRecibo(false)}>Cancelar</Button>
+            <Button
+              autoFocus
+              variant="primary"
+              size="sm"
+              disabled={!dataRecibo}
+              onClick={() => { setModalRecibo(false); handleGerarRecibo(dataRecibo || undefined) }}
+            >
+              Gerar recibo
+            </Button>
           </div>
         </div>
       </Modal>

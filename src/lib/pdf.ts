@@ -387,7 +387,7 @@ function drawParagrafoJustificadoRich(
   return lines.length
 }
 
-function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsPDF; filename: string } {
+function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado, dataRecibo?: string): { doc: jsPDF; filename: string } {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pw = doc.internal.pageSize.getWidth()   // 210 mm
   setupDoc(doc)
@@ -469,7 +469,7 @@ function _buildReciboDoc(diligencia: Diligencia, advogado: Advogado): { doc: jsP
   y += SEC
 
   // ── Local e data ──────────────────────────────────────────────────────────
-  doc.text(`Local e data: São Paulo, ${formatarDataExtenso(hoje())}.`, M, y)
+  doc.text(`Local e data: São Paulo, ${formatarDataExtenso(dataRecibo || hoje())}.`, M, y)
   y += SEC * 2    // ~20mm antes da assinatura
 
   // ── Assinatura ────────────────────────────────────────────────────────────
@@ -724,9 +724,9 @@ export function gerarContratoBase64Only(
 
 // ─── Recibo ──────────────────────────────────────────────────────────────────
 
-export function gerarReciboPDF(diligencia: Diligencia, advogado: Advogado): string {
+export function gerarReciboPDF(diligencia: Diligencia, advogado: Advogado, dataRecibo?: string): string {
   const builder = _selectReciboBuilder(diligencia)
-  const { doc, filename } = builder(diligencia, advogado)
+  const { doc, filename } = builder(diligencia, advogado, dataRecibo)
   doc.save(filename)
   return filename
 }
