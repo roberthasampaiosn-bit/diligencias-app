@@ -8,7 +8,9 @@ import { NextRequest, NextResponse } from 'next/server'
 export interface EnviarZapSignBody {
   pdfBase64: string
   filename: string
-  tipo: 'contrato' | 'recibo'
+  // 'contrato_recibo' = contrato + recibo mesclados num único documento (advogado
+  // assina uma vez só; Adriana também assina, como no contrato).
+  tipo: 'contrato' | 'recibo' | 'contrato_recibo'
   diligenciaId?: string
   nomeAdvogado: string
   whatsappAdvogado: string
@@ -61,9 +63,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     send_automatic_whatsapp: false,
   }
 
-  // Contrato: Adriana primeiro, advogado segundo.
-  // Recibo: apenas advogado.
-  const signers = tipo === 'contrato' ? [signerAdriana, signerAdvogado] : [signerAdvogado]
+  // Contrato (e contrato+recibo mesclado): Adriana primeiro, advogado segundo.
+  // Recibo sozinho: apenas advogado.
+  const precisaAdriana = tipo === 'contrato' || tipo === 'contrato_recibo'
+  const signers = precisaAdriana ? [signerAdriana, signerAdvogado] : [signerAdvogado]
 
   const zapRes = await fetch('https://api.zapsign.com.br/api/v1/docs/', {
     method: 'POST',
@@ -101,7 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let linkAdriana: string | undefined
   let linkAdvogado: string
 
-  if (tipo === 'contrato') {
+  if (precisaAdriana) {
     linkAdriana = signersList.find((s) => s.name === 'Adriana Rodrigues')?.sign_url ?? signersList[0]?.sign_url
     linkAdvogado = signersList.find((s) => s.name === nomeAdvogado)?.sign_url ?? signersList[1]?.sign_url ?? ''
   } else {

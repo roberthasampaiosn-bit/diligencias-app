@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/Modal'
 import { StatusDiligenciaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, tituloDiligencia } from '@/lib/utils'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoParaZapSign, gerarReciboParaZapSign, gerarContratoAvulsoParaZapSign, gerarReciboAvulsoParaZapSign } from '@/lib/pdf'
+import { mesclarPdfsBase64 } from '@/lib/pdfFinal'
 import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import { fetchDocumentosAvulsos, insertDocumentoAvulso } from '@/services/documentosAvulsosDB'
 import { Diligencia, Advogado, Anexos, DocumentoAvulso, EmpresaCliente } from '@/types'
@@ -77,13 +78,14 @@ function DocumentosContent() {
   const [avulsoAdvogadoId, setAvulsoAdvogadoId] = useState('')
   const [avulsoEmpresa, setAvulsoEmpresa] = useState<EmpresaCliente>(EmpresaCliente.BatBrasil)
   const [avulsoValor, setAvulsoValor] = useState('')
-  const [avulsoTipo, setAvulsoTipo] = useState<'contrato' | 'recibo' | 'ambos'>('contrato')
+  const [avulsoTipo, setAvulsoTipo] = useState<'contrato' | 'recibo' | 'ambos' | 'juntos'>('contrato')
   const [avulsoData, setAvulsoData] = useState('')
   const [avulsoServico, setAvulsoServico] = useState('')
   const [avulsoGerando, setAvulsoGerando] = useState(false)
   const [avulsoResultado, setAvulsoResultado] = useState<{
     contrato?: EnviarZapSignResult & { filename: string; dataUri: string }
     recibo?: EnviarZapSignResult & { filename: string; dataUri: string }
+    juntos?: EnviarZapSignResult & { filename: string; dataUri: string }
   } | null>(null)
 
   // ── Histórico de avulsos ──────────────────────────────────────────────────
@@ -123,6 +125,23 @@ function DocumentosContent() {
       const dados = { valor, dataAtendimento: avulsoData || undefined, tipoServico: avulsoServico || undefined }
       const resultado: typeof avulsoResultado = {}
 
+      // "Juntos": contrato + recibo mesclados em UM documento → advogado assina 1x.
+      if (avulsoTipo === 'juntos') {
+        const contrato = gerarContratoAvulsoParaZapSign(dados, adv, avulsoEmpresa)
+        const recibo = gerarReciboAvulsoParaZapSign(dados, adv, avulsoEmpresa)
+        const merged = await mesclarPdfsBase64([contrato.base64, recibo.base64])
+        const primeiroNome = adv.nomeCompleto.split(' ')[0]
+        const dataStr = new Date().toISOString().split('T')[0].replace(/-/g, '')
+        const filename = `contrato-recibo-AVULSO-${primeiroNome}-${dataStr}.pdf`
+        const res = await fetch('/api/zapsign/enviar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfBase64: merged, filename, tipo: 'contrato_recibo', nomeAdvogado: adv.nomeCompleto, whatsappAdvogado: adv.whatsapp ?? '' }),
+        })
+        if (!res.ok) { const e = await res.json().catch(() => ({ error: 'Erro' })); alert(`ZapSign: ${e.error}`); return }
+        resultado.juntos = { ...(await res.json() as EnviarZapSignResult), filename, dataUri: `data:application/pdf;base64,${merged}` }
+      }
+
       if (avulsoTipo === 'contrato' || avulsoTipo === 'ambos') {
         const { filename, base64, dataUri } = gerarContratoAvulsoParaZapSign(dados, adv, avulsoEmpresa)
         const res = await fetch('/api/zapsign/enviar', {
@@ -156,10 +175,10 @@ function DocumentosContent() {
           valor,
           dataAtendimento: avulsoData || undefined,
           tipoServico: avulsoServico || undefined,
-          filenameContrato: resultado.contrato?.filename,
-          zapsignTokenContrato: resultado.contrato?.documentToken,
-          linkAssinaturaAdriana: resultado.contrato?.linkAdriana,
-          linkAssinaturaAdvogadoContrato: resultado.contrato?.linkAdvogado,
+          filenameContrato: resultado.contrato?.filename ?? resultado.juntos?.filename,
+          zapsignTokenContrato: resultado.contrato?.documentToken ?? resultado.juntos?.documentToken,
+          linkAssinaturaAdriana: resultado.contrato?.linkAdriana ?? resultado.juntos?.linkAdriana,
+          linkAssinaturaAdvogadoContrato: resultado.contrato?.linkAdvogado ?? resultado.juntos?.linkAdvogado,
           filenameRecibo: resultado.recibo?.filename,
           zapsignTokenRecibo: resultado.recibo?.documentToken,
           linkAssinaturaAdvogadoRecibo: resultado.recibo?.linkAdvogado,
@@ -649,8 +668,8 @@ function DocumentosContent() {
               {avulsoAdvogadoId && (() => {
                 const adv = advogadoMap.get(avulsoAdvogadoId)
                 if (!adv) return null
-                const precisaContrato = avulsoTipo === 'contrato' || avulsoTipo === 'ambos'
-                const precisaRecibo   = avulsoTipo === 'recibo'   || avulsoTipo === 'ambos'
+                const precisaContrato = avulsoTipo === 'contrato' || avulsoTipo === 'ambos' || avulsoTipo === 'juntos'
+                const precisaRecibo   = avulsoTipo === 'recibo'   || avulsoTipo === 'ambos' || avulsoTipo === 'juntos'
                 const campos: { label: string; valor?: string; usadoEm: string }[] = [
                   { label: 'Nome completo', valor: adv.nomeCompleto, usadoEm: 'contrato e recibo' },
                   { label: 'CPF',          valor: adv.cpf,          usadoEm: 'contrato e recibo' },
@@ -718,18 +737,28 @@ function DocumentosContent() {
               {/* Tipo de documento */}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de documento</label>
-                <div className="flex gap-2">
-                  {(['contrato', 'recibo', 'ambos'] as const).map((t) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { t: 'contrato', label: 'Só contrato' },
+                    { t: 'recibo',   label: 'Só recibo' },
+                    { t: 'ambos',    label: 'Ambos (2 links)' },
+                    { t: 'juntos',   label: 'Contrato + recibo (1 assinatura)' },
+                  ] as const).map(({ t, label }) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setAvulsoTipo(t)}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${avulsoTipo === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                      className={`py-2 px-2 rounded-lg border text-sm font-medium transition-colors ${avulsoTipo === t ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
                     >
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                      {label}
                     </button>
                   ))}
                 </div>
+                {avulsoTipo === 'juntos' && (
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    Contrato e recibo saem num só documento — o advogado assina uma única vez (Adriana também assina, pelo contrato).
+                  </p>
+                )}
               </div>
 
               {/* Valor */}
@@ -746,7 +775,7 @@ function DocumentosContent() {
               </div>
 
               {/* Data de atendimento (recibo) */}
-              {(avulsoTipo === 'recibo' || avulsoTipo === 'ambos') && (
+              {(avulsoTipo === 'recibo' || avulsoTipo === 'ambos' || avulsoTipo === 'juntos') && (
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Data do serviço <span className="text-slate-400">(opcional)</span></label>
                   <input
@@ -759,7 +788,7 @@ function DocumentosContent() {
               )}
 
               {/* Tipo de serviço (recibo) */}
-              {(avulsoTipo === 'recibo' || avulsoTipo === 'ambos') && (
+              {(avulsoTipo === 'recibo' || avulsoTipo === 'ambos' || avulsoTipo === 'juntos') && (
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de serviço <span className="text-slate-400">(opcional)</span></label>
                   <input
@@ -787,6 +816,51 @@ function DocumentosContent() {
                 <CheckCircle2 className="w-5 h-5" />
                 Documento(s) gerado(s) e enviado(s) ao ZapSign!
               </div>
+
+              {avulsoResultado.juntos && (() => {
+                const adv = advogadoMap.get(avulsoAdvogadoId)
+                const { linkAdriana, linkAdvogado, dataUri, filename } = avulsoResultado.juntos!
+                return (
+                  <div className="border border-emerald-100 bg-emerald-50 rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Contrato + Recibo (1 assinatura)</p>
+                      <a href={dataUri} download={filename}>
+                        <Button size="sm" variant="secondary"><Download className="w-3.5 h-3.5" />Baixar PDF</Button>
+                      </a>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {linkAdriana && (
+                        <a href={buildWhatsAppAdriana('AVULSO', 'contrato', linkAdriana)} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="secondary"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WA Adriana</Button>
+                        </a>
+                      )}
+                      {adv && linkAdvogado && (
+                        <a href={buildWhatsAppZapSign(adv.whatsapp, adv.nomeCompleto, 'AVULSO', 'contrato', linkAdvogado)} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="secondary"><MessageCircle className="w-3.5 h-3.5 text-green-600" />WA Advogado</Button>
+                        </a>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 bg-white rounded-lg p-2.5">
+                      {linkAdriana && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-slate-400 w-24 flex-shrink-0 pt-0.5">Adriana assina:</span>
+                          <a href={linkAdriana} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all flex items-start gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />{linkAdriana}
+                          </a>
+                        </div>
+                      )}
+                      {linkAdvogado && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-slate-400 w-24 flex-shrink-0 pt-0.5">Advogado assina:</span>
+                          <a href={linkAdvogado} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all flex items-start gap-1">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />{linkAdvogado}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {avulsoResultado.contrato && (() => {
                 const adv = advogadoMap.get(avulsoAdvogadoId)

@@ -266,7 +266,9 @@ export interface DocumentoAvulso {
   id: string
   advogadoId: string | null
   advogadoNome: string
-  tipo: 'contrato' | 'recibo' | 'ambos'
+  // 'ambos' = contrato e recibo em 2 documentos (2 links). 'juntos' = contrato +
+  // recibo mesclados num único documento (o advogado assina uma vez só).
+  tipo: 'contrato' | 'recibo' | 'ambos' | 'juntos'
   valor: number
   dataAtendimento?: string
   tipoServico?: string

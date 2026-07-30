@@ -5,6 +5,26 @@ export interface ItemPDFFinal {
   nome: string
 }
 
+// Junta vários PDFs (em base64) num único PDF, retornando base64 — usado para
+// enviar contrato + recibo como UM documento só ao ZapSign (uma assinatura).
+export async function mesclarPdfsBase64(base64List: string[]): Promise<string> {
+  const merged = await PDFDocument.create()
+  for (const b64 of base64List) {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+    const src = await PDFDocument.load(bytes, { ignoreEncryption: true })
+    const paginas = await merged.copyPages(src, src.getPageIndices())
+    paginas.forEach((p) => merged.addPage(p))
+  }
+  const out = await merged.save()
+  // Uint8Array -> base64 em blocos (evita estouro de pilha em PDFs grandes)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < out.length; i += chunk) {
+    binary += String.fromCharCode(...out.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
 function detectarTipo(url: string, contentType: string): 'pdf' | 'jpg' | 'png' | 'desconhecido' {
   const ct = contentType.toLowerCase()
   if (ct.includes('pdf')) return 'pdf'
