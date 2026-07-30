@@ -188,6 +188,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('statusAssinaturaRecibo' in patch) row.status_assinatura_recibo = patch.statusAssinaturaRecibo ?? null
   if ('dispensarDocumentos' in patch) row.dispensar_documentos = patch.dispensarDocumentos ?? null
   if ('incluirNaPlanilha' in patch) row.incluir_na_planilha = patch.incluirNaPlanilha ?? null
+  if ('pdfFinalGeradoEm' in patch) row.pdf_final_gerado_em = patch.pdfFinalGeradoEm ?? null
 
   if ('pesquisa' in patch && patch.pesquisa) {
     const p = patch.pesquisa

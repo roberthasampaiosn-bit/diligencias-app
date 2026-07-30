@@ -192,6 +192,18 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   ].filter(Boolean) as string[] : []
   const temPendenciaDocumental = d.cicloFinalizado && pendenciasDocumentais.length > 0
 
+  // Avisos (item B): pronto para gerar o PDF final e "já gerado em ..."
+  const prontoParaPDF = !semDocumentos && pendenciasDocumentais.length === 0
+  const contratoAssinado = d.statusAssinaturaContrato === 'assinado' || !!d.anexos.contratoAssinado
+  const reciboAssinado = d.statusAssinaturaRecibo === 'assinado' || !!d.anexos.reciboAssinado
+  const pdfGeradoQuando = d.pdfFinalGeradoEm
+    ? (() => {
+        const dt = new Date(d.pdfFinalGeradoEm)
+        const p = (n: number) => String(n).padStart(2, '0')
+        return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()} às ${p(dt.getHours())}:${p(dt.getMinutes())}`
+      })()
+    : null
+
   const whatsappZapContrato = adv && linkContratoZap
     ? buildWhatsAppZapSign(adv.whatsapp || adv.telefone, adv.nomeCompleto, d.ccc, 'contrato', linkContratoZap)
     : null
@@ -413,6 +425,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     setPdfErro(null)
     try {
       await gerarPDFFinal(nomeArquivoPDFFinal(dLocal, adv?.nomeCompleto), itens)
+      // Marca que o PDF final foi gerado (aviso — não bloqueia gerar de novo).
+      updateDiligencia(id, { pdfFinalGeradoEm: new Date().toISOString() }).catch(() => {})
     } catch (err) {
       setPdfErro((err as Error).message)
     } finally {
@@ -729,6 +743,16 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               <Package className="w-4 h-4 text-slate-400" />
               <CardTitle>Documentos e Comprovantes</CardTitle>
               <span className="text-xs text-slate-400">({totalDocs}/{itensUpload.length} anexados)</span>
+              {!semDocumentos && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium">
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${contratoAssinado ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                    {contratoAssinado ? <CheckCircle2 className="w-3 h-3" /> : <span className="w-2.5 h-2.5 rounded-full border border-slate-300 inline-block" />} Contrato
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${reciboAssinado ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                    {reciboAssinado ? <CheckCircle2 className="w-3 h-3" /> : <span className="w-2.5 h-2.5 rounded-full border border-slate-300 inline-block" />} Recibo
+                  </span>
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button
@@ -776,6 +800,24 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               {pdfErro}
               <button className="ml-auto text-red-500 hover:text-red-700" onClick={() => setPdfErro(null)}>✕</button>
+            </div>
+          )}
+
+          {/* Avisos (item B): pronto para gerar / PDF já gerado */}
+          {!semDocumentos && (prontoParaPDF || pdfGeradoQuando) && (
+            <div className="mb-4 space-y-2">
+              {prontoParaPDF && (
+                <div className="flex items-center gap-2 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  Tudo pronto — todos os documentos estão anexados. Você já pode gerar o PDF final.
+                </div>
+              )}
+              {pdfGeradoQuando && (
+                <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <Download className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                  <span>PDF final já gerado em <strong className="font-semibold text-slate-700">{pdfGeradoQuando}</strong>. Pode gerar de novo se alterou algo.</span>
+                </div>
+              )}
             </div>
           )}
 

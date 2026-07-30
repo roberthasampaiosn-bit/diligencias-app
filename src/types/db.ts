@@ -125,6 +125,7 @@ export interface DiligenciaRow {
   link_assinatura_advogado_recibo?: string | null
   status_assinatura_contrato?: string | null
   status_assinatura_recibo?: string | null
+  pdf_final_gerado_em?: string | null
   created_at: string
   updated_at: string
   ligacoes?: LigacaoRow[]

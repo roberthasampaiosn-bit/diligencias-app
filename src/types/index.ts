@@ -256,6 +256,7 @@ export interface Diligencia {
   localAtendimento?: string
   resultadoDemanda?: string
   centroCusto?: string
+  pdfFinalGeradoEm?: string   // data/hora da última geração do PDF final (aviso, item B)
   createdAt: string
   updatedAt: string
 }
