@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import {
   StatusDiligencia, StatusPagamento, StatusPesquisa,
   ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente, normalizeEmpresa,
+  Diligencia,
 } from '@/types'
 import { cleanPhone, cleanPhones, toTitleCase, normalizarCccBat, validarCccBat } from '@/lib/utils'
 import { TIPOS_EVENTO_BAT, MACROS_VTAL, TIPOS_DILIGENCIA_BAT, TIPOS_DILIGENCIA_VTAL, OPERACOES_BAT, SEGMENTOS_BAT, SOBRA_MERCADORIA_OPS } from '@/lib/constants'
@@ -29,7 +30,7 @@ const SESSION_KEY_VTAL = 'nova-diligencia-vtal-draft'
 function FormBatBrasil() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { createDiligencia, diligencias } = useDiligencias()
+  const { createDiligencia, updateDiligencia, diligencias } = useDiligencias()
   const { advogados } = useAdvogados()
   const { eventos, processarEvento } = useEventos()
 
@@ -48,6 +49,14 @@ function FormBatBrasil() {
   const fromDiligencia = useMemo(
     () => (fromId ? diligencias.find((d) => d.id === fromId) ?? null : null),
     [diligencias, fromId]
+  )
+
+  // Rascunho já criado pela pesquisa para este evento (fluxo da triagem): a Roberta
+  // contata a vítima antes da Anne completar os dados, gerando uma diligência
+  // vinculada ao evento. Ao salvar, COMPLETAMOS esse rascunho em vez de duplicar.
+  const existenteDoEvento = useMemo(
+    () => (eventoId ? diligencias.find((d) => d.eventoId === eventoId) ?? null : null),
+    [diligencias, eventoId]
   )
 
   const [form, setForm] = useState({
@@ -291,42 +300,70 @@ function FormBatBrasil() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setSaving(true)
     const hoje = new Date().toISOString().split('T')[0]
+
+    // Campos de identidade + serviço comuns a criar e a completar. NÃO inclui
+    // status/dataAtendimento/statusPagamento/cicloFinalizado — esses só mudam ao
+    // concluir. Assim, ao completar o rascunho da pesquisa, não mexemos no status
+    // "Realizada" que o mantém na fila de pesquisa nem na data usada na ordenação.
+    const base = {
+      empresaCliente: EmpresaCliente.BatBrasil,
+      ccc: form.ccc,
+      vitima: toTitleCase(form.vitima),
+      telefoneVitima: cleanPhones(form.telefoneVitima),
+      cargo: form.cargo,
+      empresa: form.empresa,
+      cidade: toTitleCase(form.cidade),
+      uf: form.uf,
+      tipoEvento: form.tipoEvento as TipoEvento,
+      tipoDiligencia: form.tipoDiligencia as TipoDiligencia,
+      tipoDiligenciaDescricao: form.tipoDiligencia === TipoDiligencia.Outro ? form.tipoDiligenciaDescricao : undefined,
+      modoDiligencia: form.modoDiligencia as ModoDiligencia,
+      advogadoId: form.advogadoId,
+      valorDiligencia: form.valorDiligencia ? parseFloat(form.valorDiligencia) : 0,
+      observacoes: form.observacoes,
+      obsAdvogado: form.obsAdvogado || undefined,
+      dpRegistrou: form.dpRegistrou,
+      dataEvento: form.dataEvento || undefined,
+      dataInformativo: form.dataInformativo || undefined,
+      horaInformativo: form.horaInformativo || undefined,
+      horaEvento: form.horaEvento || undefined,
+      operacao: form.operacao || undefined,
+      segmento: form.segmento || undefined,
+      sobraMercadoria: form.sobraMercadoria || undefined,
+      numeroBOProcesso: form.numeroBOProcesso || undefined,
+      regiaoGtsc: form.regiaoGtsc || undefined,
+      motoristaAgredido: form.motoristaAgredido || undefined,
+      dataLigacaoAdvogado: form.dataLigacaoAdvogado || undefined,
+      horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
+      incluirNaPlanilha: incluirNaPlanilha || undefined,
+      dispensarDocumentos: dispensarDocumentos || undefined,
+    }
+
+    const statusPagamentoFinal = (valorNumerico === 0 && (concluir || incluirNaPlanilha))
+      ? StatusPagamento.Pago
+      : StatusPagamento.Pendente
+
     try {
+      // Já existe rascunho da pesquisa para este evento → COMPLETA (não duplica).
+      if (existenteDoEvento) {
+        const patch: Partial<Diligencia> = { ...base }
+        if (concluir) {
+          patch.status = StatusDiligencia.Realizada
+          patch.dataAtendimento = hoje
+          patch.statusPagamento = statusPagamentoFinal
+          patch.cicloFinalizado = true
+        }
+        await updateDiligencia(existenteDoEvento.id, patch)
+        if (eventoId) processarEvento(eventoId, existenteDoEvento.id)
+        router.push(`/diligencias/${existenteDoEvento.id}`)
+        return
+      }
+
       const nova = await createDiligencia({
-        empresaCliente: EmpresaCliente.BatBrasil,
-        ccc: form.ccc,
-        vitima: toTitleCase(form.vitima),
-        telefoneVitima: cleanPhones(form.telefoneVitima),
-        cargo: form.cargo,
-        empresa: form.empresa,
-        cidade: toTitleCase(form.cidade),
-        uf: form.uf,
-        tipoEvento: form.tipoEvento as TipoEvento,
-        tipoDiligencia: form.tipoDiligencia as TipoDiligencia,
-        tipoDiligenciaDescricao: form.tipoDiligencia === TipoDiligencia.Outro ? form.tipoDiligenciaDescricao : undefined,
-        modoDiligencia: form.modoDiligencia as ModoDiligencia,
-        advogadoId: form.advogadoId,
-        valorDiligencia: form.valorDiligencia ? parseFloat(form.valorDiligencia) : 0,
-        observacoes: form.observacoes,
-        obsAdvogado: form.obsAdvogado || undefined,
-        dpRegistrou: form.dpRegistrou,
-        dataEvento: form.dataEvento || undefined,
-        dataInformativo: form.dataInformativo || undefined,
-        horaInformativo: form.horaInformativo || undefined,
-        horaEvento: form.horaEvento || undefined,
-        operacao: form.operacao || undefined,
-        segmento: form.segmento || undefined,
-        sobraMercadoria: form.sobraMercadoria || undefined,
-        numeroBOProcesso: form.numeroBOProcesso || undefined,
-        regiaoGtsc: form.regiaoGtsc || undefined,
-        motoristaAgredido: form.motoristaAgredido || undefined,
-        dataLigacaoAdvogado: form.dataLigacaoAdvogado || undefined,
-        horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
+        ...base,
         status: concluir ? StatusDiligencia.Realizada : StatusDiligencia.EmAndamento,
         dataAtendimento: concluir ? hoje : undefined,
-        statusPagamento: (valorNumerico === 0 && (concluir || incluirNaPlanilha)) ? StatusPagamento.Pago : StatusPagamento.Pendente,
-        incluirNaPlanilha: incluirNaPlanilha || undefined,
-        dispensarDocumentos: dispensarDocumentos || undefined,
+        statusPagamento: statusPagamentoFinal,
         cicloFinalizado: concluir,
         pesquisa: { status: StatusPesquisa.Pendente, historicoLigacoes: [], tentativasWhatsApp: 0 },
         anexos: {},
@@ -346,6 +383,13 @@ function FormBatBrasil() {
     <form onSubmit={handleSubmit} className="space-y-5 max-w-3xl">
       {errors._ && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{errors._}</div>
+      )}
+
+      {existenteDoEvento && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800 text-sm px-4 py-3 rounded-xl">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          Este evento já tem uma diligência iniciada pela pesquisa. Ao salvar, você vai <strong>completá-la</strong> — a pesquisa e os documentos já registrados são preservados, sem duplicar.
+        </div>
       )}
 
       {autoFilled && evento && (
@@ -524,7 +568,7 @@ function FormBatBrasil() {
 
       <div className="flex gap-3 justify-end pb-6">
         <Link href="/diligencias"><Button variant="secondary" type="button">Cancelar</Button></Link>
-        <Button type="submit" loading={saving}><Save className="w-4 h-4" /> Criar diligência</Button>
+        <Button type="submit" loading={saving}><Save className="w-4 h-4" /> {existenteDoEvento ? 'Completar diligência' : 'Criar diligência'}</Button>
         {isCriarEConcluir && (
           <Button type="button" loading={saving} onClick={(e) => handleSubmit(e as unknown as React.FormEvent, true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white">

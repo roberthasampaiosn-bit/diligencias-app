@@ -104,6 +104,7 @@ export interface DiligenciaRow {
   // Campos de pesquisa — entrevistador, hora, tentativas e conclusão
   pesquisa_entrevistador?: string | null
   pesquisa_hora_entrevista?: string | null
+  pesquisa_hora_envio_whatsapp?: string | null
   pesquisa_tentativas_whatsapp?: number
   pesquisa_data_conclusao?: string | null
   // Campos específicos V.TAL

@@ -132,6 +132,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
           pesquisa = {
             ...pesquisa,
             dataEnvioWhatsApp:  inMem.pesquisa.dataEnvioWhatsApp,
+            horaEnvioWhatsApp:  inMem.pesquisa.horaEnvioWhatsApp,
             mensagemEnviada:    inMem.pesquisa.mensagemEnviada,
             tentativasWhatsApp: Math.max(
               inMem.pesquisa.tentativasWhatsApp ?? 0,
@@ -178,13 +179,16 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const createDiligencia = useCallback(async (
     data: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Diligencia> => {
-    // Trava anti-duplicata: se já existe diligência para este evento (mesmo
-    // evento_id) ou para o mesmo CCC de evento ("BR-..."), devolve a existente em
-    // vez de criar outra — evita 2 cards do mesmo CCC por cliques rápidos na triagem.
-    const jaExiste = diligenciasRef.current.find((d) =>
-      (!!data.eventoId && d.eventoId === data.eventoId) ||
-      (!!data.ccc && data.ccc.startsWith('BR-') && d.ccc === data.ccc)
-    )
+    // Trava anti-duplicata: dedupe SOMENTE por evento (mesmo evento_id). Um mesmo
+    // evento não pode gerar duas diligências — protege de cliques rápidos na triagem.
+    // NÃO deduplica mais por CCC: um mesmo CCC pode ter VÁRIAS diligências legítimas
+    // (aditamento de BO, serviço em outro dia, outro advogado). A trava antiga "1 por
+    // CCC" fazia a 2ª diligência voltar como a 1ª (editar uma mexia na outra) e ainda
+    // gravava o WhatsApp da triagem no registro errado. Ver migration que remove o
+    // índice único diligencias_ccc_bat_unico.
+    const jaExiste = data.eventoId
+      ? diligenciasRef.current.find((d) => d.eventoId === data.eventoId)
+      : undefined
     if (jaExiste) return jaExiste
     // Fadel quase nunca tem documento a anexar → já nasce com "sem documentos"
     // marcado, evitando ficar como pendência. Continua podendo anexar/desmarcar.
@@ -286,12 +290,17 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     // assim nunca mostramos "enviado" sem ter salvo no banco.
     const anterior: Partial<Pesquisa> = {
       dataEnvioWhatsApp: d?.pesquisa.dataEnvioWhatsApp,
+      horaEnvioWhatsApp: d?.pesquisa.horaEnvioWhatsApp,
       mensagemEnviada: d?.pesquisa.mensagemEnviada,
       tentativasWhatsApp: d?.pesquisa.tentativasWhatsApp ?? 0,
     }
     const novoCount = (d?.pesquisa.tentativasWhatsApp ?? 0) + 1
+    // Data e hora LOCAIS (sem UTC) — evita gravar o dia errado à noite no fuso BR.
+    const agora = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
     const pp = {
-      dataEnvioWhatsApp: new Date().toISOString().split('T')[0],
+      dataEnvioWhatsApp: `${agora.getFullYear()}-${pad(agora.getMonth() + 1)}-${pad(agora.getDate())}`,
+      horaEnvioWhatsApp: `${pad(agora.getHours())}:${pad(agora.getMinutes())}`,
       mensagemEnviada: mensagem,
       tentativasWhatsApp: novoCount,
     }

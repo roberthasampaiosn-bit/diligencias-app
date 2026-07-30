@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
 import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -665,7 +665,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </CardHeader>
           <CardBody className="space-y-3">
             <StatusPesquisaBadge status={d.pesquisa.status} />
-            {d.pesquisa.dataEnvioWhatsApp && <DR label="WA enviado" value={formatDate(d.pesquisa.dataEnvioWhatsApp)} />}
+            {d.pesquisa.dataEnvioWhatsApp && <DR label="WA enviado" value={formatDataHora(d.pesquisa.dataEnvioWhatsApp, d.pesquisa.horaEnvioWhatsApp)} />}
             {d.pesquisa.dataCombinada && <DR label="Retorno" value={formatDate(d.pesquisa.dataCombinada)} />}
             {d.pesquisa.respostaVitima && <DR label="Resposta" value={d.pesquisa.respostaVitima} />}
           </CardBody>

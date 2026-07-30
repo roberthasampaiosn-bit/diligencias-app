@@ -93,6 +93,14 @@ export function formatDate(dateStr: string): string {
   return `${day}/${month}/${year}`
 }
 
+// Data + hora opcional, no formato "DD/MM/AAAA às HH:MM" (ou só a data se não houver hora).
+// Usado no WhatsApp enviado, que passou a registrar também o horário.
+export function formatDataHora(dateStr?: string, hora?: string): string {
+  if (!dateStr) return '-'
+  const base = formatDate(dateStr)
+  return hora ? `${base} às ${hora.slice(0, 5)}` : base
+}
+
 export function formatDateTime(dateStr: string): string {
   if (!dateStr) return '-'
   const date = new Date(dateStr)

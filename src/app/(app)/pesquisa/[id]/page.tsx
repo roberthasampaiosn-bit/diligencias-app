@@ -369,6 +369,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
             type="date"
             value={pesquisa.dataEnvioWhatsApp || ''}
             onChange={(e) => setPesquisa({ dataEnvioWhatsApp: e.target.value })}
+            helper={pesquisa.horaEnvioWhatsApp ? `Horário registrado: ${pesquisa.horaEnvioWhatsApp}` : undefined}
           />
           <Textarea
             label="Mensagem enviada"

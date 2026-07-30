@@ -1,0 +1,21 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Item A — permitir MÚLTIPLAS diligências no mesmo CCC
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Contexto: o script cleanup_diligencias_duplicadas.sql criou um índice único
+-- (diligencias_ccc_bat_unico) que proíbe dois registros com o mesmo CCC "BR-...".
+-- Isso foi um band-aid para o bug dos cards duplicados da triagem, mas impede o
+-- fluxo real do escritório: um mesmo CCC pode ter várias diligências legítimas
+-- (aditamento de BO, novo serviço em outro dia, outro advogado).
+--
+-- A unicidade correta é POR EVENTO (evento_id), tratada no código
+-- (createDiligencia). Aqui removemos a trava por CCC.
+--
+-- SEGURO rodar mesmo que o índice não exista — "if exists" torna o comando um
+-- no-op nesse caso. Não apaga nem altera nenhum dado; só remove o índice.
+--
+-- ⚠️ Rode ESTE comando ANTES de subir a versão nova do app. Enquanto a trava do
+-- JavaScript existia, ela "atropelava" a do banco; ao remover a do código, a do
+-- banco passaria a bloquear a 2ª diligência com erro de chave duplicada.
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+drop index if exists diligencias_ccc_bat_unico;

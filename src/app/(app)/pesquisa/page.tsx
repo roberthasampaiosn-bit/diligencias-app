@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { PushButton } from '@/components/shared/PushButton'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
 import {
   StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
   EmpresaCliente, TipoDiligencia, ModoDiligencia, TipoEvento,
@@ -1270,7 +1270,7 @@ function PesquisaContent() {
                       {d.pesquisa.dataEnvioWhatsApp ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
                           <MessageCircle className="w-3 h-3" />
-                          WA enviado · {formatDate(d.pesquisa.dataEnvioWhatsApp)}
+                          WA enviado · {formatDataHora(d.pesquisa.dataEnvioWhatsApp, d.pesquisa.horaEnvioWhatsApp)}
                         </span>
                       ) : isPendente && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">
@@ -1370,7 +1370,7 @@ function PesquisaContent() {
                         {d.pesquisa.dataEnvioWhatsApp && (
                           <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">
                             <MessageCircle className="w-3 h-3" />
-                            WA {formatDate(d.pesquisa.dataEnvioWhatsApp)}
+                            WA {formatDataHora(d.pesquisa.dataEnvioWhatsApp, d.pesquisa.horaEnvioWhatsApp)}
                           </span>
                         )}
                         {d.pesquisa.historicoLigacoes.map((lig) => (

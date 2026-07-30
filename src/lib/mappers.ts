@@ -124,6 +124,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     pesquisa: {
       status: normalizePesquisaStatus(row.pesquisa_status),
       dataEnvioWhatsApp: row.pesquisa_data_envio_whatsapp ?? undefined,
+      horaEnvioWhatsApp: row.pesquisa_hora_envio_whatsapp ?? undefined,
       mensagemEnviada: row.pesquisa_mensagem_enviada ?? undefined,
       respostaVitima: row.pesquisa_resposta_vitima ?? undefined,
       dataCombinada: row.pesquisa_data_combinada ?? undefined,
@@ -206,6 +207,7 @@ export function fromDiligencia(
     pesquisa_status: d.pesquisa.status,
     pesquisa_data_envio_whatsapp: d.pesquisa.dataEnvioWhatsApp ?? null,
     pesquisa_mensagem_enviada: d.pesquisa.mensagemEnviada ?? null,
+    ...(d.pesquisa.horaEnvioWhatsApp != null && { pesquisa_hora_envio_whatsapp: d.pesquisa.horaEnvioWhatsApp }),
     pesquisa_resposta_vitima: d.pesquisa.respostaVitima ?? null,
     pesquisa_data_combinada: d.pesquisa.dataCombinada ?? null,
     pesquisa_hora_entrevista: d.pesquisa.horaEntrevista ?? null,

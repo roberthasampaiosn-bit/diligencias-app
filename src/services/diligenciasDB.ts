@@ -121,6 +121,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('advogadoId' in patch) row.advogado_id = patch.advogadoId
   if ('valorDiligencia' in patch) row.valor_diligencia = patch.valorDiligencia ?? null
   if ('observacoes' in patch) row.observacoes = patch.observacoes ?? null
+  if ('obsAdvogado' in patch) row.obs_advogado = patch.obsAdvogado ?? null
   if ('dpRegistrou' in patch) row.dp_registrou = patch.dpRegistrou ?? null
   if ('status' in patch) row.status = patch.status
   if ('statusPagamento' in patch) row.status_pagamento = patch.statusPagamento
@@ -129,6 +130,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('observacaoInterna' in patch) row.observacao_interna = patch.observacaoInterna ?? null
   if ('dataInformativo' in patch) row.data_informativo = patch.dataInformativo ?? null
   if ('horaInformativo' in patch) row.hora_informativo = patch.horaInformativo ?? null
+  if ('dataEvento' in patch) row.data_evento = patch.dataEvento ?? null
   if ('horaEvento' in patch) row.hora_evento = patch.horaEvento ?? null
   if ('dataLigacaoAdvogado' in patch) row.data_ligacao_advogado = patch.dataLigacaoAdvogado ?? null
   if ('horaLigacaoAdvogado' in patch) row.hora_ligacao_advogado = patch.horaLigacaoAdvogado ?? null
@@ -157,6 +159,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
     const p = patch.pesquisa
     row.pesquisa_status = p.status
     if ('dataEnvioWhatsApp' in p) row.pesquisa_data_envio_whatsapp = p.dataEnvioWhatsApp ?? null
+    if ('horaEnvioWhatsApp' in p) row.pesquisa_hora_envio_whatsapp = p.horaEnvioWhatsApp ?? null
     if ('mensagemEnviada' in p) row.pesquisa_mensagem_enviada = p.mensagemEnviada ?? null
     if ('respostaVitima' in p) row.pesquisa_resposta_vitima = p.respostaVitima ?? null
     if ('dataCombinada' in p) row.pesquisa_data_combinada = p.dataCombinada ?? null
@@ -197,6 +200,7 @@ export async function patchPesquisa(id: string, pp: Partial<Pesquisa>): Promise<
   const row: Record<string, unknown> = {}
   if ('status' in pp) row.pesquisa_status = pp.status
   if ('dataEnvioWhatsApp' in pp) row.pesquisa_data_envio_whatsapp = pp.dataEnvioWhatsApp ?? null
+  if ('horaEnvioWhatsApp' in pp) row.pesquisa_hora_envio_whatsapp = pp.horaEnvioWhatsApp ?? null
   if ('mensagemEnviada' in pp) row.pesquisa_mensagem_enviada = pp.mensagemEnviada ?? null
   if ('respostaVitima' in pp) row.pesquisa_resposta_vitima = pp.respostaVitima ?? null
   if ('dataCombinada' in pp) row.pesquisa_data_combinada = pp.dataCombinada ?? null

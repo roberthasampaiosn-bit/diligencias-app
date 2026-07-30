@@ -185,6 +185,7 @@ export interface Ligacao {
 export interface Pesquisa {
   status: StatusPesquisa
   dataEnvioWhatsApp?: string
+  horaEnvioWhatsApp?: string
   mensagemEnviada?: string
   respostaVitima?: string
   dataCombinada?: string
