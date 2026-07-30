@@ -18,6 +18,7 @@ function toDocumentoAvulso(row: DocumentoAvulsoRow): DocumentoAvulso {
     filenameRecibo: row.filename_recibo ?? undefined,
     zapsignTokenRecibo: row.zapsign_token_recibo ?? undefined,
     linkAssinaturaAdvogadoRecibo: row.link_assinatura_advogado_recibo ?? undefined,
+    diligenciaVinculadaId: row.diligencia_vinculada_id ?? undefined,
     createdAt: row.created_at,
   }
 }

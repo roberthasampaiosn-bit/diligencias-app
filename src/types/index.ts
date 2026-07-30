@@ -279,6 +279,7 @@ export interface DocumentoAvulso {
   filenameRecibo?: string
   zapsignTokenRecibo?: string
   linkAssinaturaAdvogadoRecibo?: string
+  diligenciaVinculadaId?: string   // CCC ao qual este avulso foi anexado (item D)
   createdAt: string
 }
 

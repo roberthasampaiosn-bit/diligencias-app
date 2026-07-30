@@ -4,7 +4,7 @@ import { useState, useMemo, Suspense, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-  FileText, CheckCircle2, Upload, Download, ArrowRight, MessageCircle, PlusCircle, Clock, ExternalLink,
+  FileText, CheckCircle2, Upload, Download, ArrowRight, MessageCircle, PlusCircle, Clock, ExternalLink, Link2,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -91,6 +91,37 @@ function DocumentosContent() {
   // ── Histórico de avulsos ──────────────────────────────────────────────────
   const [historico, setHistorico] = useState<DocumentoAvulso[]>([])
   const [modalHistorico, setModalHistorico] = useState(false)
+
+  // ── Vincular avulso a um CCC (item D) ─────────────────────────────────────
+  const [vincularAvulso, setVincularAvulso] = useState<DocumentoAvulso | null>(null)
+  const [vincularBusca, setVincularBusca] = useState('')
+  const [vinculando, setVinculando] = useState(false)
+
+  async function handleVincular(diligenciaId: string) {
+    if (!vincularAvulso) return
+    const doc = vincularAvulso
+    const contrato = doc.zapsignTokenContrato
+      ? { token: doc.zapsignTokenContrato, filename: doc.filenameContrato, linkAdriana: doc.linkAssinaturaAdriana, linkAdvogado: doc.linkAssinaturaAdvogadoContrato }
+      : undefined
+    const recibo = doc.zapsignTokenRecibo
+      ? { token: doc.zapsignTokenRecibo, filename: doc.filenameRecibo, linkAdvogado: doc.linkAssinaturaAdvogadoRecibo }
+      : undefined
+    setVinculando(true)
+    try {
+      const res = await fetch('/api/avulso/vincular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avulsoId: doc.id, diligenciaId, contrato, recibo }),
+      })
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: 'Erro' })); alert(`Vincular: ${e.error}`); return }
+      await carregarHistorico()
+      const alvo = diligencias.find((d) => d.id === diligenciaId)
+      setVincularAvulso(null); setVincularBusca('')
+      alert(`Avulso vinculado${alvo?.ccc ? ` a ${alvo.ccc}` : ''}. O contrato/recibo já aparece na diligência e entra no PDF final.`)
+    } finally {
+      setVinculando(false)
+    }
+  }
 
   const carregarHistorico = useCallback(async () => {
     try {
@@ -575,6 +606,20 @@ function DocumentosContent() {
                     <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-2.5 py-1 capitalize flex-shrink-0">{doc.tipo}</span>
                   </div>
 
+                  {/* Vincular a um CCC (item D) */}
+                  {doc.diligenciaVinculadaId ? (
+                    <div className="text-xs text-emerald-600 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Vinculado a {diligencias.find((d) => d.id === doc.diligenciaVinculadaId)?.ccc ?? 'um CCC'}
+                    </div>
+                  ) : (
+                    <div>
+                      <Button size="sm" variant="secondary" onClick={() => { setVincularAvulso(doc); setVincularBusca('') }}>
+                        <Link2 className="w-3.5 h-3.5" /> Vincular a um CCC
+                      </Button>
+                    </div>
+                  )}
+
                   {/* Contrato */}
                   {temContrato && (
                     <div className="bg-slate-50 rounded-lg p-3 space-y-2">
@@ -953,6 +998,55 @@ function DocumentosContent() {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* ── Modal: Vincular avulso a um CCC (item D) ───────────────────────── */}
+      <Modal
+        open={!!vincularAvulso}
+        onClose={() => { if (!vinculando) { setVincularAvulso(null); setVincularBusca('') } }}
+        title="Vincular avulso a um CCC"
+        size="lg"
+      >
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-slate-600">
+            Escolha a diligência (CCC) onde este avulso de <strong>{vincularAvulso?.advogadoNome}</strong> deve entrar.
+            O contrato/recibo (e o assinado, se já houver) passam a fazer parte daquela diligência e do PDF final.
+          </p>
+          <SearchInput value={vincularBusca} onChange={setVincularBusca} placeholder="Buscar por CCC ou vítima..." />
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-50 border border-slate-100 rounded-lg">
+            {(() => {
+              const q = vincularBusca.toLowerCase().trim()
+              const opcoes = diligencias
+                .filter((d) => !q || d.ccc.toLowerCase().includes(q) || d.vitima.toLowerCase().includes(q))
+                .slice(0, 40)
+              if (opcoes.length === 0) {
+                return <p className="text-sm text-slate-400 text-center py-6">Nenhuma diligência encontrada.</p>
+              }
+              return opcoes.map((d) => {
+                const jaTemDocs = !!(d.anexos.contratoAssinado || d.anexos.reciboAssinado || d.zapsignDocumentIdContrato || d.zapsignDocumentIdRecibo)
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    disabled={vinculando}
+                    onClick={() => {
+                      if (jaTemDocs && !confirm(`A diligência ${d.ccc || ''} já tem contrato/recibo. Vincular o avulso vai SUBSTITUIR esses dados. Continuar?`)) return
+                      handleVincular(d.id)
+                    }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors flex items-center justify-between gap-3 disabled:opacity-50"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-700 truncate">{d.vitima || '(sem vítima)'}</p>
+                      <p className="text-xs text-slate-400">{d.ccc || 'sem CCC'} · {d.cidade}/{d.uf}</p>
+                    </div>
+                    {jaTemDocs && <span className="text-[10px] text-amber-600 flex-shrink-0">já tem docs</span>}
+                  </button>
+                )
+              })
+            })()}
+          </div>
+          {vinculando && <p className="text-xs text-blue-600 text-center">Vinculando e buscando o assinado no ZapSign...</p>}
         </div>
       </Modal>
     </div>

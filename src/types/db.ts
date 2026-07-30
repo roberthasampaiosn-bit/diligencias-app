@@ -159,6 +159,7 @@ export interface DocumentoAvulsoRow {
   filename_recibo: string | null
   zapsign_token_recibo: string | null
   link_assinatura_advogado_recibo: string | null
+  diligencia_vinculada_id: string | null
   created_at: string
 }
 
