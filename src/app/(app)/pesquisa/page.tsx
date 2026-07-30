@@ -1086,9 +1086,11 @@ function PesquisaContent() {
                                 </span>
                               )}
                               <a
-                                href={criandoTriagem === ev.id ? undefined : `tel:+55${phone}`}
-                                onClick={(e) => {
-                                  if (criandoTriagem === ev.id) { e.preventDefault(); return }
+                                href={`tel:+55${cleanPhone(phone)}`}
+                                onClick={() => {
+                                  // Registra a ligação em SEGUNDO PLANO — nunca bloqueia a discagem.
+                                  // (O href precisa ficar sempre válido; se virar undefined ou
+                                  //  pointer-events-none, o navegador não abre o discador.)
                                   ;(async () => {
                                     try {
                                       const dil = evDil ?? await criarDiligenciaDoEvento(ev)
@@ -1098,7 +1100,7 @@ function PesquisaContent() {
                                     }
                                   })()
                                 }}
-                                className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors${criandoTriagem === ev.id ? ' opacity-50 pointer-events-none' : ''}`}
+                                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                               >
                                 <Phone className="w-3.5 h-3.5" />
                                 Ligar{evPhones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
