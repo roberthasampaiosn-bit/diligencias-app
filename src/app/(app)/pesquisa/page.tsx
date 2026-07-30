@@ -549,6 +549,13 @@ function PesquisaContent() {
       }
       void hoje
     }
+    // Card fixado (ligação em andamento) fica SEMPRE visível — mesmo que caia fora
+    // do filtro de período/status. Sem isso, ao ligar num evento de triagem a
+    // diligência recém-criada some no meio da ligação e você perde o contexto.
+    if (pinnedId && !l.some((d) => d.id === pinnedId)) {
+      const fixado = diligencias.find((d) => d.id === pinnedId)
+      if (fixado) l = [fixado, ...l]
+    }
     return [...l].sort((a, b) => {
       // Card pinado sempre no topo
       if (pinnedId) {
@@ -557,7 +564,7 @@ function PesquisaContent() {
       }
       return sortPesquisa(a, b, sortOrder)
     })
-  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap, subFiltro, pinnedId])
+  }, [realizadasFiltradas, filtro, search, sortOrder, eventoMap, subFiltro, pinnedId, diligencias])
 
   // Mapa eventoId → diligência (para mostrar status da pesquisa nos cards da triagem)
   const dilPorEventoId = useMemo(() => {
