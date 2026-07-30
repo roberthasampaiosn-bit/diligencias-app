@@ -42,11 +42,28 @@ export async function uploadArquivoAnexo(
   const path = `diligencias/${diligenciaId}/${CAMPO_TO_FILENAME[campo]}-${Date.now()}.${ext}`
   const contentType = EXT_TO_MIME[ext] || file.type || 'application/octet-stream'
 
-  const { error: upError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(path, file, { upsert: true, contentType })
+  // iOS/Safari costuma falhar o upload de um File com "Load failed" (rede instável,
+  // Modo de Baixo Consumo, ou a referência do arquivo "expirando"). Ler os bytes
+  // ANTES (arrayBuffer) e enviar o buffer — com algumas tentativas — reduz muito
+  // essa falha intermitente no iPhone.
+  let bytes: ArrayBuffer
+  try {
+    bytes = await file.arrayBuffer()
+  } catch {
+    throw new Error('Não consegui ler o arquivo no aparelho. Escolha o arquivo de novo (e, no iPhone, desative o Modo de Baixo Consumo).')
+  }
 
-  if (upError) throw new Error(`Storage upload: ${upError.message}`)
+  let upError: { message?: string } | null = null
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, bytes, { upsert: true, contentType })
+    if (!error) { upError = null; break }
+    upError = error
+    if (tentativa < 2) await new Promise((r) => setTimeout(r, 800 * (tentativa + 1)))
+  }
+
+  if (upError) throw new Error(`Storage upload: ${upError.message ?? 'falha de rede'}`)
 
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
   const publicUrl = data.publicUrl

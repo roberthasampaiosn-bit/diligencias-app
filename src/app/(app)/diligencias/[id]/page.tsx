@@ -335,6 +335,16 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     try {
       const filename = gerarReciboPDF(d!, adv, dataRecibo)
       atualizarAnexo(id, 'reciboGerado', filename)
+      // Recibo novo = documento NÃO assinado. Se havia uma assinatura anterior
+      // (ex.: recibo antigo já assinado, e agora um novo por causa de outro
+      // pagamento), reseta status/link/token do ZapSign para liberar o reenvio.
+      if (d!.statusAssinaturaRecibo || d!.linkAssinaturaAdvogadoRecibo || d!.zapsignDocumentIdRecibo) {
+        await updateDiligencia(id, {
+          statusAssinaturaRecibo: undefined,
+          linkAssinaturaAdvogadoRecibo: undefined,
+          zapsignDocumentIdRecibo: undefined,
+        })
+      }
       addToast('success', 'Recibo gerado com sucesso.')
     } catch (err) {
       addToast('error', 'Erro ao gerar recibo.')
