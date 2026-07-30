@@ -34,7 +34,12 @@ export async function uploadArquivoAnexo(
   file: File,
 ): Promise<string> {
   const ext = (file.name.split('.').pop() || 'pdf').toLowerCase()
-  const path = `diligencias/${diligenciaId}/${CAMPO_TO_FILENAME[campo]}.${ext}`
+  // Nome único por upload (timestamp). Evita sobrescrever um arquivo já existente:
+  // o contrato/recibo assinado pode ter sido gravado pelo webhook do ZapSign (chave de
+  // serviço), e o Storage bloqueia o navegador de sobrescrever arquivo de outro dono
+  // (RLS de UPDATE) -> "Erro no upload" só nesse campo. Sempre inserindo um caminho
+  // novo, cada anexo é um INSERT limpo. Bônus: URL nova a cada troca, sem cache velho.
+  const path = `diligencias/${diligenciaId}/${CAMPO_TO_FILENAME[campo]}-${Date.now()}.${ext}`
   const contentType = EXT_TO_MIME[ext] || file.type || 'application/octet-stream'
 
   const { error: upError } = await supabase.storage
