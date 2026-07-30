@@ -3,6 +3,11 @@ import { Diligencia, Ligacao, Pesquisa, Anexos, AvaliacaoAdvogado } from '@/type
 import { DiligenciaRow, LigacaoRow } from '@/types/db'
 import { toDiligencia, fromDiligencia, toLigacao } from '@/lib/mappers'
 
+// Caminho canônico do upload = servidor (src/app/api/upload/route.ts), que usa a
+// service_role. Isso resolve o iPhone (iOS Safari derruba o upload direto
+// browser→Storage com "Load failed"). Mas o Vercel limita o corpo da requisição
+// a ~4,5 MB; por isso o path e o contentType também ficam aqui, para o fallback
+// de upload direto quando o arquivo é grande demais para a rota.
 const STORAGE_BUCKET = 'documentos'
 
 const CAMPO_TO_FILENAME: Record<keyof Anexos, string> = {
@@ -14,9 +19,6 @@ const CAMPO_TO_FILENAME: Record<keyof Anexos, string> = {
   comprovanteServico: 'comprovante-servico',
 }
 
-// MIME por extensão. No iOS/Safari o File vindo do app Arquivos costuma chegar
-// com file.type vazio; se o bucket restringe tipos, o upload é rejeitado só no
-// celular. Por isso passamos o contentType explicitamente em vez de confiar no File.
 const EXT_TO_MIME: Record<string, string> = {
   pdf: 'application/pdf',
   jpg: 'image/jpeg',
@@ -34,39 +36,54 @@ export async function uploadArquivoAnexo(
   file: File,
 ): Promise<string> {
   const ext = (file.name.split('.').pop() || 'pdf').toLowerCase()
-  // Nome único por upload (timestamp). Evita sobrescrever um arquivo já existente:
-  // o contrato/recibo assinado pode ter sido gravado pelo webhook do ZapSign (chave de
-  // serviço), e o Storage bloqueia o navegador de sobrescrever arquivo de outro dono
-  // (RLS de UPDATE) -> "Erro no upload" só nesse campo. Sempre inserindo um caminho
-  // novo, cada anexo é um INSERT limpo. Bônus: URL nova a cada troca, sem cache velho.
   const path = `diligencias/${diligenciaId}/${CAMPO_TO_FILENAME[campo]}-${Date.now()}.${ext}`
   const contentType = EXT_TO_MIME[ext] || file.type || 'application/octet-stream'
 
-  // iOS/Safari costuma falhar o upload de um File com "Load failed" (rede instável,
-  // Modo de Baixo Consumo, ou a referência do arquivo "expirando"). Ler os bytes
-  // ANTES (arrayBuffer) e enviar o buffer — com algumas tentativas — reduz muito
-  // essa falha intermitente no iPhone.
-  let bytes: ArrayBuffer
-  try {
-    bytes = await file.arrayBuffer()
-  } catch {
-    throw new Error('Não consegui ler o arquivo no aparelho. Escolha o arquivo de novo (e, no iPhone, desative o Modo de Baixo Consumo).')
-  }
+  // 1) Primário: /api/upload (MESMA ORIGEM). No iPhone (iOS Safari) o upload
+  //    direto browser→Storage falha com "Load failed"; passando pelo próprio
+  //    servidor do app (service_role) o iPhone envia sem problema.
+  const form = new FormData()
+  form.append('file', file)
+  form.append('diligenciaId', diligenciaId)
+  form.append('campo', campo)
 
-  let upError: { message?: string } | null = null
+  let publicUrl = ''
+  let servidorErro = 'falha de rede'
   for (let tentativa = 0; tentativa < 3; tentativa++) {
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, bytes, { upsert: true, contentType })
-    if (!error) { upError = null; break }
-    upError = error
+    try {
+      const resp = await fetch('/api/upload', { method: 'POST', body: form })
+      if (resp.ok) {
+        const json = (await resp.json()) as { publicUrl?: string }
+        if (json.publicUrl) { publicUrl = json.publicUrl; break }
+        servidorErro = 'resposta sem URL'
+      } else {
+        // 413 = corpo maior que o limite do Vercel (~4,5 MB) → vai direto pro fallback.
+        if (resp.status === 413) { servidorErro = 'arquivo grande'; break }
+        const json = (await resp.json().catch(() => null)) as { error?: string } | null
+        servidorErro = json?.error ?? `HTTP ${resp.status}`
+      }
+    } catch (e) {
+      servidorErro = e instanceof Error ? e.message : 'falha de rede'
+    }
     if (tentativa < 2) await new Promise((r) => setTimeout(r, 800 * (tentativa + 1)))
   }
 
-  if (upError) throw new Error(`Storage upload: ${upError.message ?? 'falha de rede'}`)
-
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-  const publicUrl = data.publicUrl
+  // 2) Fallback: upload direto ao Storage. Cobre arquivos grandes (acima do limite
+  //    do Vercel) e qualquer indisponibilidade da rota. Funciona no notebook; no
+  //    iPhone, arquivos grandes seguem sendo a limitação já conhecida.
+  if (!publicUrl) {
+    try {
+      const bytes = await file.arrayBuffer()
+      const { error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, bytes, { upsert: true, contentType })
+      if (error) throw new Error(error.message)
+      publicUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : servidorErro
+      throw new Error(`Storage upload: ${msg}`)
+    }
+  }
 
   await patchAnexo(diligenciaId, campo, publicUrl)
   return publicUrl
