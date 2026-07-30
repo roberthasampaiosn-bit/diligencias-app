@@ -6,6 +6,26 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Nome do PDF final no mesmo padrão usado no Drive do escritório:
+//   "30.07.2026 Diligência em Castanhal CCC BR-2026070034 Dr(a) Jéssika.pdf"
+// Data = data da diligência (dataAtendimento); cidade; CCC; "Dr(a)" + 1º nome do advogado.
+export function nomeArquivoPDFFinal(d: Diligencia, advogadoNome?: string): string {
+  const dataBruta = (d.dataAtendimento || d.dataEvento || d.createdAt || '').split('T')[0]
+  const [y, m, dd] = dataBruta.split('-')
+  const dataFmt = (y && m && dd) ? `${dd}.${m}.${y}` : ''
+
+  const partes: string[] = []
+  if (dataFmt) partes.push(dataFmt)
+  partes.push(d.cidade?.trim() ? `Diligência em ${d.cidade.trim()}` : 'Diligência')
+  if (d.ccc?.trim()) partes.push(`CCC ${d.ccc.trim()}`)
+  const primeiroNome = (advogadoNome ?? '').trim().split(/\s+/)[0]
+  if (primeiroNome) partes.push(`Dr(a) ${primeiroNome}`)
+
+  // Remove caracteres inválidos para nome de arquivo (Windows/macOS)
+  const base = partes.join(' ').replace(/\s+/g, ' ').trim().replace(/[\\/:*?"<>|]/g, '-')
+  return `${base}.pdf`
+}
+
 export function formatCPF(cpf: string): string {
   const digits = cpf.replace(/\D/g, '')
   return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')

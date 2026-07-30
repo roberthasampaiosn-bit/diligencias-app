@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone, nomeArquivoPDFFinal } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
 import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -368,7 +368,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     setPdfLoading(true)
     setPdfErro(null)
     try {
-      await gerarPDFFinal(dLocal.ccc, itens)
+      await gerarPDFFinal(nomeArquivoPDFFinal(dLocal, adv?.nomeCompleto), itens)
     } catch (err) {
       setPdfErro((err as Error).message)
     } finally {

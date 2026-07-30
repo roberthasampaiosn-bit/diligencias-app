@@ -19,7 +19,7 @@ function detectarTipo(url: string, contentType: string): 'pdf' | 'jpg' | 'png' |
   return 'desconhecido'
 }
 
-export async function gerarPDFFinal(ccc: string, itens: ItemPDFFinal[]): Promise<void> {
+export async function gerarPDFFinal(nomeArquivo: string, itens: ItemPDFFinal[]): Promise<void> {
   const merged = await PDFDocument.create()
 
   // Baixa e decodifica todos os arquivos em paralelo, mas preserva a ordem do array `itens`
@@ -83,7 +83,7 @@ export async function gerarPDFFinal(ccc: string, itens: ItemPDFFinal[]): Promise
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = objectUrl
-  a.download = `diligencia-${ccc}.pdf`
+  a.download = nomeArquivo.toLowerCase().endsWith('.pdf') ? nomeArquivo : `${nomeArquivo}.pdf`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
