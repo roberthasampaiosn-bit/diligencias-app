@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
-  ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2,
+  ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2, Copy,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -71,6 +71,10 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfErro, setPdfErro] = useState<string | null>(null)
 
+  // Reaproveitar contrato já assinado deste advogado (item C)
+  const [modalReusarContrato, setModalReusarContrato] = useState(false)
+  const [reusando, setReusando] = useState(false)
+
   // Observação interna
   const [editandoObs, setEditandoObs] = useState(false)
   const [obsInterna, setObsInterna] = useState('')
@@ -126,6 +130,36 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const telPrincipal = telefonesVitima[0] ?? ''
   const whatsappVitima = buildWhatsAppUrl(telPrincipal, buildPesquisaMessage(nomeDoTelefone(d.vitima, d.telefoneVitima, telPrincipal), d.tipoEvento, d.empresaCliente))
   const isRemoto = d.modoDiligencia === 'Remoto'
+
+  // Contratos já ASSINADOS deste mesmo advogado em outras diligências — podem ser
+  // reaproveitados quando o serviço se repete (mesmo advogado). O recibo continua
+  // sendo novo. (Item C)
+  const contratosReusaveis = d.advogadoId
+    ? diligencias
+        .filter((x) => x.id !== d.id && x.advogadoId === d.advogadoId && !!x.anexos.contratoAssinado)
+        .sort((a, b) => (b.dataAtendimento ?? b.createdAt).localeCompare(a.dataAtendimento ?? a.createdAt))
+    : []
+
+  async function handleReusarContrato(origem: Diligencia) {
+    setReusando(true)
+    try {
+      await updateDiligencia(id, {
+        anexos: {
+          ...d!.anexos,
+          contratoAssinado: origem.anexos.contratoAssinado,
+          contratoGerado: origem.anexos.contratoGerado ?? d!.anexos.contratoGerado ?? 'contrato-reaproveitado.pdf',
+        },
+        statusAssinaturaContrato: 'assinado',
+      })
+      addToast('success', 'Contrato reaproveitado e marcado como assinado. Agora é só gerar o recibo novo.')
+      setModalReusarContrato(false)
+    } catch {
+      addToast('error', 'Não consegui reaproveitar o contrato. Tente novamente.')
+    } finally {
+      setReusando(false)
+    }
+  }
+
   const podeFinalizar = d.status === StatusDiligencia.Realizada
     && (isRemoto || d.dispensarDocumentos || d.statusPagamento === StatusPagamento.Pago)
     && !d.cicloFinalizado
@@ -433,6 +467,11 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         {!isRemoto && (
           <Button variant="secondary" size="sm" loading={gerandoContrato} onClick={handleGerarContrato}>
             <FileText className="w-3.5 h-3.5" /> Gerar contrato
+          </Button>
+        )}
+        {!isRemoto && adv && d.statusAssinaturaContrato !== 'assinado' && contratosReusaveis.length > 0 && (
+          <Button variant="secondary" size="sm" onClick={() => setModalReusarContrato(true)}>
+            <Copy className="w-3.5 h-3.5" /> Reusar contrato assinado
           </Button>
         )}
         {!isRemoto && (
@@ -1112,6 +1151,36 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               Gerar recibo
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal reaproveitar contrato assinado (item C) */}
+      <Modal open={modalReusarContrato} onClose={() => { if (!reusando) setModalReusarContrato(false) }} title="Reusar contrato assinado" size="lg">
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-slate-600">
+            Contratos já assinados de <strong>{adv?.nomeCompleto ?? 'este advogado'}</strong>. Escolha um para reaproveitar
+            nesta diligência — ele entra como <strong>contrato assinado</strong>, e você segue só com o recibo novo.
+          </p>
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-50 border border-slate-100 rounded-lg">
+            {contratosReusaveis.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-6">Nenhum contrato assinado deste advogado.</p>
+            ) : contratosReusaveis.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                disabled={reusando}
+                onClick={() => handleReusarContrato(x)}
+                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors flex items-center justify-between gap-3 disabled:opacity-50"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-700 truncate">{x.ccc || 'sem CCC'} — {x.vitima || 'sem vítima'}</p>
+                  <p className="text-xs text-slate-400">{formatCurrency(x.valorDiligencia)} · {formatDate(x.dataAtendimento ?? x.createdAt)}</p>
+                </div>
+                <Copy className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+          {reusando && <p className="text-xs text-blue-600 text-center">Reaproveitando...</p>}
         </div>
       </Modal>
 
