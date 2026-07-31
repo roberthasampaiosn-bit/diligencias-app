@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import './globals.css'
+import { UpdateChecker } from '@/components/UpdateChecker'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -36,7 +37,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${geist.variable} h-full`}>
-      <body className="h-full antialiased">{children}</body>
+      <body className="h-full antialiased">
+        {children}
+        <UpdateChecker />
+      </body>
     </html>
   )
 }
