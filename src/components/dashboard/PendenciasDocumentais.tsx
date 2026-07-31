@@ -130,7 +130,7 @@ export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
         <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
           <FileText className="w-4 h-4 text-blue-500" /> Pendências de documentos
         </h2>
@@ -138,7 +138,7 @@ export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia
           <select
             value={mesSel}
             onChange={(e) => setMesSel(e.target.value)}
-            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 capitalize"
           >
             {mesesOrdenados.map((m) => (
               <option key={m} value={m}>{rotuloMes(m)}</option>
