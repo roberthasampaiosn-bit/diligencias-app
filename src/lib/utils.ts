@@ -353,3 +353,17 @@ export function validarCccBat(valor: string): string {
   if (!REGEX_CCC_BAT.test(v)) return 'Formato esperado: BR-2026030019, AIT... ou Outros'
   return ''
 }
+
+// Um CCC só deve AGRUPAR diligências (histórico do CCC) e AUTO-PREENCHER dados
+// de uma diligência anterior quando é um identificador REAL e único.
+// "Outros" é um rótulo curinga que várias diligências distintas usam (situações
+// sem CCC e sem AIT) e "AIT" sozinho é só a categoria — nenhum dos dois
+// identifica um caso específico, então NÃO agrupam. Um número de processo/BO da
+// V.TAL ou um "AIT 12345" com número seguem sendo identificadores válidos.
+export function cccAgrupavel(ccc: string | null | undefined): boolean {
+  const v = (ccc ?? '').trim().toUpperCase()
+  if (!v) return false
+  if (v === 'OUTROS') return false
+  if (v === 'AIT') return false
+  return true
+}

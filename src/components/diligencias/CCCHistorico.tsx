@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ClipboardList } from 'lucide-react'
 import { Diligencia, EmpresaCliente } from '@/types'
 import { StatusDiligenciaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia, cccAgrupavel } from '@/lib/utils'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 
 interface CCCHistoricoProps {
@@ -12,11 +12,13 @@ interface CCCHistoricoProps {
 }
 
 export function CCCHistorico({ ccc, diligenciaAtualId, todasDiligencias }: CCCHistoricoProps) {
-  // Só agrupa quando há um identificador real. CCC/Nº de processo vazio NÃO agrupa
+  // Só agrupa quando há um identificador REAL. CCC/Nº de processo vazio NÃO agrupa
   // — caso contrário todas as V.TAL (que chegam com CCC em branco) apareceriam
-  // como histórico umas das outras, mesmo sendo eventos distintos.
+  // como histórico umas das outras. Do mesmo modo, "Outros" e "AIT" (sozinho) são
+  // rótulos curinga que várias diligências distintas usam, então também não
+  // agrupam (senão dois "Outros" sem relação virariam histórico um do outro).
   const cccTrim = ccc?.trim() ?? ''
-  if (!cccTrim) return null
+  if (!cccAgrupavel(ccc)) return null
 
   // Mantém o histórico dentro do mesmo cliente (não mistura BAT com V.TAL).
   const atual = todasDiligencias.find((d) => d.id === diligenciaAtualId)
