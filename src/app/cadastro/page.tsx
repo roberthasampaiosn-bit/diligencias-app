@@ -71,6 +71,8 @@ export default function CadastroPublicoPage() {
     }
     if (!form.endereco.trim()) e.endereco = 'Por favor, preencha seu endereço.'
     if (!form.chavePix.trim()) e.chavePix = 'Por favor, informe sua chave Pix.'
+    if (!form.cidadePrincipal.trim()) e.cidadePrincipal = 'Por favor, informe sua cidade principal.'
+    if (!form.uf) e.uf = 'Selecione o estado (UF).'
     return e
   }
 
@@ -245,10 +247,13 @@ export default function CadastroPublicoPage() {
               value={form.chavePix}
               onChange={(e) => set('chavePix', e.target.value)}
               error={errors.chavePix}
-              placeholder="CPF, telefone, e-mail ou chave aleatória"
+              placeholder="Digite sua chave: e-mail, chave aleatória, CPF ou telefone"
             />
+            <p className="text-xs text-slate-500 mt-1.5">
+              Digite qualquer tipo de chave Pix — e-mail, chave aleatória, CPF ou telefone.
+            </p>
             <p className="text-xs text-slate-500 mt-2 mb-1.5">
-              Sua chave Pix é o CPF ou o telefone? Toque para preencher automaticamente:
+              Se a sua chave for o CPF ou o telefone, use um atalho <span className="text-slate-400">(opcional)</span>:
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -276,31 +281,37 @@ export default function CadastroPublicoPage() {
           </div>
         </div>
 
-        {/* Onde atua (opcional) */}
+        {/* Onde atua */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700">
-            Onde você atua <span className="font-normal text-slate-400">(opcional)</span>
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-700">Onde você atua</h2>
 
           <div className="grid grid-cols-[1fr_110px] gap-2">
-            <Input
-              label="Cidade principal"
-              value={form.cidadePrincipal}
-              onChange={(e) => set('cidadePrincipal', e.target.value)}
-              onBlur={(e) => set('cidadePrincipal', toTitleCase(e.target.value))}
-              placeholder="Cidade onde atua"
-            />
-            <Select
-              label="UF"
-              value={form.uf}
-              onChange={(e) => set('uf', e.target.value)}
-              options={UFS.map((u) => ({ value: u, label: u }))}
-              placeholder="UF"
-            />
+            <div data-error={!!errors.cidadePrincipal}>
+              <Input
+                label="Cidade principal"
+                value={form.cidadePrincipal}
+                onChange={(e) => set('cidadePrincipal', e.target.value)}
+                onBlur={(e) => set('cidadePrincipal', toTitleCase(e.target.value))}
+                error={errors.cidadePrincipal}
+                placeholder="Cidade onde atua"
+              />
+            </div>
+            <div data-error={!!errors.uf}>
+              <Select
+                label="UF"
+                value={form.uf}
+                onChange={(e) => set('uf', e.target.value)}
+                options={UFS.map((u) => ({ value: u, label: u }))}
+                placeholder="UF"
+                error={errors.uf}
+              />
+            </div>
           </div>
 
           <div>
-            <p className="text-xs font-medium text-slate-600 mb-1.5">Outras cidades que você atende</p>
+            <p className="text-xs font-medium text-slate-600 mb-1.5">
+              Outras cidades que você atende <span className="font-normal text-slate-400">(opcional)</span>
+            </p>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
