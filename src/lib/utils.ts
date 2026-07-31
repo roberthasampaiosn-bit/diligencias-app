@@ -1,6 +1,6 @@
 ﻿import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { Diligencia, EmpresaCliente, TipoDiligencia } from '@/types'
+import { Diligencia, EmpresaCliente, TipoDiligencia, ModoDiligencia, StatusPagamento } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -17,6 +17,40 @@ export function normalizarBusca(s: string | null | undefined): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+// ─── Pendências de documentos / PDF final ─────────────────────────────────────
+// Fonte única usada pela lista de Diligências E pelo painel do Dashboard, para
+// que as duas telas concordem sobre o que está pendente.
+
+// Diligências que NÃO precisam de documentos anexados: remotas, Fadel (quase
+// nunca têm) ou marcadas manualmente como "Sem documentos".
+export function semDocumentosDiligencia(d: Diligencia): boolean {
+  return d.modoDiligencia === ModoDiligencia.Remoto
+    || /fadel/i.test(d.empresa ?? '')
+    || !!d.dispensarDocumentos
+}
+
+// Documentos que ainda faltam anexar numa diligência já finalizada (ciclo
+// fechado). Vazio se o ciclo não fechou ou se ela não exige documentos.
+export function documentosFaltando(d: Diligencia): string[] {
+  if (!d.cicloFinalizado || semDocumentosDiligencia(d)) return []
+  const faltam: string[] = []
+  if (!d.anexos.contratoAssinado) faltam.push('Contrato assinado')
+  if (!d.anexos.reciboAssinado) faltam.push('Recibo assinado')
+  if ((d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento)
+    faltam.push('Comprovante de pagamento')
+  if (!d.anexos.comprovanteServico) faltam.push('Comprovante de serviço')
+  return faltam
+}
+
+// Diligência com TODOS os documentos anexados, ciclo fechado, mas o PDF final
+// ainda NÃO foi gerado.
+export function prontaParaPdfFinal(d: Diligencia): boolean {
+  return d.cicloFinalizado
+    && !semDocumentosDiligencia(d)
+    && documentosFaltando(d).length === 0
+    && !d.pdfFinalGeradoEm
 }
 
 // Nome do PDF final no mesmo padrão usado no Drive do escritório:

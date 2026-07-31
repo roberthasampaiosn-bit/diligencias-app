@@ -11,25 +11,12 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca, documentosFaltando } from '@/lib/utils'
 import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
 
 // ── Documentos faltando ───────────────────────────────────────────────────────
-
-function docsFaltando(d: Diligencia): string[] {
-  // Não têm documento a anexar: remotas, Fadel (quase nunca têm) ou dispensadas à mão.
-  const semDocumentos = d.modoDiligencia === ModoDiligencia.Remoto
-    || /fadel/i.test(d.empresa ?? '')
-    || !!d.dispensarDocumentos
-  if (!d.cicloFinalizado || semDocumentos) return []
-  const faltam: string[] = []
-  if (!d.anexos.contratoAssinado) faltam.push('Contrato assinado')
-  if (!d.anexos.reciboAssinado) faltam.push('Recibo assinado')
-  if ((d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento)
-    faltam.push('Comprovante de pagamento')
-  if (!d.anexos.comprovanteServico) faltam.push('Comprovante de serviço')
-  return faltam
-}
+// Lógica compartilhada com o Dashboard — ver documentosFaltando em @/lib/utils.
+const docsFaltando = documentosFaltando
 
 // ── Ordenação inteligente ─────────────────────────────────────────────────────
 

@@ -16,6 +16,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
+import { PendenciasDocumentais } from '@/components/dashboard/PendenciasDocumentais'
 import { formatCurrency, tituloDiligencia } from '@/lib/utils'
 import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia, StatusPesquisa } from '@/types'
 
@@ -197,6 +198,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Pendências de documentos + PDF final (por mês) */}
+      <PendenciasDocumentais diligencias={diligencias} />
 
       {/* Totais financeiros */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
