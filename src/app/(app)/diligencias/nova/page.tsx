@@ -438,7 +438,7 @@ function FormBatBrasil() {
               </span>
             </div>
           )}
-          <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" helper="Aceita: CCC (BR-2026030019), AIT ou Outros. Use “Outros” quando não há CCC nem AIT — cada “Outros” é um caso à parte (não agrupa com os demais)." />
+          <Input label="CCC" value={form.ccc} onChange={(e) => set('ccc', e.target.value.toUpperCase())} onBlur={handleCccBlur} error={errors.ccc} placeholder="BR-2026030019" helper="Aceita: CCC (ex.: BR-2026030019), AIT ou Outros. Use “Outros” quando não há CCC nem AIT — cada “Outros” é um caso independente e não puxa dados de outra diligência." />
           <Select label="Tipo de evento" value={form.tipoEvento} onChange={(e) => set('tipoEvento', e.target.value)} options={TIPOS_EVENTO_BAT.map((v) => ({ value: v, label: v }))} />
           <Input label="Data do evento" type="date" value={form.dataEvento} onChange={(e) => set('dataEvento', e.target.value)} helper="Quando o fato aconteceu (não muda num aditamento)." />
           <Input label="Horário do evento" value={form.horaEvento} onChange={(e) => setHora('horaEvento', e.target.value)} placeholder="HH:MM" />
