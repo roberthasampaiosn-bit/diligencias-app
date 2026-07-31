@@ -307,8 +307,9 @@ export function buildPesquisaMessage(vitima: string, tipoEvento: string, empresa
 // Rótulo que identifica uma diligência em listas, títulos e histórico.
 // BAT BRASIL usa o nome da vítima (sempre preenchido).
 // V.TAL não tem nome de vítima nem CCC fixo (ambos chegam "N/A"/vazios), então
-// monta um rótulo descritivo — Data · Cidade/UF · Tipo de diligência — para que
-// cada evento seja distinguível dos demais.
+// monta um rótulo descritivo — BO · Data · Cidade/UF · Tipo de diligência. O
+// nº do BO/processo (campo ccc) costuma ser preenchido só DEPOIS; quando estiver
+// preenchido ele lidera o título, para a diligência ficar identificável pelo BO.
 export function tituloDiligencia(d: Diligencia): string {
   if (d.empresaCliente !== EmpresaCliente.VTAL) return d.vitima
 
@@ -317,8 +318,10 @@ export function tituloDiligencia(d: Diligencia): string {
     ? d.tipoDiligenciaDescricao
     : d.tipoDiligencia
   const local = d.cidade && d.uf ? `${d.cidade}/${d.uf}` : (d.cidade || d.uf || '')
+  const bo = d.ccc?.trim() ? `BO ${d.ccc.trim()}` : ''
 
   const partes = [
+    bo,
     data ? formatDate(data) : '',
     local,
     tipo || '',
