@@ -7,6 +7,7 @@ import { applyUpdate } from '@/services/diligenciaService'
 import {
   fetchDiligencias, insertDiligencia, patchDiligencia,
   patchPesquisa, patchAnexo, insertLigacao, uploadArquivoAnexo, removerAnexoDB,
+  deleteDiligenciaDB,
 } from '@/services/diligenciasDB'
 import { supabase } from '@/lib/supabase'
 import {
@@ -23,6 +24,7 @@ export interface DiligenciasContextValue {
   error: string | null
   createDiligencia: (data: Omit<Diligencia, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Diligencia>
   updateDiligencia: (id: string, patch: Partial<Diligencia>) => Promise<void>
+  deleteDiligencia: (id: string) => Promise<void>
   marcarRealizada: (id: string, dataAtendimento?: string) => void
   marcarPago: (id: string) => Promise<void>
   finalizarCiclo: (id: string, avaliacao?: AvaliacaoAdvogado) => void
@@ -213,6 +215,22 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       throw err
     }
   }, [patchD, addToast, userEmail])
+
+  const deleteDiligencia = useCallback(async (id: string): Promise<void> => {
+    const alvo = diligenciasRef.current.find((x) => x.id === id)
+    // Remove da tela na hora (otimista); se falhar no banco, restaura.
+    setDiligencias((prev) => prev.filter((d) => d.id !== id))
+    try {
+      await deleteDiligenciaDB(id)
+      addToast('success', 'Diligência excluída.')
+      logAudit({ usuarioEmail: userEmail, acao: 'excluiu_diligencia', entidadeId: id, detalhes: alvo?.ccc })
+    } catch (err) {
+      console.error(err)
+      if (alvo) setDiligencias((prev) => [alvo, ...prev])
+      addToast('error', 'Não foi possível excluir. Verifique sua conexão.')
+      throw err
+    }
+  }, [addToast, userEmail])
 
   const marcarRealizada = useCallback((id: string, dataAtendimento?: string) => {
     const patch: Partial<Diligencia> = { status: StatusDiligencia.Realizada }
@@ -424,7 +442,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   return (
     <DiligenciasContext.Provider value={{
       diligencias, loading, error,
-      createDiligencia, updateDiligencia, marcarRealizada, marcarPago, finalizarCiclo,
+      createDiligencia, updateDiligencia, deleteDiligencia, marcarRealizada, marcarPago, finalizarCiclo,
       atualizarAnexo, uploadAnexo, removerAnexo, registrarWhatsApp, registrarLigacao, agendarRetorno,
       marcarRespondida, encerrarSemResposta, dispensarPesquisa, reabrirPesquisa, atualizarPesquisa,
     }}>

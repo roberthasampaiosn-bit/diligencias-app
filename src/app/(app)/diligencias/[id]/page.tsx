@@ -2,6 +2,7 @@
 
 import { use, useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
@@ -52,10 +53,11 @@ function etapaAtual(d: Diligencia): number {
 
 export default function DiligenciaDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
-  const { diligencias, marcarRealizada, marcarPago, finalizarCiclo, uploadAnexo, removerAnexo, updateDiligencia, atualizarAnexo } = useDiligencias()
+  const { diligencias, marcarRealizada, marcarPago, finalizarCiclo, uploadAnexo, removerAnexo, updateDiligencia, atualizarAnexo, deleteDiligencia } = useDiligencias()
   const { advogadoMap } = useAdvogados()
   const { eventos } = useEventos()
   const { addToast } = useToast()
+  const router = useRouter()
 
   const [gerandoContrato, setGerandoContrato] = useState(false)
   const [gerandoRecibo, setGerandoRecibo] = useState(false)
@@ -67,6 +69,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [dataRecibo, setDataRecibo] = useState('')
   const [modalFinalizarAnne, setModalFinalizarAnne] = useState(false)
   const [modalPendencia, setModalPendencia] = useState(false)
+  const [modalExcluir, setModalExcluir] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
   const [showDownloads, setShowDownloads] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfErro, setPdfErro] = useState<string | null>(null)
@@ -266,6 +270,16 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     }
     finalizarCiclo(id, avaliacao)
     setModalFinalizar(false)
+  }
+
+  async function handleExcluir() {
+    setExcluindo(true)
+    try {
+      await deleteDiligencia(id)
+      router.push('/diligencias')   // some da tela e volta pra lista
+    } catch {
+      setExcluindo(false)           // erro já mostra toast; deixa o modal aberto p/ tentar de novo
+    }
   }
 
   // Itens de upload da seção de documentos
@@ -1327,6 +1341,39 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           {!notaAdv && (
             <p className="text-xs text-red-500 text-right -mt-3">Nota obrigatória para finalizar</p>
           )}
+        </div>
+      </Modal>
+
+      {/* Excluir diligência — botão discreto no rodapé, longe do fluxo normal */}
+      <div className="pt-8 mt-4 border-t border-slate-100 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setModalExcluir(true)}
+          className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-600 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Excluir diligência
+        </button>
+      </div>
+
+      <Modal open={modalExcluir} onClose={() => !excluindo && setModalExcluir(false)} title="Excluir diligência" size="sm">
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>Esta ação é <strong>permanente</strong> e não pode ser desfeita.</span>
+          </div>
+          <p className="text-sm text-slate-600">
+            Vai excluir a diligência de <strong>{tituloDiligencia(d)}</strong>
+            {d.ccc ? <> (<strong>{d.ccc}</strong>)</> : ''} e o histórico de ligações dela.
+            Os arquivos já anexados no armazenamento não são apagados.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" disabled={excluindo} onClick={() => setModalExcluir(false)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" size="sm" loading={excluindo} onClick={handleExcluir}>
+              <Trash2 className="w-4 h-4" /> Excluir definitivamente
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

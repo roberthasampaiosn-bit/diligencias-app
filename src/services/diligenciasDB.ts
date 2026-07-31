@@ -286,6 +286,16 @@ export async function removerAnexoDB(id: string, campo: keyof Anexos): Promise<v
   if (error) throw error
 }
 
+// Exclui a diligência de vez. Remove antes as ligações (tabela filha) para não
+// esbarrar em restrição de chave estrangeira. Os arquivos no Storage não são
+// apagados aqui — ficam órfãos, mas inofensivos.
+export async function deleteDiligenciaDB(id: string): Promise<void> {
+  const { error: errLig } = await supabase.from('ligacoes').delete().eq('diligencia_id', id)
+  if (errLig) throw errLig
+  const { error } = await supabase.from('diligencias').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function insertLigacao(
   diligenciaId: string,
   ligacao: Omit<Ligacao, 'id'>,

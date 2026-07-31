@@ -13,6 +13,7 @@ export type AcaoLog =
   | 'reabriu_pesquisa'
   | 'removeu_anexo'
   | 'adicionou_anexo'
+  | 'excluiu_diligencia'
 
 export interface AuditEntry {
   usuarioEmail: string
