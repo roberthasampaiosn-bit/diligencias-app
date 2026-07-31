@@ -340,7 +340,7 @@ export default function CadastroPublicoPage() {
           <Check className="w-4 h-4" /> Enviar cadastro
         </Button>
 
-        <p className="text-center text-xs text-slate-400 pb-4">
+        <p className="text-center text-xs text-slate-400 pb-4" data-build="ccc-outros-fix-20260731">
           Seus dados são usados apenas para fins de contrato e pagamento das diligências.
         </p>
       </form>
