@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { FileWarning, FileCheck2, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import { Diligencia } from '@/types'
+import { useAdvogados } from '@/context/AdvogadosContext'
 import { documentosFaltando, prontaParaPdfFinal, tituloDiligencia } from '@/lib/utils'
 
 // Data que define o "mês" da pendência: atendimento → evento → criação.
@@ -31,7 +32,8 @@ const DOC_CURTO: Record<string, string> = {
 
 interface ItemPendencia {
   d: Diligencia
-  faltam: string[]      // vazio quando é "pronta para PDF"
+  faltam: string[]         // vazio quando é "pronta para PDF"
+  nomeAdvogado: string     // nome do advogado responsável (ou fallback)
 }
 
 function ListaExpandivel({
@@ -73,21 +75,24 @@ function ListaExpandivel({
           {itens.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-4">{vazio}</p>
           ) : (
-            itens.map(({ d, faltam }) => (
+            itens.map(({ d, faltam, nomeAdvogado }) => (
               <Link
                 key={d.id}
                 href={`/diligencias/${d.id}`}
-                className="block px-4 py-2.5 hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 transition-colors group"
               >
-                <p className="text-sm font-medium text-slate-800">{tituloDiligencia(d)}</p>
-                <p className="text-xs text-slate-500">
-                  {d.ccc ? `${d.ccc} · ` : ''}{d.cidade}/{d.uf}
-                  {faltam.length > 0 && (
-                    <span className="text-amber-600">
-                      {' · '}falta{faltam.length > 1 ? 'm' : ''}: {faltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}
-                    </span>
-                  )}
-                </p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800">{nomeAdvogado}</p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {d.ccc ? `${d.ccc} · ` : ''}{d.cidade}/{d.uf}
+                    {faltam.length > 0 && (
+                      <span className="text-amber-600">
+                        {' · '}falta{faltam.length > 1 ? 'm' : ''}: {faltam.map((x) => DOC_CURTO[x] ?? x).join(', ')}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
               </Link>
             ))
           )}
@@ -98,8 +103,13 @@ function ListaExpandivel({
 }
 
 export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia[] }) {
+  const { advogadoMap } = useAdvogados()
+
   // Meses que têm alguma pendência documental (faltando ou pronta-sem-PDF).
   const { porMes, mesesOrdenados } = useMemo(() => {
+    const nomeDoAdvogado = (d: Diligencia): string =>
+      advogadoMap.get(d.advogadoId)?.nomeCompleto || tituloDiligencia(d) || 'Advogado não definido'
+
     const porMes = new Map<string, { faltam: ItemPendencia[]; prontas: ItemPendencia[] }>()
     for (const d of diligencias) {
       const faltam = documentosFaltando(d)
@@ -109,12 +119,13 @@ export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia
       if (!mes) continue
       if (!porMes.has(mes)) porMes.set(mes, { faltam: [], prontas: [] })
       const grupo = porMes.get(mes)!
-      if (faltam.length > 0) grupo.faltam.push({ d, faltam })
-      else grupo.prontas.push({ d, faltam: [] })
+      const nomeAdvogado = nomeDoAdvogado(d)
+      if (faltam.length > 0) grupo.faltam.push({ d, faltam, nomeAdvogado })
+      else grupo.prontas.push({ d, faltam: [], nomeAdvogado })
     }
     const mesesOrdenados = Array.from(porMes.keys()).sort((a, b) => b.localeCompare(a)) // recente primeiro
     return { porMes, mesesOrdenados }
-  }, [diligencias])
+  }, [diligencias, advogadoMap])
 
   // Mês selecionado: mês atual se tiver pendência, senão o mais recente que tiver.
   const mesAtual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
