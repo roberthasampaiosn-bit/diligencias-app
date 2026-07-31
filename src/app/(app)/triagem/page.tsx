@@ -9,6 +9,7 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { Evento, StatusEvento } from '@/types'
+import { normalizarBusca } from '@/lib/utils'
 
 const filtros = [
   { key: 'todos', label: 'Todos' },
@@ -79,15 +80,15 @@ export default function TriagemPage() {
     }
 
     if (search) {
-      const q = search.toLowerCase()
+      const q = normalizarBusca(search)
       list = list.filter(
         (e) =>
-          e.ccc.toLowerCase().includes(q) ||
-          e.nomeVitima.toLowerCase().includes(q) ||
-          e.empresa.toLowerCase().includes(q) ||
-          e.tipoEvento.toLowerCase().includes(q) ||
-          e.cidade.toLowerCase().includes(q) ||
-          e.uf.toLowerCase().includes(q)
+          normalizarBusca(e.ccc).includes(q) ||
+          normalizarBusca(e.nomeVitima).includes(q) ||
+          normalizarBusca(e.empresa).includes(q) ||
+          normalizarBusca(e.tipoEvento).includes(q) ||
+          normalizarBusca(e.cidade).includes(q) ||
+          normalizarBusca(e.uf).includes(q)
       )
     }
 

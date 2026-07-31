@@ -13,7 +13,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Input } from '@/components/ui/Input'
 import { StatusPagamentoBadge, StatusDiligenciaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca } from '@/lib/utils'
 import { StatusPagamento, StatusDiligencia, EmpresaCliente } from '@/types'
 import { useRef, useEffect } from 'react'
 import { EmpresaBadge } from '@/components/shared/StatusBadge'
@@ -96,8 +96,8 @@ export default function FinanceiroPage() {
       )
     }
     if (search) {
-      const q = search.toLowerCase()
-      l = l.filter((d) => d.vitima.toLowerCase().includes(q) || d.ccc.toLowerCase().includes(q) || d.empresa.toLowerCase().includes(q))
+      const q = normalizarBusca(search)
+      l = l.filter((d) => normalizarBusca(d.vitima).includes(q) || normalizarBusca(d.ccc).includes(q) || normalizarBusca(d.empresa).includes(q))
     }
     return [...l].sort((a, b) => {
       if (a.statusPagamento === StatusPagamento.Pendente && b.statusPagamento === StatusPagamento.Pago) return -1

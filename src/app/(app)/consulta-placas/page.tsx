@@ -7,7 +7,7 @@ import { useConsultasPlacas } from '@/context/ConsultaPlacasContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, normalizarBusca } from '@/lib/utils'
 import { ResultadoConsultaPlaca } from '@/types'
 import { useSearchParams } from 'next/navigation'
 import { exportarExcelEstilizado } from '@/lib/excel'
@@ -68,10 +68,10 @@ function ConsultaPlacasContent() {
     if (dataInicio) l = l.filter((c) => c.dataConsulta >= dataInicio)
     if (dataFim) l = l.filter((c) => c.dataConsulta <= dataFim)
     if (search) {
-      const q = search.toLowerCase()
+      const q = normalizarBusca(search)
       l = l.filter((c) =>
-        c.placa.toLowerCase().includes(q) ||
-        c.solicitante.toLowerCase().includes(q) ||
+        normalizarBusca(c.placa).includes(q) ||
+        normalizarBusca(c.solicitante).includes(q) ||
         c.dataConsulta.includes(q)
       )
     }

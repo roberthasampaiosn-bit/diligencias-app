@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Modal } from '@/components/ui/Modal'
 import { StatusDiligenciaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, tituloDiligencia } from '@/lib/utils'
+import { formatCurrency, tituloDiligencia, normalizarBusca } from '@/lib/utils'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoParaZapSign, gerarReciboParaZapSign, gerarContratoAvulsoParaZapSign, gerarReciboAvulsoParaZapSign } from '@/lib/pdf'
 import { mesclarPdfsBase64 } from '@/lib/pdfFinal'
 import { buildWhatsAppZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
@@ -226,8 +226,8 @@ function DocumentosContent() {
   const lista = useMemo(() => {
     let l = dilIdParam ? diligencias.filter((d) => d.id === dilIdParam) : diligencias
     if (search) {
-      const q = search.toLowerCase()
-      l = l.filter((d) => d.vitima.toLowerCase().includes(q) || d.ccc.toLowerCase().includes(q))
+      const q = normalizarBusca(search)
+      l = l.filter((d) => normalizarBusca(d.vitima).includes(q) || normalizarBusca(d.ccc).includes(q))
     }
     return [...l].sort((a, b) => getProgresso(a.anexos) - getProgresso(b.anexos))
   }, [diligencias, search, dilIdParam])
@@ -1016,9 +1016,9 @@ function DocumentosContent() {
           <SearchInput value={vincularBusca} onChange={setVincularBusca} placeholder="Buscar por CCC ou vítima..." />
           <div className="max-h-80 overflow-y-auto divide-y divide-slate-50 border border-slate-100 rounded-lg">
             {(() => {
-              const q = vincularBusca.toLowerCase().trim()
+              const q = normalizarBusca(vincularBusca)
               const opcoes = diligencias
-                .filter((d) => !q || d.ccc.toLowerCase().includes(q) || d.vitima.toLowerCase().includes(q))
+                .filter((d) => !q || normalizarBusca(d.ccc).includes(q) || normalizarBusca(d.vitima).includes(q))
                 .slice(0, 40)
               if (opcoes.length === 0) {
                 return <p className="text-sm text-slate-400 text-center py-6">Nenhuma diligência encontrada.</p>

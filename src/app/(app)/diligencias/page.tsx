@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca } from '@/lib/utils'
 import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
 
 // ── Documentos faltando ───────────────────────────────────────────────────────
@@ -281,15 +281,15 @@ function DiligenciasContent() {
     }
     if (filtrosAvancados.modo !== 'todos') l = l.filter((d) => d.modoDiligencia === filtrosAvancados.modo)
     if (search) {
-      const q = search.toLowerCase()
+      const q = normalizarBusca(search)
       l = l.filter(
         (d) =>
-          d.ccc.toLowerCase().includes(q) ||
-          d.vitima.toLowerCase().includes(q) ||
-          d.empresaCliente.toLowerCase().includes(q) ||
-          d.empresa.toLowerCase().includes(q) ||
-          d.cidade.toLowerCase().includes(q) ||
-          (advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '').toLowerCase().includes(q)
+          normalizarBusca(d.ccc).includes(q) ||
+          normalizarBusca(d.vitima).includes(q) ||
+          normalizarBusca(d.empresaCliente).includes(q) ||
+          normalizarBusca(d.empresa).includes(q) ||
+          normalizarBusca(d.cidade).includes(q) ||
+          normalizarBusca(advogadoMap.get(d.advogadoId)?.nomeCompleto).includes(q)
       )
     }
     return sortDiligencias(l)

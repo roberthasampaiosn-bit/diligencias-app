@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { PushButton } from '@/components/shared/PushButton'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone, normalizarBusca } from '@/lib/utils'
 import {
   StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
   EmpresaCliente, TipoDiligencia, ModoDiligencia, TipoEvento,
@@ -106,9 +106,8 @@ function formatDateTimeBR(s: string): string {
 
 // ─── Normalização de texto (remove acentos para busca) ───────────────────────
 
-function normalizeStr(s: string): string {
-  return (s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-}
+// Fonte \u00fanica: normalizarBusca em @/lib/utils (usado em todas as buscas do app).
+const normalizeStr = normalizarBusca
 
 function sanitizeName(s: string | null | undefined): string {
   return (s ?? '').replace(/^[\s:]+/, '').trim()

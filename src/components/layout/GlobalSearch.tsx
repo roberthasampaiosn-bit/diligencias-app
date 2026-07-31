@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, X, ClipboardList, Users } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
-import { cn, tituloDiligencia } from '@/lib/utils'
+import { cn, tituloDiligencia, normalizarBusca } from '@/lib/utils'
 
 interface Result {
   type: 'diligencia' | 'advogado'
@@ -44,16 +44,16 @@ const SearchDropdown = memo(function SearchDropdown({
 
   const results = useMemo<Result[]>(() => {
     if (debounced.length < 2) return []
-    const q = debounced.toLowerCase()
+    const q = normalizarBusca(debounced)
     const qDigits = q.replace(/\D/g, '')
     const out: Result[] = []
 
     for (const d of diligencias) {
       if (out.filter((r) => r.type === 'diligencia').length >= 5) break
       if (
-        d.ccc.toLowerCase().includes(q) ||
-        d.vitima.toLowerCase().includes(q) ||
-        d.empresa.toLowerCase().includes(q) ||
+        normalizarBusca(d.ccc).includes(q) ||
+        normalizarBusca(d.vitima).includes(q) ||
+        normalizarBusca(d.empresa).includes(q) ||
         (qDigits.length >= 4 && d.telefoneVitima.includes(qDigits))
       ) {
         out.push({
@@ -69,7 +69,7 @@ const SearchDropdown = memo(function SearchDropdown({
     for (const a of advogados) {
       if (out.filter((r) => r.type === 'advogado').length >= 5) break
       if (
-        a.nomeCompleto.toLowerCase().includes(q) ||
+        normalizarBusca(a.nomeCompleto).includes(q) ||
         (qDigits.length >= 4 && (a.cpf?.includes(qDigits) || a.telefone.includes(qDigits)))
       ) {
         out.push({

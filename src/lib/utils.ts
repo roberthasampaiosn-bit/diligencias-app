@@ -1,9 +1,22 @@
-import { type ClassValue, clsx } from 'clsx'
+﻿import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { Diligencia, EmpresaCliente, TipoDiligencia } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+// Normaliza texto para BUSCA: minúsculas + remove acentos (NFD tira os
+// diacríticos) + colapsa espaços. Assim "Thaísa" e "Thaisa" viram "thaisa" e a
+// busca deixa de diferenciar acento. Use nas duas pontas (query e alvo) para que
+// digitar com OU sem acento encontre resultados com OU sem acento.
+export function normalizarBusca(s: string | null | undefined): string {
+  return (s ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // Nome do PDF final no mesmo padrão usado no Drive do escritório:
