@@ -452,14 +452,22 @@ function PesquisaContent() {
 
   // ── Dados filtrados ──────────────────────────────────────────────────────────
 
-  const realizadas = useMemo(
-    () => diligencias.filter((d) =>
-      d.status === StatusDiligencia.Realizada &&
-      d.empresaCliente !== EmpresaCliente.VTAL &&
-      d.pesquisa.status !== StatusPesquisa.Dispensada   // dispensadas ficam fora da fila
-    ),
-    [diligencias],
-  )
+  const realizadas = useMemo(() => {
+    // Rascunho da triagem (incompleta) só entra na fila 24h após o evento — para não
+    // contatar a vítima cedo demais (mesmo critério que a triagem usava antes).
+    // Diligência já completa (incompleta=false) aparece na hora, como sempre.
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    return diligencias.filter((d) => {
+      if (d.status !== StatusDiligencia.Realizada) return false
+      if (d.empresaCliente === EmpresaCliente.VTAL) return false
+      if (d.pesquisa.status === StatusPesquisa.Dispensada) return false   // dispensadas fora da fila
+      if (d.incompleta) {
+        const refData = (d.eventoId ? eventoMap[d.eventoId]?.dataEvento : undefined) ?? d.dataEvento
+        if (!refData || refData > cutoff24h) return false
+      }
+      return true
+    })
+  }, [diligencias, eventoMap])
 
   // Empresas (transportadoras) presentes na fila — para o filtro por empresa
   const empresasDisponiveis = useMemo(() => {
