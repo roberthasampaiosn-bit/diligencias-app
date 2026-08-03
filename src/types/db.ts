@@ -69,6 +69,8 @@ export interface DiligenciaRow {
   status: string
   status_pagamento: string
   ciclo_finalizado: boolean
+  // Rascunho vindo da triagem (evento do e-mail), dados da diligência ainda a completar
+  incompleta?: boolean | null
   evento_id: string | null
   pesquisa_status: string
   pesquisa_data_envio_whatsapp: string | null

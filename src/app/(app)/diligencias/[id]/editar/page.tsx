@@ -180,6 +180,8 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: form.status as StatusDiligencia,
         statusPagamento: form.statusPagamento as StatusPagamento,
+        // Salvou pela edição = Anne completou/revisou os dados → deixa de ser rascunho
+        incompleta: false,
         avaliacao,
       })
       router.push(`/diligencias/${id}`)

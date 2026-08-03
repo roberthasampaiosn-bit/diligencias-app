@@ -359,7 +359,7 @@ function FormBatBrasil() {
     try {
       // Já existe rascunho da pesquisa para este evento → COMPLETA (não duplica).
       if (existenteDoEvento) {
-        const patch: Partial<Diligencia> = { ...base }
+        const patch: Partial<Diligencia> = { ...base, incompleta: false }
         if (concluir) {
           patch.status = StatusDiligencia.Realizada
           patch.dataAtendimento = hoje

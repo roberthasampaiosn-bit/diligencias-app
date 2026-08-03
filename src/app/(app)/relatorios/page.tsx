@@ -60,7 +60,9 @@ function Td({ children, className }: { children: React.ReactNode; className?: st
 // ─── Página ──────────────────────────────────────────────────────────────────
 
 export default function RelatoriosPage() {
-  const { diligencias } = useDiligencias()
+  const { diligencias: todasDiligencias } = useDiligencias()
+  // Rascunhos da triagem (incompleta) não entram em relatórios/estatísticas.
+  const diligencias = useMemo(() => todasDiligencias.filter((d) => !d.incompleta), [todasDiligencias])
   const { advogadoMap } = useAdvogados()
   const { consultasPlacas } = useConsultasPlacas()
 

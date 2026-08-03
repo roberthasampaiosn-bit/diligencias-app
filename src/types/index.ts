@@ -220,6 +220,12 @@ export interface Diligencia {
   status: StatusDiligencia
   statusPagamento: StatusPagamento
   cicloFinalizado: boolean
+  // Diligência-rascunho vinda da triagem (evento do e-mail): dados corretos do
+  // e-mail, mas ainda faltam os dados da diligência (modo, advogado, valores).
+  // A Anne "completa" na triagem/edição → vira false. Rascunhos não entram em
+  // Dashboard / Financeiro / Relatórios / lista de Diligências, mas aparecem na
+  // fila de Pesquisa para o contato com a vítima.
+  incompleta?: boolean
   pesquisa: Pesquisa
   anexos: Anexos
   eventoId?: string

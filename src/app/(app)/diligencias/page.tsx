@@ -228,7 +228,10 @@ function FiltrosDropdown({
 
 function DiligenciasContent() {
   const searchParams = useSearchParams()
-  const { diligencias } = useDiligencias()
+  const { diligencias: todasDiligencias } = useDiligencias()
+  // Rascunhos da triagem (incompleta) ainda não são diligências completas — não
+  // aparecem nesta lista. Ficam na Triagem e na fila de Pesquisa até a Anne completar.
+  const diligencias = useMemo(() => todasDiligencias.filter((d) => !d.incompleta), [todasDiligencias])
   const { advogadoMap } = useAdvogados()
   const [, startTransition] = useTransition()
   const [search, setSearch] = useState(searchParams.get('ccc') || '')

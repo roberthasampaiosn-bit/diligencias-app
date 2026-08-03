@@ -120,6 +120,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     status: row.status as StatusDiligencia,
     statusPagamento: row.status_pagamento as StatusPagamento,
     cicloFinalizado: row.ciclo_finalizado,
+    incompleta: row.incompleta ?? false,
     eventoId: row.evento_id ?? undefined,
     pesquisa: {
       status: normalizePesquisaStatus(row.pesquisa_status),
@@ -227,6 +228,7 @@ export function fromDiligencia(
     observacao_interna: d.observacaoInterna ?? null,
     // Colunas opcionais adicionadas em migrations — só incluídas no payload quando têm valor,
     // evitando erro "column not found" caso a migration ainda não tenha sido executada.
+    ...(d.incompleta != null && { incompleta: d.incompleta }),
     ...(d.tipoDiligenciaDescricao != null && { tipo_diligencia_descricao: d.tipoDiligenciaDescricao }),
     ...(d.dataInformativo != null && { data_informativo: d.dataInformativo }),
     ...(d.horaInformativo != null && { hora_informativo: d.horaInformativo }),

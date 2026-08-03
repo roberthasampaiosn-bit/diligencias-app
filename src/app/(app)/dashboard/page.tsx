@@ -38,7 +38,10 @@ function statsCliente(diligencias: ReturnType<typeof useDiligencias>['diligencia
 }
 
 export default function DashboardPage() {
-  const { diligencias } = useDiligencias()
+  const { diligencias: todasDiligencias } = useDiligencias()
+  // Rascunhos da triagem (incompleta) não são diligências "reais" ainda — ficam
+  // fora de todos os números do dashboard. Aparecem só na fila de Pesquisa.
+  const diligencias = useMemo(() => todasDiligencias.filter((d) => !d.incompleta), [todasDiligencias])
   const { advogadoMap } = useAdvogados()
   const { eventos } = useEventos()
   const { consultasPlacas } = useConsultasPlacas()

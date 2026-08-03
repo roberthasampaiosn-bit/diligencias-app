@@ -283,5 +283,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   console.log(`[email-entrada] ✓ Evento criado: ${ccc} (id=${novo.id})`)
+
+  // Unificação Triagem × Diligências: o evento já nasce com uma diligência-rascunho
+  // vinculada (incompleta = true). Assim ele aparece na fila de Pesquisa como um card
+  // normal (com checkbox → WhatsApp em lote) e todo o app o trata como diligência.
+  // A Anne "completa" depois (modo/advogado/valores). Nunca bloqueia a criação do
+  // evento: se a diligência falhar, o evento continua criado e visível na Triagem.
+  if (ccc && ccc.trim()) {
+    try {
+      const rascunho = {
+        empresa_cliente:  'BAT BRASIL',
+        ccc,
+        vitima:           (nomeVitima || '').replace(/^[\s:]+/, '').trim(),
+        telefone_vitima:  telefoneVitima || '',
+        cargo:            cargoVitima || '',
+        empresa:          empresa || '',
+        cidade:           cidade || '',
+        uf:               uf || '',
+        tipo_evento:      classificacaoEvento || 'Outro',
+        tipo_diligencia:  'Suporte Jurídico Remoto',
+        modo_diligencia:  'Remoto',
+        advogado_id:      null,
+        valor_diligencia: null,
+        status:           'Realizada',
+        status_pagamento: 'Pendente',
+        ciclo_finalizado: false,
+        incompleta:       true,
+        evento_id:        novo.id,
+        pesquisa_status:  'Pendente',
+        data_evento:      normalizeDate(dataEvento),
+        hora_evento:      horaEvento || null,
+        data_atendimento: normalizeDate(dataEvento),
+        segmento:         segmento || null,
+        operacao:         tipoOperador || null,
+        dp_registrou:     '',
+      }
+      const { error: rascunhoError } = await supabase.from('diligencias').insert(rascunho)
+      if (rascunhoError) {
+        console.error('[email-entrada] Aviso: falha ao criar diligência-rascunho:', rascunhoError.message)
+      } else {
+        console.log(`[email-entrada] ✓ Diligência-rascunho criada para ${ccc}`)
+      }
+    } catch (err) {
+      console.error('[email-entrada] Aviso: exceção ao criar diligência-rascunho:', err)
+    }
+  }
+
   return NextResponse.json({ ok: true, ccc, eventoId: novo.id })
 }
