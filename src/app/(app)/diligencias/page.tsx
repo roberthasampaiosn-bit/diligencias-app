@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ClipboardList, Plus, MapPin, SlidersHorizontal, X, AlertTriangle } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
+import { useEventos } from '@/context/EventosContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca, documentosFaltando } from '@/lib/utils'
-import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado } from '@/types'
+import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado, StatusEvento } from '@/types'
 
 // ── Documentos faltando ───────────────────────────────────────────────────────
 // Lógica compartilhada com o Dashboard — ver documentosFaltando em @/lib/utils.
@@ -21,7 +22,6 @@ const docsFaltando = documentosFaltando
 // ── Ordenação inteligente ─────────────────────────────────────────────────────
 
 function prioridade(d: Diligencia): number {
-  if (d.incompleta) return -1                              // rascunhos da triagem no topo (precisam ser completados)
   if (d.status === StatusDiligencia.EmAndamento) return 0
   const sit = situacaoCiclo(d)
   const precisaAcao = sit.tone === 'amber' || sit.docsFaltam.length > 0   // aguardando pagamento ou docs faltando
@@ -77,23 +77,23 @@ function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docsFalta
 // ── Row memoizado ─────────────────────────────────────────────────────────────
 
 const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
-  d, adv,
-}: { d: Diligencia; adv: Advogado | undefined }) {
+  d, adv, naTriagem,
+}: { d: Diligencia; adv: Advogado | undefined; naTriagem: boolean }) {
   const router = useRouter()
   const dataRef = d.dataAtendimento ?? d.dataLigacaoAdvogado ?? d.dataEvento ?? d.dataInformativo
   const sit = situacaoCiclo(d)
-  // Rascunho da triagem → clicar leva direto ao formulário de edição para completar.
-  const destino = d.incompleta ? `/diligencias/${d.id}/editar` : `/diligencias/${d.id}`
+  // Ainda na triagem → clicar leva direto ao formulário para classificar/completar.
+  const destino = naTriagem ? `/diligencias/${d.id}/editar` : `/diligencias/${d.id}`
   return (
     <tr
-      className={`cursor-pointer transition-colors ${d.incompleta ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}`}
+      className={`cursor-pointer transition-colors ${naTriagem ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}`}
       onClick={() => router.push(destino)}
     >
       <td className="px-4 py-3">
         <span className="font-mono text-xs font-semibold text-blue-700">{d.ccc}</span>
-        {d.incompleta && (
+        {naTriagem && (
           <span className="mt-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-            <AlertTriangle className="w-3 h-3" /> Rascunho
+            <AlertTriangle className="w-3 h-3" /> Na triagem
           </span>
         )}
       </td>
@@ -116,9 +116,9 @@ const DiligenciaRowDesktop = memo(function DiligenciaRowDesktop({
         }
       </td>
       <td className="px-4 py-3">
-        {d.incompleta ? (
+        {naTriagem ? (
           <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
-            <AlertTriangle className="w-3 h-3" /> Completar cadastro
+            <AlertTriangle className="w-3 h-3" /> Completar na triagem
           </span>
         ) : (
         <div className="space-y-1">
@@ -243,9 +243,17 @@ function FiltrosDropdown({
 function DiligenciasContent() {
   const searchParams = useSearchParams()
   const { diligencias } = useDiligencias()
-  // Rascunhos da triagem (incompleta) APARECEM nesta lista, mas marcados com o
-  // selo "Rascunho" e no topo — assim dá para achar e completar aqui mesmo.
-  // (Dashboard/Relatórios continuam ignorando rascunhos; só a lista os mostra.)
+  const { eventos } = useEventos()
+  // "Na triagem" = a diligência veio do e-mail e você ainda NÃO clicou em
+  // "criar diligência" (o evento continua pendente). Esses itens APARECEM nesta
+  // lista com o selo "Na triagem" — assim a busca por CCC sempre acha, mesmo que
+  // ainda estejam na Triagem. Ao completar/graduar, o selo some. Carimbo único =
+  // status do evento (não mexe em Dashboard/Relatórios/Pesquisa).
+  const eventosPendentes = useMemo(
+    () => new Set(eventos.filter((e) => e.statusEvento === StatusEvento.Pendente).map((e) => e.id)),
+    [eventos],
+  )
+  const naTriagem = (d: Diligencia) => !!d.eventoId && eventosPendentes.has(d.eventoId)
   const { advogadoMap } = useAdvogados()
   const [, startTransition] = useTransition()
   const [search, setSearch] = useState(searchParams.get('ccc') || '')
@@ -273,9 +281,9 @@ function DiligenciasContent() {
       const corte = new Date()
       corte.setDate(corte.getDate() - 30)
       const corteStr = corte.toISOString().split('T')[0]
-      // Rascunhos ficam sempre visíveis (não somem no corte de 30 dias) para não
-      // se perderem antes de serem completados.
-      l = l.filter((d) => d.incompleta || dataDiligencia(d) >= corteStr)
+      // Itens ainda na triagem ficam sempre visíveis (não somem no corte de 30
+      // dias) para não se perderem antes de serem completados.
+      l = l.filter((d) => naTriagem(d) || dataDiligencia(d) >= corteStr)
     }
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (filtrosAvancados.status === 'pendencia') {
@@ -299,7 +307,7 @@ function DiligenciasContent() {
       )
     }
     return sortDiligencias(l)
-  }, [diligencias, search, filtrosAvancados, filtroEmpresa])
+  }, [diligencias, search, filtrosAvancados, filtroEmpresa, eventosPendentes])
 
   return (
     <div className="space-y-5">
@@ -358,8 +366,9 @@ function DiligenciasContent() {
             <div className="sm:hidden divide-y divide-slate-50">
               {lista.map((d) => {
                 const sit = situacaoCiclo(d)
+                const emTriagem = naTriagem(d)
                 return (
-                <Link key={d.id} href={d.incompleta ? `/diligencias/${d.id}/editar` : `/diligencias/${d.id}`} className={`block px-4 py-3.5 ${d.incompleta ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}`}>
+                <Link key={d.id} href={emTriagem ? `/diligencias/${d.id}/editar` : `/diligencias/${d.id}`} className={`block px-4 py-3.5 ${emTriagem ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-slate-50'}`}>
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="font-semibold text-slate-800 text-sm truncate">{tituloDiligencia(d)}</p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -367,9 +376,9 @@ function DiligenciasContent() {
                       <StatusDiligenciaBadge status={d.status} />
                     </div>
                   </div>
-                  {d.incompleta && (
+                  {emTriagem && (
                     <span className="mb-1 inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                      <AlertTriangle className="w-3 h-3" /> Rascunho · completar
+                      <AlertTriangle className="w-3 h-3" /> Na triagem · completar
                     </span>
                   )}
                   <p className="text-xs text-blue-600 font-mono mb-1">{d.ccc}</p>
@@ -384,8 +393,8 @@ function DiligenciasContent() {
                       : <StatusPagamentoBadge status={d.statusPagamento} />
                     }
                   </div>
-                  {d.incompleta ? (
-                    <p className="text-xs font-semibold mt-1 text-amber-700">⚠ Rascunho da triagem — toque para completar o cadastro</p>
+                  {emTriagem ? (
+                    <p className="text-xs font-semibold mt-1 text-amber-700">⚠ Ainda na triagem — toque para classificar e completar</p>
                   ) : (
                   <p className={`text-xs font-medium mt-1 ${SIT_TONE[sit.tone]}`}>
                     {sit.tone === 'emerald' ? '✓ ' : ''}{sit.label}
@@ -408,7 +417,7 @@ function DiligenciasContent() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {lista.map((d) => (
-                    <DiligenciaRowDesktop key={d.id} d={d} adv={advogadoMap.get(d.advogadoId)} />
+                    <DiligenciaRowDesktop key={d.id} d={d} adv={advogadoMap.get(d.advogadoId)} naTriagem={naTriagem(d)} />
                   ))}
                 </tbody>
               </table>

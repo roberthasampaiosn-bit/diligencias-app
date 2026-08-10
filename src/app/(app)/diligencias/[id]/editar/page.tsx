@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Save, AlertCircle, CheckCircle2, Star } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
+import { useEventos } from '@/context/EventosContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -25,6 +26,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
   const router = useRouter()
   const { diligencias, updateDiligencia } = useDiligencias()
   const { advogados } = useAdvogados()
+  const { processarEvento } = useEventos()
 
   const original = useMemo(() => diligencias.find((d) => d.id === id), [diligencias, id])
 
@@ -180,10 +182,13 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
         status: form.status as StatusDiligencia,
         statusPagamento: form.statusPagamento as StatusPagamento,
-        // Salvou pela edição = Anne completou/revisou os dados → deixa de ser rascunho
+        // Salvou pela edição = completou/revisou os dados → deixa de ser rascunho
         incompleta: false,
         avaliacao,
       })
+      // Graduação: se veio da Triagem (tem evento vinculado), completar/salvar aqui
+      // equivale a "criar diligência" → o evento sai da Triagem (status 'criado').
+      if (original?.eventoId) processarEvento(original.eventoId, id)
       router.push(`/diligencias/${id}`)
     } catch {
       setSaving(false)

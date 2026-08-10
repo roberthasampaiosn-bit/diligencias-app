@@ -316,20 +316,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         operacao:         tipoOperador || null,
         dp_registrou:     '',
       }
-      const { data: rascunhoRow, error: rascunhoError } = await supabase
-        .from('diligencias').insert(rascunho).select('id').single()
+      // O evento PERMANECE 'pendente' na Triagem de propósito: é lá que a Roberta
+      // verifica, classifica (presencial/remoto) e completa. O evento só sai da
+      // Triagem quando ela clicar em "criar diligência / criar e concluir"
+      // (grava status_evento='criado'). A diligência-rascunho fica vinculada
+      // pelo evento_id só para a busca/rastreamento.
+      const { error: rascunhoError } = await supabase.from('diligencias').insert(rascunho)
       if (rascunhoError) {
         console.error('[email-entrada] Aviso: falha ao criar diligência-rascunho:', rascunhoError.message)
       } else {
         console.log(`[email-entrada] ✓ Diligência-rascunho criada para ${ccc}`)
-        // Vincula o evento à diligência criada e o tira da fila "pendente" da
-        // Triagem — senão o evento fica pendente para sempre mesmo já tendo
-        // diligência (era a causa de a Triagem acumular pendências fantasmas).
-        const { error: linkError } = await supabase
-          .from('eventos')
-          .update({ status_evento: 'criado', diligencia_id: rascunhoRow.id })
-          .eq('id', novo.id)
-        if (linkError) console.error('[email-entrada] Aviso: falha ao vincular evento à diligência:', linkError.message)
       }
     } catch (err) {
       console.error('[email-entrada] Aviso: exceção ao criar diligência-rascunho:', err)
