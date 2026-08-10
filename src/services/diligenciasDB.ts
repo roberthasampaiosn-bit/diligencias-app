@@ -160,6 +160,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('status' in patch) row.status = patch.status
   if ('statusPagamento' in patch) row.status_pagamento = patch.statusPagamento
   if ('cicloFinalizado' in patch) row.ciclo_finalizado = patch.cicloFinalizado
+  if ('incompleta' in patch) row.incompleta = patch.incompleta ?? false
   if ('eventoId' in patch) row.evento_id = patch.eventoId ?? null
   if ('observacaoInterna' in patch) row.observacao_interna = patch.observacaoInterna ?? null
   if ('dataInformativo' in patch) row.data_informativo = patch.dataInformativo ?? null

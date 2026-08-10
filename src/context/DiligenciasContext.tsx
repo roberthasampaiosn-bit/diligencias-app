@@ -204,9 +204,12 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   }, [userEmail])
 
   const updateDiligencia = useCallback(async (id: string, patch: Partial<Diligencia>): Promise<void> => {
-    patchD(id, patch)
+    // Atribuir um advogado a um rascunho da triagem já o torna uma diligência
+    // real — deixa de ser "incompleta" mesmo sem passar pelo formulário de edição.
+    const patchFinal: Partial<Diligencia> = patch.advogadoId ? { ...patch, incompleta: false } : patch
+    patchD(id, patchFinal)
     try {
-      await patchDiligencia(id, patch)
+      await patchDiligencia(id, patchFinal)
       const d = diligenciasRef.current.find((x) => x.id === id)
       logAudit({ usuarioEmail: userEmail, acao: 'editou_diligencia', entidadeId: id, detalhes: d?.ccc })
     } catch (err) {
@@ -246,9 +249,11 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   }, [patchD, addToast, userEmail])
 
   const marcarPago = useCallback(async (id: string): Promise<void> => {
-    patchD(id, { statusPagamento: StatusPagamento.Pago })
+    // Registrar pagamento confirma que não é mais um rascunho da triagem.
+    const patch: Partial<Diligencia> = { statusPagamento: StatusPagamento.Pago, incompleta: false }
+    patchD(id, patch)
     try {
-      await patchDiligencia(id, { statusPagamento: StatusPagamento.Pago })
+      await patchDiligencia(id, patch)
       addToast('success', 'Pagamento registrado.')
       const d = diligenciasRef.current.find((x) => x.id === id)
       logAudit({ usuarioEmail: userEmail, acao: 'registrou_pagamento', entidadeId: id, detalhes: d?.ccc })
@@ -260,8 +265,10 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   }, [patchD, addToast, userEmail])
 
   const finalizarCiclo = useCallback((id: string, avaliacao?: AvaliacaoAdvogado) => {
-    patchD(id, { cicloFinalizado: true, ...(avaliacao && { avaliacao }) })
-    patchDiligencia(id, { cicloFinalizado: true, ...(avaliacao && { avaliacao }) })
+    // Finalizar o ciclo confirma que não é mais um rascunho da triagem.
+    const patch: Partial<Diligencia> = { cicloFinalizado: true, incompleta: false, ...(avaliacao && { avaliacao }) }
+    patchD(id, patch)
+    patchDiligencia(id, patch)
       .then(() => {
         addToast('success', 'Ciclo finalizado.')
         const d = diligenciasRef.current.find((x) => x.id === id)
