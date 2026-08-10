@@ -316,11 +316,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         operacao:         tipoOperador || null,
         dp_registrou:     '',
       }
-      const { error: rascunhoError } = await supabase.from('diligencias').insert(rascunho)
+      const { data: rascunhoRow, error: rascunhoError } = await supabase
+        .from('diligencias').insert(rascunho).select('id').single()
       if (rascunhoError) {
         console.error('[email-entrada] Aviso: falha ao criar diligência-rascunho:', rascunhoError.message)
       } else {
         console.log(`[email-entrada] ✓ Diligência-rascunho criada para ${ccc}`)
+        // Vincula o evento à diligência criada e o tira da fila "pendente" da
+        // Triagem — senão o evento fica pendente para sempre mesmo já tendo
+        // diligência (era a causa de a Triagem acumular pendências fantasmas).
+        const { error: linkError } = await supabase
+          .from('eventos')
+          .update({ status_evento: 'criado', diligencia_id: rascunhoRow.id })
+          .eq('id', novo.id)
+        if (linkError) console.error('[email-entrada] Aviso: falha ao vincular evento à diligência:', linkError.message)
       }
     } catch (err) {
       console.error('[email-entrada] Aviso: exceção ao criar diligência-rascunho:', err)
