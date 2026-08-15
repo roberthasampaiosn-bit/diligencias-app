@@ -5,7 +5,6 @@ import Link from 'next/link'
 import {
   FileSearch, ClipboardList, CheckCircle2, MessageSquare,
   Trophy, ArrowRight, Search, CarFront, XCircle, DollarSign, Plus,
-  AlertCircle, Phone, CreditCard,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -18,7 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { PendenciasDocumentais } from '@/components/dashboard/PendenciasDocumentais'
 import { formatCurrency, tituloDiligencia } from '@/lib/utils'
-import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia, StatusPesquisa } from '@/types'
+import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia } from '@/types'
 
 type Filtro = 'todos' | EmpresaCliente
 
@@ -75,24 +74,6 @@ export default function DashboardPage() {
   const statsBat = useMemo(() => statsCliente(diligencias, EmpresaCliente.BatBrasil), [diligencias])
   const statsVtal = useMemo(() => statsCliente(diligencias, EmpresaCliente.VTAL), [diligencias])
 
-  const pendencias = useMemo(() => {
-    const mesAtual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-    const emAndamento = diligencias.filter((d) => d.status === StatusDiligencia.EmAndamento)
-    const pesqPendentes = diligencias.filter((d) =>
-      d.pesquisa.status === StatusPesquisa.Pendente &&
-      d.status === StatusDiligencia.Realizada &&
-      d.empresaCliente !== EmpresaCliente.VTAL &&
-      // Só as pendências do mês corrente (data do fato → atendimento → criação)
-      (d.dataEvento ?? d.dataAtendimento ?? d.createdAt).startsWith(mesAtual)
-    )
-    const pgtoPendente = diligencias.filter((d) =>
-      d.statusPagamento === StatusPagamento.Pendente &&
-      d.status === StatusDiligencia.Realizada &&
-      (d.valorDiligencia ?? 0) > 0
-    )
-    return { emAndamento, pesqPendentes, pgtoPendente }
-  }, [diligencias])
-
   return (
     <div className="space-y-6">
       {/* Cabeçalho com filtro rápido */}
@@ -141,53 +122,6 @@ export default function DashboardPage() {
           <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />
         </Link>
       </div>
-
-      {/* Pendências do dia */}
-      {(pendencias.emAndamento.length > 0 || pendencias.pesqPendentes.length > 0 || pendencias.pgtoPendente.length > 0) && (
-        <div>
-          <h2 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
-            <AlertCircle className="w-4 h-4 text-amber-500" /> Pendências
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {pendencias.emAndamento.length > 0 && (
-              <Link href="/diligencias?status=Em andamento">
-                <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 hover:bg-amber-100 transition-colors cursor-pointer">
-                  <ClipboardList className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-amber-700 font-medium">Em andamento</p>
-                    <p className="text-xl font-bold text-amber-800">{pendencias.emAndamento.length}</p>
-                    <p className="text-xs text-amber-600">Aguardando execução</p>
-                  </div>
-                </div>
-              </Link>
-            )}
-            {pendencias.pesqPendentes.length > 0 && (
-              <Link href="/pesquisa">
-                <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl p-4 hover:bg-purple-100 transition-colors cursor-pointer">
-                  <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-purple-700 font-medium">Pesquisas pendentes</p>
-                    <p className="text-xl font-bold text-purple-800">{pendencias.pesqPendentes.length}</p>
-                    <p className="text-xs text-purple-600">Vítimas p/ contatar</p>
-                  </div>
-                </div>
-              </Link>
-            )}
-            {pendencias.pgtoPendente.length > 0 && (
-              <Link href="/financeiro">
-                <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 hover:bg-red-100 transition-colors cursor-pointer">
-                  <CreditCard className="w-5 h-5 text-red-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-red-700 font-medium">Pgto pendente</p>
-                    <p className="text-xl font-bold text-red-800">{pendencias.pgtoPendente.length}</p>
-                    <p className="text-xs text-red-600">Advogados a pagar</p>
-                  </div>
-                </div>
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Pendências de documentos + PDF final (por mês) */}
       <PendenciasDocumentais diligencias={diligencias} />
