@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   FileSearch, ClipboardList, CheckCircle2, MessageSquare,
   Trophy, ArrowRight, Search, CarFront, XCircle, DollarSign, Plus,
-  AlertCircle, Phone, CreditCard, FileX,
+  AlertCircle, Phone, CreditCard,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -90,8 +90,7 @@ export default function DashboardPage() {
       d.status === StatusDiligencia.Realizada &&
       (d.valorDiligencia ?? 0) > 0
     )
-    const semCiclo = diligencias.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
-    return { emAndamento, pesqPendentes, pgtoPendente, semCiclo }
+    return { emAndamento, pesqPendentes, pgtoPendente }
   }, [diligencias])
 
   return (
@@ -144,7 +143,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Pendências do dia */}
-      {(pendencias.emAndamento.length > 0 || pendencias.pesqPendentes.length > 0 || pendencias.pgtoPendente.length > 0 || pendencias.semCiclo.length > 0) && (
+      {(pendencias.emAndamento.length > 0 || pendencias.pesqPendentes.length > 0 || pendencias.pgtoPendente.length > 0) && (
         <div>
           <h2 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
             <AlertCircle className="w-4 h-4 text-amber-500" /> Pendências
@@ -182,18 +181,6 @@ export default function DashboardPage() {
                     <p className="text-xs text-red-700 font-medium">Pgto pendente</p>
                     <p className="text-xl font-bold text-red-800">{pendencias.pgtoPendente.length}</p>
                     <p className="text-xs text-red-600">Advogados a pagar</p>
-                  </div>
-                </div>
-              </Link>
-            )}
-            {pendencias.semCiclo.length > 0 && (
-              <Link href="/diligencias">
-                <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4 hover:bg-slate-100 transition-colors cursor-pointer">
-                  <FileX className="w-5 h-5 text-slate-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-700 font-medium">Ciclo aberto</p>
-                    <p className="text-xl font-bold text-slate-800">{pendencias.semCiclo.length}</p>
-                    <p className="text-xs text-slate-600">Docs/pgto a fechar</p>
                   </div>
                 </div>
               </Link>

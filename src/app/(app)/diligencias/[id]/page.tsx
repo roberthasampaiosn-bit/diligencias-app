@@ -709,7 +709,19 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                   <MessageCircle className="w-3.5 h-3.5" />{formatPhone(adv.whatsapp || adv.telefone)}
                 </a>
               } />
-              <DR label="Pix" value={adv.chavePix} />
+              <DR label="Pix" value={adv.chavePix ? (
+                <span className="flex items-center gap-1.5">
+                  {adv.chavePix}
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(adv.chavePix!); addToast('success', 'Pix copiado!') }}
+                    className="text-slate-400 hover:text-blue-600 transition-colors"
+                    title="Copiar chave Pix"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              ) : undefined} />
               {d.obsAdvogado && <DR label="Obs. sobre o advogado" value={d.obsAdvogado} />}
               {d.avaliacao && (
                 <div className="pt-2 border-t border-slate-100">
