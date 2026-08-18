@@ -1,20 +1,20 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { AlertCircle, Download, CheckCircle2, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
 import { useEventos } from '@/context/EventosContext'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { EventoCard } from '@/components/triagem/EventoCard'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Button } from '@/components/ui/Button'
 import { Evento, StatusEvento } from '@/types'
 import { normalizarBusca } from '@/lib/utils'
 
-const filtros = [
-  { key: 'todos', label: 'Todos' },
-  { key: StatusEvento.Pendente, label: 'Pendentes' },
-  { key: StatusEvento.Criado, label: 'Diligência criada' },
+type Ordem = 'recente' | 'antigo'
+
+const ordens: { key: Ordem; label: string }[] = [
+  { key: 'recente', label: 'Mais recentes' },
+  { key: 'antigo', label: 'Mais antigos' },
 ]
 
 interface ImportMsg { tipo: 'success' | 'warn' | 'error'; texto: string }
@@ -39,25 +39,11 @@ function isAntigo(dataEvento: string, horaEvento: string): boolean {
   return Number.isFinite(t) && Date.now() - t > 24 * 60 * 60 * 1000
 }
 
-function GrupoHeader({ titulo, count }: { titulo: string; count: number }) {
-  return (
-    <div className="flex items-center gap-2 mb-3">
-      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-        {titulo}
-      </span>
-      <span className="text-xs font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
-        {count}
-      </span>
-      <div className="flex-1 h-px bg-slate-100" />
-    </div>
-  )
-}
-
 export default function TriagemPage() {
   const { eventos, importarSimulados } = useEventos()
   const { diligencias } = useDiligencias()
   const [search, setSearch] = useState('')
-  const [filtro, setFiltro] = useState<string>('todos')
+  const [ordem, setOrdem] = useState<Ordem>('recente')
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState<ImportMsg | null>(null)
 
@@ -75,10 +61,6 @@ export default function TriagemPage() {
   const lista = useMemo(() => {
     let list = [...eventos]
 
-    if (filtro !== 'todos') {
-      list = list.filter((e) => effectiveStatus(e, finalizadosSet) === filtro)
-    }
-
     if (search) {
       const q = normalizarBusca(search)
       list = list.filter(
@@ -92,28 +74,15 @@ export default function TriagemPage() {
       )
     }
 
+    // Ordena por ordem de chegada do informativo. Padrão: mais recentes primeiro.
     list.sort((a, b) => {
-      const statusOrder = { pendente: 0, criado: 1, arquivado: 2 }
-      const sa = statusOrder[effectiveStatus(a, finalizadosSet)] ?? 3
-      const sb = statusOrder[effectiveStatus(b, finalizadosSet)] ?? 3
-      if (sa !== sb) return sa - sb
-      // Dentro do mesmo grupo: mais antigo primeiro (ordem de chegada)
       const ta = new Date(`${a.dataRecebimento}T${a.horaRecebimento || '00:00'}:00`).getTime()
       const tb = new Date(`${b.dataRecebimento}T${b.horaRecebimento || '00:00'}:00`).getTime()
-      return ta - tb
+      return ordem === 'recente' ? tb - ta : ta - tb
     })
 
     return list
-  }, [eventos, search, filtro, finalizadosSet])
-
-  const grupos = useMemo(() => ({
-    emAndamento: lista.filter((e) => effectiveStatus(e, finalizadosSet) === StatusEvento.Criado),
-    finalizados: lista.filter((e) =>
-      e.statusEvento === StatusEvento.Criado && !!e.diligenciaId && finalizadosSet.has(e.diligenciaId)
-    ),
-    arquivados: lista.filter((e) => effectiveStatus(e, finalizadosSet) === StatusEvento.Arquivado),
-    pendentes: lista.filter((e) => effectiveStatus(e, finalizadosSet) === StatusEvento.Pendente),
-  }), [lista, finalizadosSet])
+  }, [eventos, search, ordem])
 
   async function handleImportar() {
     setImporting(true)
@@ -178,17 +147,17 @@ export default function TriagemPage() {
           className="sm:w-64"
         />
         <div className="flex gap-1.5 flex-wrap">
-          {filtros.map((f) => (
+          {ordens.map((o) => (
             <button
-              key={f.key}
-              onClick={() => setFiltro(f.key)}
+              key={o.key}
+              onClick={() => setOrdem(o.key)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                filtro === f.key
+                ordem === o.key
                   ? 'bg-blue-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {f.label}
+              {o.label}
             </button>
           ))}
         </div>
@@ -197,41 +166,8 @@ export default function TriagemPage() {
       {lista.length === 0 ? (
         <EmptyState
           title="Nenhum evento encontrado"
-          description="Nenhum evento encontrado com os filtros selecionados."
+          description="Ajuste a busca para encontrar eventos."
         />
-      ) : filtro === 'todos' ? (
-        <div className="space-y-6">
-          {grupos.pendentes.length > 0 && (
-            <div>
-              <GrupoHeader titulo="Pendentes" count={grupos.pendentes.length} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {grupos.pendentes.map((e) => (
-                  <EventoCard
-                    key={e.id}
-                    evento={e}
-                    diligenciaFinalizada={false}
-                    antigo={isAntigo(e.dataEvento, e.horaEvento)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          {grupos.emAndamento.length > 0 && (
-            <div>
-              <GrupoHeader titulo="Diligências em andamento" count={grupos.emAndamento.length} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {grupos.emAndamento.map((e) => (
-                  <EventoCard
-                    key={e.id}
-                    evento={e}
-                    diligenciaFinalizada={false}
-                    antigo={isAntigo(e.dataEvento, e.horaEvento)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {lista.map((e) => (
