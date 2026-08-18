@@ -74,11 +74,11 @@ export default function TriagemPage() {
       )
     }
 
-    // Ordena por ordem de chegada do informativo. Padrão: mais recentes primeiro.
+    // Ordena pelo número do CCC (comparação numérica: BR-2026080024 > ...023).
+    // Padrão: mais recentes primeiro (CCC maior no topo).
     list.sort((a, b) => {
-      const ta = new Date(`${a.dataRecebimento}T${a.horaRecebimento || '00:00'}:00`).getTime()
-      const tb = new Date(`${b.dataRecebimento}T${b.horaRecebimento || '00:00'}:00`).getTime()
-      return ordem === 'recente' ? tb - ta : ta - tb
+      const cmp = (a.ccc || '').localeCompare(b.ccc || '', 'pt-BR', { numeric: true, sensitivity: 'base' })
+      return ordem === 'recente' ? -cmp : cmp
     })
 
     return list
@@ -109,7 +109,7 @@ export default function TriagemPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Triagem de Eventos</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Eventos recebidos por e-mail — ordenados por ordem de chegada
+            Eventos recebidos por e-mail — ordenados pelo número do CCC
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
