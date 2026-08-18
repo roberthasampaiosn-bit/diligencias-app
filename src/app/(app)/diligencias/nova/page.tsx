@@ -167,17 +167,19 @@ function FormBatBrasil() {
   useEffect(() => {
     if (!evento || autoFilled) return
     const isRemoto = modoParam === 'remoto'
-    // Presencial + Fadel + SP → advogada interna da Fadel em São Paulo (Caroline Werner).
-    const isFadelSP =
-      !isRemoto &&
-      !!evento.empresa?.toLowerCase().includes('fadel') &&
-      evento.uf === 'SP'
+    // Presencial + Fadel → advogada interna da Fadel conforme a UF do evento.
+    // Casa pelo nome + UF para pegar o cadastro correto (e não um duplicado sem UF).
+    const FADEL_POR_UF: Record<string, string> = {
+      SP: 'caroline werner',   // Caroline Werner - Fadel — São Paulo/SP
+      RJ: 'marcela lourenzini', // Marcela Lourenzini - Fadel — Rio de Janeiro/RJ
+    }
+    const isFadel = !isRemoto && !!evento.empresa?.toLowerCase().includes('fadel')
+    const fadelNome = isFadel ? FADEL_POR_UF[evento.uf] : undefined
     const advPreset = isRemoto
       ? advogados.find((a) => a.nomeCompleto.toLowerCase().includes('anne caroline'))
-      : isFadelSP
-        // Casa o cadastro COMPLETO (Caroline Werner - Fadel, UF SP) e não o duplicado sem UF.
+      : fadelNome
         ? advogados.find(
-            (a) => a.nomeCompleto.toLowerCase().includes('caroline werner') && a.uf === 'SP'
+            (a) => a.nomeCompleto.toLowerCase().includes(fadelNome) && a.uf === evento.uf
           )
         : undefined
     setForm((prev) => ({
