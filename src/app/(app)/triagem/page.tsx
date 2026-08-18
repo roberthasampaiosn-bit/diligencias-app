@@ -59,7 +59,9 @@ export default function TriagemPage() {
   )
 
   const lista = useMemo(() => {
-    let list = [...eventos]
+    // Triagem é a fila de trabalho: só o que é acionável (pendentes + em andamento).
+    // Eventos já finalizados ou arquivados ficam fora (seguem em Diligências).
+    let list = eventos.filter((e) => effectiveStatus(e, finalizadosSet) !== StatusEvento.Arquivado)
 
     if (search) {
       const q = normalizarBusca(search)
@@ -75,14 +77,20 @@ export default function TriagemPage() {
     }
 
     // Ordena pelo número do CCC (comparação numérica: BR-2026080024 > ...023).
-    // Padrão: mais recentes primeiro (CCC maior no topo).
+    // Padrão: mais recentes primeiro (CCC maior no topo). Eventos sem CCC
+    // (aguardando id) vão sempre para o fim, independente do sentido.
     list.sort((a, b) => {
-      const cmp = (a.ccc || '').localeCompare(b.ccc || '', 'pt-BR', { numeric: true, sensitivity: 'base' })
+      const ca = a.ccc?.trim() || ''
+      const cb = b.ccc?.trim() || ''
+      if (!ca && !cb) return 0
+      if (!ca) return 1
+      if (!cb) return -1
+      const cmp = ca.localeCompare(cb, 'pt-BR', { numeric: true, sensitivity: 'base' })
       return ordem === 'recente' ? -cmp : cmp
     })
 
     return list
-  }, [eventos, search, ordem])
+  }, [eventos, search, ordem, finalizadosSet])
 
   async function handleImportar() {
     setImporting(true)
