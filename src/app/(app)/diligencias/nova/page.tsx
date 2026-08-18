@@ -167,9 +167,16 @@ function FormBatBrasil() {
   useEffect(() => {
     if (!evento || autoFilled) return
     const isRemoto = modoParam === 'remoto'
-    const anneCaro = isRemoto
+    // Presencial + Fadel + SP → advogada interna da Fadel em São Paulo (Caroline Werner).
+    const isFadelSP =
+      !isRemoto &&
+      !!evento.empresa?.toLowerCase().includes('fadel') &&
+      evento.uf === 'SP'
+    const advPreset = isRemoto
       ? advogados.find((a) => a.nomeCompleto.toLowerCase().includes('anne caroline'))
-      : undefined
+      : isFadelSP
+        ? advogados.find((a) => a.nomeCompleto.toLowerCase().includes('caroline werner'))
+        : undefined
     setForm((prev) => ({
       ...prev,
       ccc: evento.ccc || prev.ccc,
@@ -194,9 +201,12 @@ function FormBatBrasil() {
       regiaoGtsc: evento.gtsc || prev.regiaoGtsc,
       motoristaAgredido: evento.motoristaAgredido ? 'Sim' : prev.motoristaAgredido,
       dataEvento: evento.dataEvento || prev.dataEvento,
+      // Data da diligência (atendimento) já vem igual à data do evento — editável.
+      dataAtendimento: evento.dataEvento || prev.dataAtendimento,
       dataLigacaoAdvogado: evento.dataRecebimento || evento.dataEvento || prev.dataLigacaoAdvogado,
-      horaLigacaoAdvogado: isRemoto ? (evento.horaRecebimento || prev.horaLigacaoAdvogado) : prev.horaLigacaoAdvogado,
-      advogadoId: anneCaro ? anneCaro.id : prev.advogadoId,
+      // Horário da ligação já vem igual ao minuto em que o informativo chegou (presencial e remoto).
+      horaLigacaoAdvogado: evento.horaRecebimento ? evento.horaRecebimento.slice(0, 5) : prev.horaLigacaoAdvogado,
+      advogadoId: advPreset ? advPreset.id : prev.advogadoId,
       observacoes: isRemoto
         ? 'Aguardando atendimento no local.'
         : (evento.empresa?.toLowerCase().includes('fadel') ? 'Advogada Fadel em atendimento.' : prev.observacoes),
@@ -362,7 +372,9 @@ function FormBatBrasil() {
         const patch: Partial<Diligencia> = { ...base, incompleta: false }
         if (concluir) {
           patch.status = StatusDiligencia.Realizada
-          patch.dataAtendimento = hoje
+          // Grava a data que está no campo (pré-preenchida com a data do evento); só cai
+          // em "hoje" se o campo estiver vazio.
+          patch.dataAtendimento = form.dataAtendimento || hoje
           patch.statusPagamento = statusPagamentoFinal
           patch.cicloFinalizado = true
         }
