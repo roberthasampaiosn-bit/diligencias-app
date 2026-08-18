@@ -175,7 +175,10 @@ function FormBatBrasil() {
     const advPreset = isRemoto
       ? advogados.find((a) => a.nomeCompleto.toLowerCase().includes('anne caroline'))
       : isFadelSP
-        ? advogados.find((a) => a.nomeCompleto.toLowerCase().includes('caroline werner'))
+        // Casa o cadastro COMPLETO (Caroline Werner - Fadel, UF SP) e não o duplicado sem UF.
+        ? advogados.find(
+            (a) => a.nomeCompleto.toLowerCase().includes('caroline werner') && a.uf === 'SP'
+          )
         : undefined
     setForm((prev) => ({
       ...prev,
