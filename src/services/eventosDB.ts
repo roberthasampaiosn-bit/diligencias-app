@@ -4,12 +4,22 @@ import { EventoRow } from '@/types/db'
 import { toEvento } from '@/lib/mappers'
 
 export async function fetchEventos(): Promise<Evento[]> {
-  const { data, error } = await supabase
-    .from('eventos')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data as EventoRow[]).map(toEvento)
+  // Igual a fetchDiligencias: o Supabase corta em 1000 linhas por requisição.
+  // Paginamos com .range() para nunca perder um evento da Triagem.
+  const PAGE = 1000
+  const all: EventoRow[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('eventos')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as EventoRow[]
+    all.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return all.map(toEvento)
 }
 
 export async function patchEvento(

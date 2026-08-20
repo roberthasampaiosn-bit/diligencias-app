@@ -19,32 +19,31 @@ import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaC
 // Lógica compartilhada com o Dashboard — ver documentosFaltando em @/lib/utils.
 const docsFaltando = documentosFaltando
 
-// ── Ordenação inteligente ─────────────────────────────────────────────────────
-
-function prioridade(d: Diligencia): number {
-  if (d.status === StatusDiligencia.EmAndamento) return 0
-  const sit = situacaoCiclo(d)
-  const precisaAcao = sit.tone === 'amber' || sit.docsFaltam.length > 0   // aguardando pagamento ou docs faltando
-  return precisaAcao ? 1 : 2                                  // 2 = concluída sem pendência
-}
+// ── Ordenação por CCC ─────────────────────────────────────────────────────────
+// A lista é ordenada pelo CCC, do mais recente (número maior) para o mais antigo.
+// Como o CCC tem formato fixo e zero-preenchido (BR-2026080033), a comparação de
+// texto decrescente já coloca os mais novos no topo. Quem quiser ver "em andamento",
+// "docs faltando" etc. usa os filtros — a ordem base é sempre a do CCC.
 
 function dataDiligencia(d: Diligencia): string {
   return d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
-// Data usada para ORDENAR a lista: prioriza atendimento, depois ligação ao advogado, depois evento.
-// Mantida separada de dataDiligencia (que é usada no filtro de "últimos 30 dias").
+// Data usada só como DESEMPATE quando dois itens têm o mesmo CCC (ex.: várias
+// diligências para o mesmo evento) ou quando ambos são avulsos sem CCC.
 function dataEventoOrd(d: Diligencia): string {
   return d.dataAtendimento ?? d.dataLigacaoAdvogado ?? d.dataEvento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
 function sortDiligencias(list: Diligencia[]): Diligencia[] {
   return [...list].sort((a, b) => {
-    const pa = prioridade(a), pb = prioridade(b)
-    if (pa !== pb) return pa - pb                          // em andamento primeiro
-    const da = dataEventoOrd(a), db = dataEventoOrd(b)
-    if (da !== db) return db.localeCompare(da)             // evento mais recente em cima
-    return (b.ccc ?? '').localeCompare(a.ccc ?? '')        // desempate: CCC decrescente
+    const ca = a.ccc ?? '', cb = b.ccc ?? ''
+    // Diligências avulsas (sem CCC) vão para o fim da lista, ordenadas por data.
+    if (!ca && !cb) return dataEventoOrd(b).localeCompare(dataEventoOrd(a))
+    if (!ca) return 1
+    if (!cb) return -1
+    if (ca !== cb) return cb.localeCompare(ca)             // CCC decrescente: mais recente em cima
+    return dataEventoOrd(b).localeCompare(dataEventoOrd(a)) // mesmo CCC: mais recente primeiro
   })
 }
 
@@ -238,6 +237,93 @@ function FiltrosDropdown({
   )
 }
 
+// ── Alerta de CCC faltando na sequência ───────────────────────────────────────
+// Os CCCs seguem o formato BR-AAAAMMNNNN, com o contador NNNN reiniciando a cada
+// mês (ex.: agosto vai de BR-2026080001 em diante). Se um e-mail não entra no
+// sistema (falha do Power Automate/webhook), abre um "buraco" na numeração que
+// antes passava despercebido. Aqui detectamos esses buracos no MÊS CORRENTE e
+// avisamos — assim nenhum CCC some silenciosamente. Só o mês atual é checado, para
+// não alarmar com meses antigos (ex.: maio, encerrado em lote de propósito).
+
+const IGNORAR_KEY = 'ccc-buracos-ignorados'
+
+function detectarBuracosCCC(cccs: string[]): string[] {
+  const now = new Date()
+  const prefixo = `BR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+  const seqs = cccs
+    .filter((c) => c && c.startsWith(prefixo))
+    .map((c) => parseInt(c.slice(prefixo.length), 10))
+    .filter((n) => Number.isFinite(n))
+  if (seqs.length === 0) return []
+  const presentes = new Set(seqs)
+  const max = Math.max(...seqs)
+  const faltando: string[] = []
+  for (let n = 1; n <= max; n++) {
+    if (!presentes.has(n)) faltando.push(`${prefixo}${String(n).padStart(4, '0')}`)
+  }
+  return faltando
+}
+
+function CCCGapAlert({ cccs }: { cccs: string[] }) {
+  const [ignorados, setIgnorados] = useState<Set<string>>(new Set())
+  // Carrega os ignorados só no cliente (evita divergência de hidratação).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(IGNORAR_KEY)
+      if (raw) setIgnorados(new Set(JSON.parse(raw) as string[]))
+    } catch { /* ignora localStorage indisponível */ }
+  }, [])
+
+  const faltando = useMemo(
+    () => detectarBuracosCCC(cccs).filter((c) => !ignorados.has(c)),
+    [cccs, ignorados],
+  )
+
+  function ignorar(ccc: string) {
+    setIgnorados((prev) => {
+      const next = new Set(prev)
+      next.add(ccc)
+      try { localStorage.setItem(IGNORAR_KEY, JSON.stringify([...next])) } catch { /* ok */ }
+      return next
+    })
+  }
+
+  if (faltando.length === 0) return null
+
+  return (
+    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-amber-800">
+            {faltando.length === 1
+              ? 'Falta 1 CCC na sequência deste mês'
+              : `Faltam ${faltando.length} CCCs na sequência deste mês`}
+          </p>
+          <p className="text-xs text-amber-700 mt-0.5">
+            Estes números não estão no sistema — provavelmente o e-mail não chegou pela triagem.
+            Confira sua caixa de entrada e lance o que faltar. Se algum número não existe mesmo, clique no × para ignorá-lo.
+          </p>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {faltando.map((ccc) => (
+              <span key={ccc} className="inline-flex items-center gap-1 rounded-md bg-white border border-amber-300 px-2 py-1 text-xs font-mono font-semibold text-amber-800">
+                {ccc}
+                <button
+                  onClick={() => ignorar(ccc)}
+                  title="Ignorar este número (não existe / não é do escritório)"
+                  className="text-amber-400 hover:text-amber-700"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page Content ──────────────────────────────────────────────────────────────
 
 function DiligenciasContent() {
@@ -309,8 +395,19 @@ function DiligenciasContent() {
     return sortDiligencias(l)
   }, [diligencias, search, filtrosAvancados, filtroEmpresa, eventosPendentes])
 
+  // União de todos os CCCs (diligências + eventos) para o detector de buracos.
+  // Sempre a lista completa — independe dos filtros da tela — para não deixar de
+  // avisar um sumiço só porque o filtro corrente esconderia o registro.
+  const todosCCCs = useMemo(() => {
+    const s = new Set<string>()
+    for (const d of diligencias) if (d.ccc) s.add(d.ccc)
+    for (const e of eventos) if (e.ccc) s.add(e.ccc)
+    return [...s]
+  }, [diligencias, eventos])
+
   return (
     <div className="space-y-5">
+      <CCCGapAlert cccs={todosCCCs} />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Diligências</h1>
