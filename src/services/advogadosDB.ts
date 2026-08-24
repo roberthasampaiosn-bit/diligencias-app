@@ -32,6 +32,19 @@ export async function insertAdvogado(a: Omit<Advogado, 'id' | 'createdAt'>): Pro
   return toAdvogado(data as AdvogadoRow)
 }
 
+export async function deleteAdvogado(id: string): Promise<void> {
+  const { error } = await supabase.from('advogados').delete().eq('id', id)
+  if (error) {
+    console.error('[deleteAdvogado] ERRO do Supabase:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    })
+    throw new Error(`Supabase: ${error.message}${error.details ? ` — ${error.details}` : ''}`)
+  }
+}
+
 export async function patchAdvogado(id: string, patch: Partial<Advogado>): Promise<void> {
   const row: Partial<Omit<AdvogadoRow, 'id' | 'created_at' | 'updated_at'>> = {}
   if ('nomeCompleto' in patch) row.nome_completo = patch.nomeCompleto

@@ -1,12 +1,14 @@
 'use client'
 
-import { use, useMemo } from 'react'
+import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Phone, MessageCircle, MapPin, Edit, Briefcase, Star } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, Phone, MessageCircle, MapPin, Edit, Briefcase, Star, Trash2 } from 'lucide-react'
 import { AlertCircle } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
+import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { StatusDiligenciaBadge, StatusPagamentoBadge } from '@/components/shared/StatusBadge'
@@ -17,8 +19,11 @@ interface Params { id: string }
 
 export default function AdvogadoDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
+  const router = useRouter()
   const { diligencias } = useDiligencias()
-  const { advogados } = useAdvogados()
+  const { advogados, removeAdvogado } = useAdvogados()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
 
   const advogado = useMemo(() => advogados.find((a) => a.id === id), [advogados, id])
   const advDiligencias = useMemo(
@@ -55,6 +60,19 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
   const totalPendente = advDiligencias
     .filter((d) => d.statusPagamento === StatusPagamento.Pendente)
     .reduce((acc, d) => acc + d.valorDiligencia, 0)
+
+  const temDiligencias = advDiligencias.length > 0
+
+  async function handleExcluir() {
+    if (temDiligencias) return
+    setExcluindo(true)
+    try {
+      await removeAdvogado(id)
+      router.push('/advogados')
+    } catch {
+      setExcluindo(false)
+    }
+  }
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -210,6 +228,51 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
           </CardBody>
         </Card>
       )}
+
+      {/* Zona discreta: excluir cadastro (pequena e de difícil acesso) */}
+      <div className="pt-6 flex justify-center">
+        <button
+          onClick={() => setConfirmOpen(true)}
+          className="text-[11px] text-slate-300 hover:text-red-500 transition-colors inline-flex items-center gap-1"
+        >
+          <Trash2 className="w-3 h-3" /> Excluir cadastro
+        </button>
+      </div>
+
+      <Modal open={confirmOpen} onClose={() => !excluindo && setConfirmOpen(false)} title="Excluir cadastro do advogado" size="sm">
+        <div className="p-5 space-y-4">
+          {temDiligencias ? (
+            <>
+              <p className="text-sm text-slate-600">
+                Não é possível excluir <strong>{advogado.nomeCompleto}</strong>: este advogado tem{' '}
+                <strong>{advDiligencias.length} diligência{advDiligencias.length > 1 ? 's' : ''} vinculada{advDiligencias.length > 1 ? 's' : ''}</strong>.
+              </p>
+              <p className="text-xs text-slate-500">
+                Excluir apagaria o vínculo com o histórico dessas diligências. Se realmente
+                precisar remover, primeiro reatribua ou desvincule as diligências.
+              </p>
+              <div className="flex justify-end pt-1">
+                <Button variant="secondary" size="sm" onClick={() => setConfirmOpen(false)}>Entendi</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-slate-600">
+                Tem certeza que deseja excluir definitivamente o cadastro de{' '}
+                <strong>{advogado.nomeCompleto}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="secondary" size="sm" onClick={() => setConfirmOpen(false)} disabled={excluindo}>
+                  Cancelar
+                </Button>
+                <Button variant="danger" size="sm" onClick={handleExcluir} loading={excluindo}>
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir definitivamente
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

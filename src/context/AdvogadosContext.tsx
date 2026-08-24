@@ -3,7 +3,7 @@
 import {
   createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode,
 } from 'react'
-import { fetchAdvogados, insertAdvogado, patchAdvogado } from '@/services/advogadosDB'
+import { fetchAdvogados, insertAdvogado, patchAdvogado, deleteAdvogado } from '@/services/advogadosDB'
 import { Advogado } from '@/types'
 import { useToast } from './ToastContext'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +15,7 @@ export interface AdvogadosContextValue {
   error: string | null
   createAdvogado: (data: Omit<Advogado, 'id' | 'createdAt'>) => Promise<Advogado>
   updateAdvogado: (id: string, patch: Partial<Advogado>) => Promise<void>
+  removeAdvogado: (id: string) => Promise<void>
 }
 
 const AdvogadosContext = createContext<AdvogadosContextValue | null>(null)
@@ -76,10 +77,22 @@ export function AdvogadosProvider({ children }: { children: ReactNode }) {
     }
   }, [addToast])
 
+  const removeAdvogado = useCallback(async (id: string): Promise<void> => {
+    try {
+      await deleteAdvogado(id)
+      setAdvogados((prev) => prev.filter((a) => a.id !== id))
+      addToast('success', 'Cadastro do advogado excluído.')
+    } catch (err) {
+      console.error('[removeAdvogado] falhou:', err)
+      addToast('error', 'Não foi possível excluir. Verifique sua conexão.')
+      throw err
+    }
+  }, [addToast])
+
   return (
     <AdvogadosContext.Provider value={{
       advogados, advogadoMap, loading, error,
-      createAdvogado, updateAdvogado,
+      createAdvogado, updateAdvogado, removeAdvogado,
     }}>
       {children}
     </AdvogadosContext.Provider>
