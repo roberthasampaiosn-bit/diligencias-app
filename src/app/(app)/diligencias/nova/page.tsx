@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, CheckCircle2, Star, UserPlus } from 'lucide-react'
+import { ArrowLeft, Save, CheckCircle2, Star, UserPlus, AlertCircle } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { useEventos } from '@/context/EventosContext'
@@ -24,6 +24,43 @@ const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','P
 
 const SESSION_KEY_BAT = 'nova-diligencia-bat-draft'
 const SESSION_KEY_VTAL = 'nova-diligencia-vtal-draft'
+
+// Rótulos amigáveis para os campos que a validação pode barrar, usados no resumo
+// de erros no topo do formulário (o usuário não precisa caçar o campo vermelho).
+const FIELD_LABELS: Record<string, string> = {
+  ccc: 'CCC',
+  telefoneVitima: 'Telefone',
+  vitima: 'Nome da vítima',
+  cidade: 'Cidade',
+  uf: 'UF',
+  advogadoId: 'Advogado',
+}
+
+// Resumo dos erros de validação: aparece no topo listando o que precisa ser
+// corrigido para o "Criar e Concluir" (ou "Salvar") funcionar. Ignora a chave "_",
+// que é o erro geral de salvamento já exibido em seu próprio bloco.
+function ErrorSummary({ errors }: { errors: Record<string, string> }) {
+  const campos = Object.keys(errors).filter((k) => k !== '_')
+  if (campos.length === 0) return null
+  return (
+    <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+      <div className="flex items-center gap-2 font-medium mb-1">
+        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        Corrija {campos.length === 1 ? 'este campo' : `estes ${campos.length} campos`} para concluir:
+      </div>
+      <ul className="list-disc pl-6 space-y-0.5">
+        {campos.map((k) => (
+          <li key={k}><strong>{FIELD_LABELS[k] ?? k}</strong>: {errors[k]}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// Rola até o topo para o resumo de erros ficar visível ao barrar o envio.
+function scrollToErrors() {
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // ── BAT BRASIL form ───────────────────────────────────────────────────────────
 
@@ -325,7 +362,7 @@ function FormBatBrasil() {
   async function handleSubmit(e: React.FormEvent, concluir = false) {
     e.preventDefault()
     const errs = validate()
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    if (Object.keys(errs).length > 0) { setErrors(errs); scrollToErrors(); return }
     setSaving(true)
     const hoje = new Date().toISOString().split('T')[0]
 
@@ -414,6 +451,8 @@ function FormBatBrasil() {
       {errors._ && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{errors._}</div>
       )}
+
+      <ErrorSummary errors={errors} />
 
       {existenteDoEvento && (
         <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800 text-sm px-4 py-3 rounded-xl">
@@ -700,7 +739,7 @@ function FormVTAL() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const errs = validate()
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    if (Object.keys(errs).length > 0) { setErrors(errs); scrollToErrors(); return }
     setSaving(true)
     try {
       const nova = await createDiligencia({
@@ -745,6 +784,8 @@ function FormVTAL() {
       {errors._ && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{errors._}</div>
       )}
+
+      <ErrorSummary errors={errors} />
 
       <Card>
         <CardHeader><CardTitle>Identificação</CardTitle></CardHeader>
