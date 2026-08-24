@@ -73,22 +73,42 @@ function splitPhoneDigits(digits: string): string[] {
   return out
 }
 
-// Converte a "Data" do e-mail para ISO (YYYY-MM-DD). Aceita ISO e o formato
-// brasileiro DD/MM/YYYY, COM ou SEM hora depois ("04/08/2026 00:00"). Sempre
-// devolve ISO — NUNCA repassa "DD/MM/YYYY" adiante, senão o Postgres interpreta
-// como MM/DD e troca o dia pelo mês (bug que fez eventos de agosto caírem em
-// abril/maio). Se não reconhecer o formato, devolve '' (melhor vazio que trocado).
-function normalizeDate(value: string | null | undefined): string {
+// Converte a "Data" do e-mail para ISO (YYYY-MM-DD). Aceita ISO e o formato com
+// barras "a/b/aaaa" (com ou sem hora depois). PROBLEMA REAL: os informativos vêm
+// em formatos DIFERENTES conforme o remetente — a Anne manda DD/MM (brasileiro,
+// "20/08/2026") e a Adriana manda M/D (americano, "8/20/2026"). Assumir um formato
+// fixo trocava dia↔mês: o Postgres jogava agosto em abril, ou ESTOURAVA com "mês 19"
+// (date/time field value out of range) — e aí o evento nem entrava. Por isso
+// decidimos pela LÓGICA dos números, não pelo formato:
+//   - se o 1º número > 12, ele só pode ser o DIA  → D/M
+//   - senão, se o 2º número > 12, o 1º é o MÊS     → M/D
+//   - se ambos ≤ 12 é ambíguo (ex.: "04/08" vs "8/4"): usamos refDate (data de
+//     chegada do e-mail) como desempate — o evento é sempre de pouco antes do
+//     informativo, então escolhemos a interpretação mais próxima de refDate.
+// refDate = 'YYYY-MM-DD' (data_informativo). Se não reconhecer nada, devolve ''.
+function normalizeDate(value: string | null | undefined, refDate?: string): string {
   if (!value) return ''
   const s = String(value).trim()
-  const pad = (n: string) => n.padStart(2, '0')
+  const pad = (n: number) => String(n).padStart(2, '0')
   // ISO no início, com ou sem hora: 2026-08-04 / 2026-8-4 10:00
   const iso = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/)
-  if (iso) return `${iso[1]}-${pad(iso[2])}-${pad(iso[3])}`
-  // DD/MM/YYYY no início, com ou sem hora: 04/08/2026 00:00
-  const br = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-  if (br) return `${br[3]}-${pad(br[2])}-${pad(br[1])}`
-  return ''
+  if (iso) return `${iso[1]}-${pad(+iso[2])}-${pad(+iso[3])}`
+  // Barras a/b/aaaa, com ou sem hora: "20/08/2026 00:00" ou "8/20/2026 12:00 AM"
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (!m) return ''
+  const a = +m[1], b = +m[2], y = m[3]
+  const build = (mes: number, dia: number) =>
+    mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31 ? `${y}-${pad(mes)}-${pad(dia)}` : ''
+  const dm = build(b, a)   // D/M: a=dia, b=mês
+  const md = build(a, b)   // M/D: a=mês, b=dia
+  if (a > 12) return dm    // 1º só pode ser dia → D/M
+  if (b > 12) return md    // 2º só pode ser dia → M/D
+  // Ambíguo (ambos ≤ 12): desempata pela proximidade com a chegada do e-mail.
+  if (dm && md && dm !== md && refDate) {
+    const dist = (d: string) => Math.abs(new Date(d).getTime() - new Date(refDate).getTime())
+    return dist(dm) <= dist(md) ? dm : md
+  }
+  return dm || md          // sem refDate: mantém o brasileiro (D/M) como padrão
 }
 
 function isoToDateAndTime(iso: string): { date: string; time: string } {
@@ -220,8 +240,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       patch.uf = uf
     if (horaEvento && existente.hora_evento !== horaEvento)
       patch.hora_evento = horaEvento
-    if (normalizeDate(dataEvento) && existente.data_evento !== normalizeDate(dataEvento))
-      patch.data_evento = normalizeDate(dataEvento)
+    if (normalizeDate(dataEvento, dataInformativo) && existente.data_evento !== normalizeDate(dataEvento, dataInformativo))
+      patch.data_evento = normalizeDate(dataEvento, dataInformativo)
 
     if (Object.keys(patch).length === 0) {
       console.log(`[email-entrada] Evento ${ccc} já existe com mesmos dados — ignorando.`)
@@ -248,7 +268,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // 6. Inserir evento na triagem
   const row = {
     ccc,
-    data_evento:          normalizeDate(dataEvento),
+    data_evento:          normalizeDate(dataEvento, dataInformativo),
     hora_evento:          horaEvento,
     data_informativo:     dataInformativo,
     hora_informativo:     horaInformativo,
@@ -309,9 +329,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         incompleta:       true,
         evento_id:        novo.id,
         pesquisa_status:  'Pendente',
-        data_evento:      normalizeDate(dataEvento),
+        data_evento:      normalizeDate(dataEvento, dataInformativo),
         hora_evento:      horaEvento || null,
-        data_atendimento: normalizeDate(dataEvento),
+        data_atendimento: normalizeDate(dataEvento, dataInformativo),
         segmento:         segmento || null,
         operacao:         tipoOperador || null,
         dp_registrou:     '',
