@@ -116,7 +116,7 @@ export default function DashboardPage() {
           <StatCard title="Ciclos fechados mês" value={stats.ciclosFinalizadosMes} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
         </Link>
         <Link href="/pesquisa?filtro=pendentes" className="block hover:scale-[1.02] transition-transform">
-          <StatCard title="Pesq. pendentes" value={stats.pesquisasPendentes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar" />
+          <StatCard title="Pesq. pendentes mês" value={stats.pesquisasPendentesMes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar · este mês" />
         </Link>
         <Link href="/pesquisa?filtro=concluidas" className="block hover:scale-[1.02] transition-transform">
           <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />

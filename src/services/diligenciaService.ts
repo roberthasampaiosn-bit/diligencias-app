@@ -19,6 +19,11 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
       // Audiência/acidente é dispensa automática — não conta como pendente
       !naoEhCasoDePesquisa(d)
   )
+  // Pendentes do mês atual — referência = data do evento (mesmo critério do
+  // filtro "Este mês" da fila de Pesquisa), com fallback p/ atendimento/criação.
+  const doMesEvento = (d: Diligencia) =>
+    (d.dataEvento ?? d.dataAtendimento ?? d.createdAt.split('T')[0]).startsWith(mesStr)
+  const pesquisasPendentesMes = pesquisasPendentes.filter(doMesEvento)
   const pesquisasConcluidas = diligencias.filter(
     (d) =>
       d.pesquisa.status === StatusPesquisa.Concluida &&
@@ -36,6 +41,7 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
     diligenciasRealizadas: realizadas.length,
     diligenciasRealizadasMes: realizadasMes.length,
     pesquisasPendentes: pesquisasPendentes.length,
+    pesquisasPendentesMes: pesquisasPendentesMes.length,
     pesquisasConcluidas: pesquisasConcluidas.length,
     ciclosFinalizados: ciclosFinalizados.length,
     ciclosFinalizadosMes: ciclosFinalizadosMes.length,

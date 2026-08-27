@@ -298,6 +298,7 @@ export interface DashboardStats {
   diligenciasRealizadas: number
   diligenciasRealizadasMes: number
   pesquisasPendentes: number
+  pesquisasPendentesMes: number
   pesquisasConcluidas: number
   ciclosFinalizados: number
   ciclosFinalizadosMes: number
