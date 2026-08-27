@@ -28,6 +28,7 @@ import {
   Diligencia, Pesquisa, Evento,
 } from '@/types'
 import { AbaExcel, exportarExcelEstilizado } from '@/lib/excel'
+import { naoEhCasoDePesquisa, motivoNaoEhPesquisa } from '@/lib/pesquisaElegibilidade'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
 
@@ -461,6 +462,10 @@ function PesquisaContent() {
       if (d.status !== StatusDiligencia.Realizada) return false
       if (d.empresaCliente === EmpresaCliente.VTAL) return false
       if (d.pesquisa.status === StatusPesquisa.Dispensada) return false   // dispensadas fora da fila
+      // Audiência / acidente pendente → dispensa automática (nunca é caso de pesquisa).
+      // Fica só na lista de "Dispensadas". Se já estiver Concluída (pesquisa feita no
+      // passado), mantém — não escondemos um resultado real.
+      if (d.pesquisa.status === StatusPesquisa.Pendente && naoEhCasoDePesquisa(d)) return false
       if (d.incompleta) {
         const refData = (d.eventoId ? eventoMap[d.eventoId]?.dataEvento : undefined) ?? d.dataEvento
         if (!refData || refData > cutoff24h) return false
@@ -479,11 +484,15 @@ function PesquisaContent() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [realizadas])
 
-  // Pesquisas dispensadas (não são caso de entrevista) — separadas, restauráveis
+  // Pesquisas dispensadas (não são caso de entrevista) — separadas, restauráveis.
+  // Inclui as dispensadas na mão (status Dispensada) E as dispensadas
+  // automaticamente (audiência/acidente ainda pendente).
   const dispensadas = useMemo(
     () => diligencias.filter((d) =>
-      d.pesquisa.status === StatusPesquisa.Dispensada &&
-      d.empresaCliente !== EmpresaCliente.VTAL
+      d.empresaCliente !== EmpresaCliente.VTAL && (
+        d.pesquisa.status === StatusPesquisa.Dispensada ||
+        (d.pesquisa.status === StatusPesquisa.Pendente && naoEhCasoDePesquisa(d))
+      )
     ),
     [diligencias],
   )
@@ -595,6 +604,8 @@ function PesquisaContent() {
       if (!e.ccc?.trim()) return false
       // Pesquisa só para BAT BRASIL — VTAL não usa este fluxo
       if (normalizeEmpresa(e.empresa ?? '') === EmpresaCliente.VTAL) return false
+      // Acidente (com/sem vítima) não é caso de pesquisa — fora da fila da triagem
+      if (naoEhCasoDePesquisa({ tipoEvento: e.tipoEvento })) return false
       // Se já existe diligência vinculada, o card normal (em `lista`) assume o
       // acompanhamento — não mostramos também o card de triagem (evita duplicar).
       if (dilPorEventoId[e.id]) return false
@@ -1623,7 +1634,12 @@ function PesquisaContent() {
           </button>
           {mostrarDispensadas && (
             <div className="mt-3 flex flex-col gap-2">
-              {dispensadas.map((d) => (
+              {dispensadas.map((d) => {
+                // Automática = ainda Pendente, entrou aqui pela regra (audiência/acidente).
+                // Manual = a pessoa clicou em "Não é pesquisa" (status Dispensada).
+                const auto = d.pesquisa.status !== StatusPesquisa.Dispensada
+                const motivo = d.pesquisa.observacoes || motivoNaoEhPesquisa(d)
+                return (
                 <div key={d.id} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-2 flex-wrap">
@@ -1631,20 +1647,32 @@ function PesquisaContent() {
                         {sanitizeName(d.vitima) || '(sem nome)'}
                       </span>
                       {d.ccc && <span className="font-mono text-xs text-slate-400">{d.ccc}</span>}
+                      {auto && (
+                        <span className="text-[10px] font-semibold bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">
+                          Automático
+                        </span>
+                      )}
                     </div>
-                    {d.pesquisa.observacoes && (
-                      <p className="text-xs text-slate-400 mt-0.5 truncate">Motivo: {d.pesquisa.observacoes}</p>
+                    {motivo && (
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">Motivo: {motivo}</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => reabrirPesquisa(d.id)}
-                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
-                    title="Voltar para a fila de pesquisa (pendente)"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" /> Voltar à fila
-                  </button>
+                  {auto ? (
+                    <span className="shrink-0 text-[11px] text-slate-400 px-2 py-1" title="Audiência/acidente não é caso de pesquisa — fica sempre nos dispensados">
+                      Fora da pesquisa
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => reabrirPesquisa(d.id)}
+                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors"
+                      title="Voltar para a fila de pesquisa (pendente)"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" /> Voltar à fila
+                    </button>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

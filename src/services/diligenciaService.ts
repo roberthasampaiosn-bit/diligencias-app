@@ -1,4 +1,5 @@
 import { Diligencia, DashboardStats, StatusDiligencia, StatusPagamento, StatusPesquisa, EmpresaCliente } from '@/types'
+import { naoEhCasoDePesquisa } from '@/lib/pesquisaElegibilidade'
 
 // Funções puras — sem estado interno. O estado vive no AppContext.
 
@@ -14,7 +15,9 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
     (d) =>
       d.status === StatusDiligencia.Realizada &&
       d.pesquisa.status === StatusPesquisa.Pendente &&
-      d.empresaCliente !== EmpresaCliente.VTAL
+      d.empresaCliente !== EmpresaCliente.VTAL &&
+      // Audiência/acidente é dispensa automática — não conta como pendente
+      !naoEhCasoDePesquisa(d)
   )
   const pesquisasConcluidas = diligencias.filter(
     (d) =>
