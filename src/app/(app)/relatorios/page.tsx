@@ -131,6 +131,25 @@ export default function RelatoriosPage() {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s
       }
+      // Telefone para a planilha: descarta placeholder/vazio e, quando há mais de
+      // um número, separa por "; " (com espaço depois do ponto-e-vírgula).
+      function telFmt(raw?: string) {
+        if (!raw) return ''
+        const nums = raw.split(/[;,]/).map((p) => p.trim()).filter(Boolean)
+        if (!nums.length || nums.every((n) => n.replace(/\D/g, '') === '00000000000')) return ''
+        return nums.join('; ')
+      }
+      // Telefone do ADVOGADO (do cadastro) para a aba Com Custo: usa o telefone e,
+      // se vazio, cai para o whatsapp.
+      function telAdv(advId: string) {
+        const a = advogadoMap.get(advId)
+        return telFmt(a?.telefone || a?.whatsapp || '')
+      }
+      // Motorista agredido: hoje o app só grava "Sim" quando houve agressão; o
+      // restante fica vazio. Na planilha o cliente quer Sim/Não explícito.
+      function agredidoFmt(raw?: string) {
+        return (raw ?? '').trim().toLowerCase().startsWith('s') ? 'Sim' : 'Não'
+      }
       // Para a planilha SJR (Suporte Jurídico): usa data do EVENTO
       function dataEventoRef(d: Diligencia) { return d.dataEvento ?? d.dataAtendimento }
       function ano(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[0]) : '' }
@@ -185,14 +204,14 @@ export default function RelatoriosPage() {
       ]
       const linhasSJR = bat.map((d) => [
         d.ccc, d.vitima,
-        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+        telFmt(d.telefoneVitima),
         d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
         d.horaEvento ?? '', dateBR(d.dataInformativo), d.horaInformativo ?? '',
         d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
         dateBR(d.dataLigacaoAdvogado), d.horaLigacaoAdvogado ?? '',
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
         d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
-        d.segmento ?? '', d.motoristaAgredido ?? '', d.dpRegistrou ?? '',
+        d.segmento ?? '', agredidoFmt(d.motoristaAgredido), d.dpRegistrou ?? '',
         d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
         d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
         entrevistaData(d),
@@ -212,7 +231,7 @@ export default function RelatoriosPage() {
         d.tipoDiligencia, d.observacoes ?? '', d.ccc,
         d.numeroBOProcesso ?? '', localAt(d), d.modoDiligencia,
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
-        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+        telAdv(d.advogadoId),
         d.valorDiligencia, '',
       ])
 
@@ -242,14 +261,14 @@ export default function RelatoriosPage() {
 
       const linhasMes = batMes.map((d) => [
         d.ccc, d.vitima,
-        d.telefoneVitima && d.telefoneVitima !== '00000000000' ? d.telefoneVitima : '',
+        telFmt(d.telefoneVitima),
         d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
         d.horaEvento ?? '', dateBR(d.dataInformativo), d.horaInformativo ?? '',
         d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
         dateBR(d.dataLigacaoAdvogado), d.horaLigacaoAdvogado ?? '',
         nomeAdvMes(d),
         d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
-        d.segmento ?? '', d.motoristaAgredido ?? '', d.dpRegistrou ?? '',
+        d.segmento ?? '', agredidoFmt(d.motoristaAgredido), d.dpRegistrou ?? '',
         d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
         d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
         entrevistaData(d),
