@@ -37,6 +37,7 @@ export default function CadastroPublicoPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [sent, setSent] = useState(false)
+  const [showReview, setShowReview] = useState(false)
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -76,7 +77,7 @@ export default function CadastroPublicoPage() {
     return e
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) {
@@ -86,6 +87,12 @@ export default function CadastroPublicoPage() {
       first?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
+    // Passou na validação: abre a tela de revisão antes de enviar de fato.
+    setShowReview(true)
+  }
+
+  async function enviarCadastro() {
+    setShowReview(false)
     setSaving(true)
     try {
       const res = await fetch('/api/cadastro-advogado', {
@@ -344,6 +351,62 @@ export default function CadastroPublicoPage() {
           Seus dados são usados apenas para fins de contrato e pagamento das diligências.
         </p>
       </form>
+
+      {/* Tela de revisão: confirma os dados (com destaque para o Pix) antes do envio */}
+      {showReview && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="text-center">
+                <h2 className="text-lg font-bold text-slate-800">Confira antes de enviar</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Revise seus dados com atenção — depois de enviar, é por eles que seguimos.
+                </p>
+              </div>
+
+              {/* Destaque: chave Pix */}
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Chave Pix</p>
+                <p className="text-lg font-bold text-slate-800 break-words mt-0.5">{form.chavePix.trim()}</p>
+                <p className="text-xs text-amber-700 mt-2 leading-relaxed">
+                  É para esta chave que os pagamentos serão feitos. Confira com atenção.
+                </p>
+              </div>
+
+              {/* Demais dados */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400">Nome</span>
+                  <span className="text-slate-700 font-medium text-right">{toTitleCase(form.nomeCompleto)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400">CPF</span>
+                  <span className="text-slate-700 font-medium text-right">{maskCPF(form.cpf)}</span>
+                </div>
+                {!semOab && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">OAB</span>
+                    <span className="text-slate-700 font-medium text-right">{form.oabUf} {form.oabNumero.trim()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400">Telefone</span>
+                  <span className="text-slate-700 font-medium text-right">{maskPhone(form.telefone)}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
+                <Button type="button" variant="secondary" className="flex-1 justify-center" onClick={() => setShowReview(false)}>
+                  Voltar e corrigir
+                </Button>
+                <Button type="button" className="flex-1 justify-center" onClick={enviarCadastro}>
+                  <Check className="w-4 h-4" /> Confirmar e enviar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

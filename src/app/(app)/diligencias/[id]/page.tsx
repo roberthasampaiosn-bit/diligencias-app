@@ -176,15 +176,17 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     '',
     'Meu nome é Roberta, sou do financeiro do escritório ARodrigues.',
     '',
-    'A Dra. Anne já nos repassou alguns dos seus dados em relação à diligência solicitada. Estou entrando em contato para dar seguimento à parte administrativa e de pagamento.',
+    'A Dra. Anne já nos repassou seus dados em relação à diligência solicitada. Estou entrando em contato para dar seguimento à parte administrativa e de pagamento.',
     '',
-    'Vou encaminhar o contrato para assinatura e, por gentileza, peço que confirme seus dados e me informe também a chave Pix ou os dados bancários para pagamento.',
+    'Vou encaminhar o contrato para assinatura e, após a conclusão da diligência, lhe encaminharei o comprovante de pagamento e, em seguida, o link para a assinatura do recibo.',
     '',
     'Fico à disposição.',
     '',
     'Obrigada',
   ].join('\n') : ''
   const whatsappAdv = adv ? `https://wa.me/55${advPhone}?text=${encodeURIComponent(msgFinanceiro)}` : '#'
+  // WhatsApp "em branco": abre a conversa sem nenhuma mensagem pré-preenchida
+  const whatsappAdvLimpo = adv ? `https://wa.me/55${advPhone}` : '#'
 
   // Pendência documental: só para presenciais não-Fadel não dispensadas (remotas e
   // Fadel não têm documento a anexar).
@@ -704,7 +706,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               {adv.cpf && <DR label="CPF" value={formatCPF(adv.cpf)} />}
               <DR label="OAB" value={adv.oab} />
               <DR label="WhatsApp" value={
-                <a href={whatsappAdv} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline">
+                <a href={whatsappAdvLimpo} target="_blank" rel="noopener noreferrer" title="Abrir WhatsApp sem mensagem" className="flex items-center gap-1.5 text-green-600 hover:underline">
                   <MessageCircle className="w-3.5 h-3.5" />{formatPhone(adv.whatsapp || adv.telefone)}
                 </a>
               } />
