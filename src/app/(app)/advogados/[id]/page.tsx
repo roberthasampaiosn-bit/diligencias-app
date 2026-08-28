@@ -3,13 +3,14 @@
 import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, MessageCircle, MapPin, Edit, Briefcase, Star, Trash2 } from 'lucide-react'
+import { Phone, MessageCircle, MapPin, Edit, Briefcase, Star, Trash2 } from 'lucide-react'
 import { AlertCircle } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { Badge } from '@/components/ui/Badge'
 import { StatusDiligenciaBadge, StatusPagamentoBadge } from '@/components/shared/StatusBadge'
 import { formatCPF, formatPhone, formatCurrency, formatDate, tituloDiligencia } from '@/lib/utils'
@@ -78,9 +79,7 @@ export default function AdvogadoDetailPage({ params }: { params: Promise<Params>
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href="/advogados">
-            <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
-          </Link>
+          <BotaoVoltar fallback="/advogados" />
           <div>
             <h1 className="text-xl font-bold text-slate-800">{advogado.nomeCompleto}</h1>
             <p className="text-xs text-slate-500">{advogado.oab || 'Bacharel'}</p>

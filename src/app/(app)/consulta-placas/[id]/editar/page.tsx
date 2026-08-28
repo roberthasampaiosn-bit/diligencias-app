@@ -7,6 +7,7 @@ import { ArrowLeft, Save, AlertTriangle, Upload, CheckCircle2, XCircle, External
 import { useConsultasPlacas } from '@/context/ConsultaPlacasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { erroPlaca, normalizarPlaca, formatDate } from '@/lib/utils'
@@ -102,9 +103,7 @@ export default function EditarConsultaPlacaPage({ params }: { params: Promise<{ 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
       <div className="flex items-center gap-2">
-        <Link href={`/consulta-placas/${id}`}>
-          <Button type="button" variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
+        <BotaoVoltar fallback={`/consulta-placas/${id}`} />
         <div>
           <h1 className="text-xl font-bold text-slate-800">Editar consulta — <span className="font-mono">{consulta.placa}</span></h1>
         </div>

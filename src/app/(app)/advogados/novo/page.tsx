@@ -3,13 +3,14 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Plus, X } from 'lucide-react'
+import { Save, Plus, X } from 'lucide-react'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { cleanPhone, toTitleCase, maskCPF, validarCPF } from '@/lib/utils'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -102,9 +103,7 @@ function NovoAdvogadoForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-3xl">
       <div className="flex items-center gap-2">
-        <Link href="/advogados">
-          <Button variant="ghost" size="sm" type="button"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
+        <BotaoVoltar fallback="/advogados" />
         <h1 className="text-xl font-bold text-slate-800">Novo Advogado</h1>
       </div>
 

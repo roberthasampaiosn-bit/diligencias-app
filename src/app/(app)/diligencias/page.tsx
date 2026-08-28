@@ -328,6 +328,7 @@ function CCCGapAlert({ cccs }: { cccs: string[] }) {
 
 function DiligenciasContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { diligencias } = useDiligencias()
   const { eventos } = useEventos()
   // "Na triagem" = a diligência veio do e-mail e você ainda NÃO clicou em
@@ -345,13 +346,35 @@ function DiligenciasContent() {
   const [search, setSearch] = useState(searchParams.get('ccc') || '')
 
   const paramEmpresa = searchParams.get('empresa') as EmpresaCliente | null
-  const paramStatus = searchParams.get('status') as StatusDiligencia | null
+  const paramStatus = searchParams.get('status')
+  const paramModo = searchParams.get('modo') as ModoDiligencia | null
+  const paramPeriodo = searchParams.get('periodo')
   const paramCiclo = searchParams.get('ciclo')
-  const initialStatus: FiltroStatus = paramCiclo === 'fechado' ? 'cicloFechado' : paramStatus ?? 'todos'
-  const hasFilter = !!(paramEmpresa || paramStatus || paramCiclo)
+  // `status` na URL carrega o valor completo do filtro (inclui 'pendencia' e
+  // 'cicloFechado'); `ciclo=fechado` é mantido só por compatibilidade com links
+  // antigos.
+  const initialStatus: FiltroStatus = paramCiclo === 'fechado' ? 'cicloFechado' : (paramStatus as FiltroStatus | null) ?? 'todos'
+  const hasFilter = !!(paramEmpresa || paramStatus || paramCiclo || paramModo)
+  const initialPeriodo: 'todos' | '30d' = paramPeriodo === 'todos' || paramPeriodo === '30d' ? paramPeriodo : hasFilter ? 'todos' : '30d'
 
   const [filtroEmpresa, setFiltroEmpresa] = useState<'todas' | EmpresaCliente>(paramEmpresa ?? 'todas')
-  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: initialStatus, modo: 'todos', periodo: hasFilter ? 'todos' : '30d' })
+  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancados>({ status: initialStatus, modo: paramModo ?? 'todos', periodo: initialPeriodo })
+
+  // Reflete busca + filtros na URL. Assim, ao voltar de um detalhe (router.back),
+  // o histórico traz o mesmo estado e a lista — que lê tudo da URL no mount —
+  // reaparece exatamente como estava. `replace` não cria entrada nova no histórico.
+  useEffect(() => {
+    const p = new URLSearchParams()
+    if (search.trim()) p.set('ccc', search.trim())
+    if (filtroEmpresa !== 'todas') p.set('empresa', filtroEmpresa)
+    if (filtrosAvancados.status !== 'todos') p.set('status', filtrosAvancados.status)
+    if (filtrosAvancados.modo !== 'todos') p.set('modo', filtrosAvancados.modo)
+    if (filtrosAvancados.periodo !== '30d') p.set('periodo', filtrosAvancados.periodo)
+    const qs = p.toString()
+    if (qs !== searchParams.toString()) {
+      router.replace(qs ? `/diligencias?${qs}` : '/diligencias', { scroll: false })
+    }
+  }, [search, filtroEmpresa, filtrosAvancados, router, searchParams])
 
   function updateFiltro(partial: Partial<FiltrosAvancados>) {
     startTransition(() => setFiltrosAvancados((f) => ({ ...f, ...partial })))

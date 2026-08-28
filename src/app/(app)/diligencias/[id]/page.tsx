@@ -4,7 +4,7 @@ import { use, useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Phone, MessageCircle, Edit, CheckCircle2,
+  Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
   ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2, Copy,
 } from 'lucide-react'
@@ -17,6 +17,7 @@ import { useToast } from '@/context/ToastContext'
 import { CCCHistorico } from '@/components/diligencias/CCCHistorico'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
@@ -452,9 +453,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     <div className="space-y-4 max-w-4xl">
       {/* Navegação */}
       <div className="flex items-center gap-2">
-        <Link href="/diligencias">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
+        <BotaoVoltar fallback="/diligencias" />
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-slate-800 truncate">{tituloDiligencia(d)}</h1>
           <div className="flex items-center gap-2 mt-0.5">

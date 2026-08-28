@@ -9,6 +9,7 @@ import {
 import { useConsultasPlacas } from '@/context/ConsultaPlacasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 function ResultadoBadge({ resultado }: { resultado?: string }) {
@@ -77,9 +78,7 @@ export default function ConsultaPlacaDetailPage({ params }: { params: Promise<{ 
     <div className="space-y-5 max-w-2xl">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href="/consulta-placas">
-            <Button type="button" variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
-          </Link>
+          <BotaoVoltar fallback="/consulta-placas" />
           <div>
             <h1 className="text-xl font-bold text-slate-800 font-mono">{consulta.placa}</h1>
             <p className="text-sm text-slate-500">Consulta de placa</p>

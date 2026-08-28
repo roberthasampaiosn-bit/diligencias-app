@@ -3,7 +3,7 @@
 import { use, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, AlertCircle, CheckCircle2, Star } from 'lucide-react'
+import { Save, AlertCircle, CheckCircle2, Star } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { useEventos } from '@/context/EventosContext'
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { StatusDiligencia, StatusPagamento, ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente } from '@/types'
 import { cleanPhone, cleanPhones, normalizarCccBat, validarCccBat } from '@/lib/utils'
 import { TIPOS_EVENTO_BAT } from '@/lib/constants'
@@ -198,9 +199,7 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-3xl">
       <div className="flex items-center gap-2">
-        <Link href={`/diligencias/${id}`}>
-          <Button variant="ghost" size="sm" type="button"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
+        <BotaoVoltar fallback={`/diligencias/${id}`} />
         <div>
           <h1 className="text-xl font-bold text-slate-800">Editar Diligência</h1>
           <p className="text-xs font-mono text-blue-600">{original.ccc}</p>

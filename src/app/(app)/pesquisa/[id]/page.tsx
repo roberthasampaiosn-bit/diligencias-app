@@ -2,10 +2,13 @@
 
 import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
+import { canGoBackInApp } from '@/lib/appHistory'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
@@ -60,6 +63,7 @@ function formatISOBR(s: string | undefined): string {
 
 export default function PesquisaDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
+  const router = useRouter()
   const { diligencias, atualizarPesquisa, registrarLigacao, marcarRespondida, encerrarSemResposta, reabrirPesquisa } = useDiligencias()
 
   const diligencia = useMemo(() => diligencias.find((d) => d.id === id), [diligencias, id])
@@ -130,7 +134,8 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
     setSaving(true)
     try {
       await atualizarPesquisa(id, localPesquisa)
-      window.history.back()
+      if (canGoBackInApp()) router.back()
+      else router.push('/pesquisa')
     } catch {
       setSaving(false)
     }
@@ -175,9 +180,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
   return (
     <div className="space-y-5 max-w-2xl">
       <div className="flex items-center gap-2">
-        <Link href="/pesquisa">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
+        <BotaoVoltar fallback="/pesquisa" />
         <div>
           <h1 className="text-xl font-bold text-slate-800">Pesquisa — {diligencia.vitima}</h1>
           <p className="text-xs font-mono text-blue-600">{diligencia.ccc}</p>

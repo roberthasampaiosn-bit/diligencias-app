@@ -3,10 +3,11 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, AlertTriangle, Upload, CheckCircle2, XCircle } from 'lucide-react'
+import { Save, AlertTriangle, Upload, CheckCircle2, XCircle } from 'lucide-react'
 import { useConsultasPlacas } from '@/context/ConsultaPlacasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { erroPlaca, normalizarPlaca, formatDate } from '@/lib/utils'
@@ -90,9 +91,7 @@ export default function NovaConsultaPlacaPage() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl">
       <div className="flex items-center gap-2">
-        <Link href="/consulta-placas">
-          <Button type="button" variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" /></Button>
-        </Link>
+        <BotaoVoltar fallback="/consulta-placas" />
         <div>
           <h1 className="text-xl font-bold text-slate-800">Nova consulta de placa</h1>
           <p className="text-sm text-slate-500">Registrar nova consulta solicitada à Anne</p>
