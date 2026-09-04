@@ -29,21 +29,28 @@ function dataDiligencia(d: Diligencia): string {
   return d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
-// Data usada só como DESEMPATE quando dois itens têm o mesmo CCC (ex.: várias
-// diligências para o mesmo evento) ou quando ambos são avulsos sem CCC.
-function dataEventoOrd(d: Diligencia): string {
-  return d.dataAtendimento ?? d.dataLigacaoAdvogado ?? d.dataEvento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
+// Data de CHEGADA da diligência (quando o caso entrou): prioriza a data do
+// informativo/e-mail recebido, depois a data do evento, depois a criação.
+function dataChegada(d: Diligencia): string {
+  return d.dataInformativo ?? d.dataEvento ?? d.dataLigacaoAdvogado ?? d.createdAt.split('T')[0]
 }
 
+// Tem número de CCC de verdade? (contém dígitos — exclui "AVULSO", vazio, etc.)
+function temNumeroCcc(ccc: string | undefined): boolean {
+  return !!ccc && /\d/.test(ccc)
+}
+
+// Ordena por ORDEM DE CHEGADA (mais recente em cima). Não ordena pelo texto do
+// CCC — os prefixos por cliente ("BR-…", "CCC-…", "AVULSO") faziam as letras
+// furarem a fila dos números na ordem alfabética. Quem tem número de CCC vem
+// primeiro; avulsas/placeholder (só letras ou sem CCC) vão para o fim.
 function sortDiligencias(list: Diligencia[]): Diligencia[] {
   return [...list].sort((a, b) => {
-    const ca = a.ccc ?? '', cb = b.ccc ?? ''
-    // Diligências avulsas (sem CCC) vão para o fim da lista, ordenadas por data.
-    if (!ca && !cb) return dataEventoOrd(b).localeCompare(dataEventoOrd(a))
-    if (!ca) return 1
-    if (!cb) return -1
-    if (ca !== cb) return cb.localeCompare(ca)             // CCC decrescente: mais recente em cima
-    return dataEventoOrd(b).localeCompare(dataEventoOrd(a)) // mesmo CCC: mais recente primeiro
+    const na = temNumeroCcc(a.ccc), nb = temNumeroCcc(b.ccc)
+    if (na !== nb) return na ? -1 : 1
+    const cmp = dataChegada(b).localeCompare(dataChegada(a)) // mais recente primeiro
+    if (cmp !== 0) return cmp
+    return (b.ccc ?? '').localeCompare(a.ccc ?? '')          // desempate estável por CCC
   })
 }
 
