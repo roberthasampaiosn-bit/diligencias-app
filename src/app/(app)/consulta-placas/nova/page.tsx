@@ -81,7 +81,9 @@ export default function NovaConsultaPlacaPage() {
         if (fileResultado) await uploadAnexoConsulta(nova.id, 'anexoResultado', fileResultado)
         if (fileComprovante) await uploadAnexoConsulta(nova.id, 'comprovantePagamento', fileComprovante)
       }
-      router.push(`/consulta-placas/${nova.id}`)
+      // replace: tira o formulário "nova" do histórico, então o "voltar" no
+      // detalhe retorna para a tela de origem, não para o formulário.
+      router.replace(`/consulta-placas/${nova.id}`)
     } catch (err) {
       setErrors({ _: err instanceof Error ? err.message : 'Erro ao salvar.' })
       setSaving(false)

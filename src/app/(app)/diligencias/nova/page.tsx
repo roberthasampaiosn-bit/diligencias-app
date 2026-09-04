@@ -423,7 +423,9 @@ function FormBatBrasil() {
         }
         await updateDiligencia(existenteDoEvento.id, patch)
         if (eventoId) processarEvento(eventoId, existenteDoEvento.id)
-        router.push(`/diligencias/${existenteDoEvento.id}`)
+        // replace (não push): tira o formulário "nova" do histórico, então o
+        // "voltar" no detalhe retorna para a tela de origem (ex.: Triagem).
+        router.replace(`/diligencias/${existenteDoEvento.id}`)
         return
       }
 
@@ -438,7 +440,7 @@ function FormBatBrasil() {
         eventoId: eventoId || undefined,
       })
       if (eventoId) processarEvento(eventoId, nova.id)
-      router.push(`/diligencias/${nova.id}`)
+      router.replace(`/diligencias/${nova.id}`)
     } catch (err) {
       console.error(err)
       const msg = err instanceof Error ? err.message : 'Erro ao salvar. Verifique sua conexão e tente novamente.'
@@ -771,7 +773,7 @@ function FormVTAL() {
         resultadoDemanda: form.resultadoDemanda || undefined,
         centroCusto: form.centroCusto || undefined,
       })
-      router.push(`/diligencias/${nova.id}`)
+      router.replace(`/diligencias/${nova.id}`)
     } catch (err) {
       console.error(err)
       const msg = err instanceof Error ? err.message : 'Erro ao salvar. Verifique sua conexão e tente novamente.'

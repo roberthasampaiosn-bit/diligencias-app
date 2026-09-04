@@ -90,7 +90,9 @@ function NovoAdvogadoForm() {
         const sep = returnTo.includes('?') ? '&' : '?'
         router.push(`${returnTo}${sep}newAdvogadoId=${novo.id}`)
       } else {
-        router.push(`/advogados/${novo.id}`)
+        // replace: tira o formulário "novo" do histórico, então o "voltar" no
+        // detalhe retorna para a tela de origem, não para o formulário.
+        router.replace(`/advogados/${novo.id}`)
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Verifique sua conexão e tente novamente.'
