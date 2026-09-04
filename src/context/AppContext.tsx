@@ -36,6 +36,8 @@ export function useDbStatus() {
   return {
     loading: dil.loading || adv.loading || evt.loading,
     error: dil.error ?? adv.error ?? evt.error,
+    // Recarrega tudo — usado pelo botão "Tentar novamente" do banner de erro.
+    refetch: () => { dil.refetch(); adv.refetch(); evt.refetch() },
   }
 }
 

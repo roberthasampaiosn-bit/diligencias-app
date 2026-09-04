@@ -10,6 +10,7 @@ import {
   deleteDiligenciaDB,
 } from '@/services/diligenciasDB'
 import { supabase } from '@/lib/supabase'
+import { fetchComRetry, aoReconectar } from '@/lib/resilientLoad'
 import {
   Diligencia, Pesquisa, Ligacao, Anexos, AvaliacaoAdvogado,
   StatusPesquisa, StatusDiligencia, StatusPagamento,
@@ -33,6 +34,7 @@ export interface DiligenciasContextValue {
   removerAnexo: (id: string, campo: keyof Anexos) => Promise<void>
   registrarWhatsApp: (id: string, mensagem: string) => Promise<boolean>
   registrarLigacao: (id: string, ligacao: Omit<Ligacao, 'id'>) => Promise<void>
+  refetch: () => void
   agendarRetorno: (id: string, data: string) => void
   marcarRespondida: (id: string, resposta: string) => void
   encerrarSemResposta: (id: string, observacao: string) => void
@@ -101,14 +103,34 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
   const diligenciasRef = useRef<Diligencia[]>([])
   useEffect(() => { diligenciasRef.current = diligencias }, [diligencias])
 
-  useEffect(() => {
-    fetchDiligencias()
-      .then((data) => { setDiligencias(data); setLoading(false) })
-      .catch((err) => {
-        console.error('[DiligenciasContext] fetch:', err)
+  // Carrega (ou recarrega) as diligências com retry+timeout. É o mesmo caminho
+  // usado no boot, no botão "Tentar novamente" e no auto-refetch ao reconectar.
+  // `jaTemDados` evita voltar a tela para o spinner quando já há algo mostrado.
+  const carregar = useCallback(async () => {
+    const jaTemDados = diligenciasRef.current.length > 0
+    if (!jaTemDados) setLoading(true)
+    try {
+      const data = await fetchComRetry((signal) => fetchDiligencias(signal))
+      setDiligencias(data)
+      setError(null)
+    } catch (err) {
+      console.error('[DiligenciasContext] fetch:', err)
+      // Só mostra o erro se ainda não temos nada para exibir — se já há dados
+      // em tela, uma falha de refetch não deve apagar o que a pessoa está vendo.
+      if (!diligenciasRef.current.length) {
         setError('Não foi possível carregar as diligências.')
-        setLoading(false)
-      })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregar()
+
+    // Ao reabrir o app no celular ou quando a rede volta, tenta carregar de novo
+    // sozinho — cobre o caso "abri o app e não carregou" sem exigir reload manual.
+    const desconectar = aoReconectar(() => { carregar() })
 
     // Sincronização em tempo real — qualquer alteração feita por outro usuário
     // (ex: Anne criando uma diligência) atualiza a lista automaticamente.
@@ -163,8 +185,8 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    return () => { desconectar(); supabase.removeChannel(channel) }
+  }, [carregar])
 
   const patchD = useCallback((id: string, patch: Partial<Diligencia>) => {
     setDiligencias((prev) => prev.map((d) => d.id === id ? applyUpdate(d, patch) : d))
@@ -450,7 +472,7 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     <DiligenciasContext.Provider value={{
       diligencias, loading, error,
       createDiligencia, updateDiligencia, deleteDiligencia, marcarRealizada, marcarPago, finalizarCiclo,
-      atualizarAnexo, uploadAnexo, removerAnexo, registrarWhatsApp, registrarLigacao, agendarRetorno,
+      atualizarAnexo, uploadAnexo, removerAnexo, registrarWhatsApp, registrarLigacao, refetch: carregar, agendarRetorno,
       marcarRespondida, encerrarSemResposta, dispensarPesquisa, reabrirPesquisa, atualizarPesquisa,
     }}>
       {children}

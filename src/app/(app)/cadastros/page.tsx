@@ -121,8 +121,8 @@ export default function CadastrosPage() {
       ) : (
         <div className="space-y-4">
           {cadastros.map((c) => {
-            const existente = advogadoExistente(c)
             const busy = busyId === c.id
+            const existente = advogadoExistente(c)
             return (
               <Card key={c.id}>
                 <CardBody className="space-y-4">
@@ -182,8 +182,10 @@ export default function CadastrosPage() {
                     </div>
                   )}
 
-                  {/* Alerta de CPF já cadastrado */}
-                  {existente && (
+                  {/* Alerta de CPF já cadastrado — escondido durante o processamento,
+                      pois logo após aprovar o novo advogado entra na lista com o mesmo
+                      CPF e o alerta piscava indevidamente até o cartão sumir. */}
+                  {existente && !busy && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                       <span>
@@ -194,25 +196,32 @@ export default function CadastrosPage() {
                   )}
 
                   {/* Ações */}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {existente ? (
-                      <>
-                        <Button variant="warning" size="sm" loading={busy} onClick={() => atualizarExistente(c, existente)}>
-                          <RefreshCw className="w-4 h-4" /> Atualizar {existente.nomeCompleto.split(' ')[0]}
+                  {busy ? (
+                    <div className="flex items-center gap-2 pt-1 text-sm text-slate-500">
+                      <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      Processando…
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {existente ? (
+                        <>
+                          <Button variant="warning" size="sm" onClick={() => atualizarExistente(c, existente)}>
+                            <RefreshCw className="w-4 h-4" /> Atualizar {existente.nomeCompleto.split(' ')[0]}
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => aprovarNovo(c)}>
+                            <Check className="w-4 h-4" /> Criar novo mesmo assim
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="success" size="sm" onClick={() => aprovarNovo(c)}>
+                          <Check className="w-4 h-4" /> Aprovar e cadastrar
                         </Button>
-                        <Button variant="secondary" size="sm" disabled={busy} onClick={() => aprovarNovo(c)}>
-                          <Check className="w-4 h-4" /> Criar novo mesmo assim
-                        </Button>
-                      </>
-                    ) : (
-                      <Button variant="success" size="sm" loading={busy} onClick={() => aprovarNovo(c)}>
-                        <Check className="w-4 h-4" /> Aprovar e cadastrar
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => descartar(c)}>
+                        <Trash2 className="w-4 h-4" /> Descartar
                       </Button>
-                    )}
-                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => descartar(c)}>
-                      <Trash2 className="w-4 h-4" /> Descartar
-                    </Button>
-                  </div>
+                    </div>
+                  )}
                 </CardBody>
               </Card>
             )

@@ -89,7 +89,7 @@ export async function uploadArquivoAnexo(
   return publicUrl
 }
 
-export async function fetchDiligencias(): Promise<Diligencia[]> {
+export async function fetchDiligencias(signal?: AbortSignal): Promise<Diligencia[]> {
   // O Supabase devolve no MÁXIMO 1000 linhas por requisição. Sem paginar, quando
   // a tabela passar de 1000 diligências as mais antigas simplesmente somem da
   // lista (dado presente no banco, mas nunca carregado). Paginamos com .range()
@@ -97,12 +97,15 @@ export async function fetchDiligencias(): Promise<Diligencia[]> {
   const PAGE = 1000
   const all: DiligenciaRow[] = []
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('diligencias')
       .select('*, ligacoes(*)')
       .order('data_atendimento', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .range(from, from + PAGE - 1)
+    // Permite abortar por timeout no carregamento (rede móvel travada).
+    if (signal) query = query.abortSignal(signal)
+    const { data, error } = await query
     if (error) throw error
     const rows = (data ?? []) as DiligenciaRow[]
     all.push(...rows)

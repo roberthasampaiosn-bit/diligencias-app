@@ -1,9 +1,10 @@
 'use client'
 
 import {
-  createContext, useContext, useState, useCallback, useEffect, ReactNode,
+  createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode,
 } from 'react'
 import { fetchEventos, patchEvento, insertEvento, deleteEvento } from '@/services/eventosDB'
+import { fetchComRetry, aoReconectar } from '@/lib/resilientLoad'
 import { Evento, StatusEvento, TipoOperador } from '@/types'
 import { useToast } from './ToastContext'
 import { supabase } from '@/lib/supabase'
@@ -18,6 +19,7 @@ export interface EventosContextValue {
   eventos: Evento[]
   loading: boolean
   error: string | null
+  refetch: () => void
   processarEvento: (eventoId: string, diligenciaId: string) => void
   deletarEvento: (eventoId: string) => void
   arquivarEvento: (eventoId: string, motivo: string) => void
@@ -668,15 +670,26 @@ export function EventosProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { addToast } = useToast()
+  const eventosRef = useRef<Evento[]>([])
+  useEffect(() => { eventosRef.current = eventos }, [eventos])
+
+  const carregar = useCallback(async () => {
+    if (!eventosRef.current.length) setLoading(true)
+    try {
+      const data = await fetchComRetry((signal) => fetchEventos(signal))
+      setEventos(data)
+      setError(null)
+    } catch (err) {
+      console.error('[EventosContext] fetch:', err)
+      if (!eventosRef.current.length) setError('Não foi possível carregar os eventos.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    fetchEventos()
-      .then((data) => { setEventos(data); setLoading(false) })
-      .catch((err) => {
-        console.error('[EventosContext] fetch:', err)
-        setError('Não foi possível carregar os eventos.')
-        setLoading(false)
-      })
+    carregar()
+    const desconectar = aoReconectar(() => { carregar() })
 
     const channel = supabase
       .channel('eventos-realtime')
@@ -687,8 +700,8 @@ export function EventosProvider({ children }: { children: ReactNode }) {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    return () => { desconectar(); supabase.removeChannel(channel) }
+  }, [carregar])
 
   const processarEvento = useCallback((eventoId: string, diligenciaId: string) => {
     setEventos((prev) =>
@@ -764,7 +777,7 @@ export function EventosProvider({ children }: { children: ReactNode }) {
   }, [eventos])
 
   return (
-    <EventosContext.Provider value={{ eventos, loading, error, processarEvento, deletarEvento, arquivarEvento, restaurarEvento, marcarRevisado, importarSimulados }}>
+    <EventosContext.Provider value={{ eventos, loading, error, refetch: carregar, processarEvento, deletarEvento, arquivarEvento, restaurarEvento, marcarRevisado, importarSimulados }}>
       {children}
     </EventosContext.Provider>
   )

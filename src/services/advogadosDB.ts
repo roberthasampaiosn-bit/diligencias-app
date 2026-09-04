@@ -3,11 +3,13 @@ import { Advogado } from '@/types'
 import { AdvogadoRow } from '@/types/db'
 import { toAdvogado, fromAdvogado } from '@/lib/mappers'
 
-export async function fetchAdvogados(): Promise<Advogado[]> {
-  const { data, error } = await supabase
+export async function fetchAdvogados(signal?: AbortSignal): Promise<Advogado[]> {
+  let query = supabase
     .from('advogados')
     .select('*')
     .order('nome_completo')
+  if (signal) query = query.abortSignal(signal)
+  const { data, error } = await query
   if (error) throw error
   return (data as AdvogadoRow[]).map(toAdvogado)
 }

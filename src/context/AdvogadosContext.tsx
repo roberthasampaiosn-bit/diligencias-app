@@ -1,18 +1,20 @@
 'use client'
 
 import {
-  createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode,
+  createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode,
 } from 'react'
 import { fetchAdvogados, insertAdvogado, patchAdvogado, deleteAdvogado } from '@/services/advogadosDB'
 import { Advogado } from '@/types'
 import { useToast } from './ToastContext'
 import { supabase } from '@/lib/supabase'
+import { fetchComRetry, aoReconectar } from '@/lib/resilientLoad'
 
 export interface AdvogadosContextValue {
   advogados: Advogado[]
   advogadoMap: Map<string, Advogado>
   loading: boolean
   error: string | null
+  refetch: () => void
   createAdvogado: (data: Omit<Advogado, 'id' | 'createdAt'>) => Promise<Advogado>
   updateAdvogado: (id: string, patch: Partial<Advogado>) => Promise<void>
   removeAdvogado: (id: string) => Promise<void>
@@ -25,15 +27,26 @@ export function AdvogadosProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { addToast } = useToast()
+  const advogadosRef = useRef<Advogado[]>([])
+  useEffect(() => { advogadosRef.current = advogados }, [advogados])
+
+  const carregar = useCallback(async () => {
+    if (!advogadosRef.current.length) setLoading(true)
+    try {
+      const data = await fetchComRetry((signal) => fetchAdvogados(signal))
+      setAdvogados(data)
+      setError(null)
+    } catch (err) {
+      console.error('[AdvogadosContext] fetch:', err)
+      if (!advogadosRef.current.length) setError('Não foi possível carregar os advogados.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    fetchAdvogados()
-      .then((data) => { setAdvogados(data); setLoading(false) })
-      .catch((err) => {
-        console.error('[AdvogadosContext] fetch:', err)
-        setError('Não foi possível carregar os advogados.')
-        setLoading(false)
-      })
+    carregar()
+    const desconectar = aoReconectar(() => { carregar() })
 
     const channel = supabase
       .channel('advogados-realtime')
@@ -44,8 +57,8 @@ export function AdvogadosProvider({ children }: { children: ReactNode }) {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    return () => { desconectar(); supabase.removeChannel(channel) }
+  }, [carregar])
 
   const advogadoMap = useMemo(
     () => new Map(advogados.map((a) => [a.id, a])),
@@ -91,7 +104,7 @@ export function AdvogadosProvider({ children }: { children: ReactNode }) {
 
   return (
     <AdvogadosContext.Provider value={{
-      advogados, advogadoMap, loading, error,
+      advogados, advogadoMap, loading, error, refetch: carregar,
       createAdvogado, updateAdvogado, removeAdvogado,
     }}>
       {children}
