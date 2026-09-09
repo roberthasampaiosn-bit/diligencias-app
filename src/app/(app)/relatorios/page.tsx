@@ -172,6 +172,11 @@ export default function RelatoriosPage() {
       function agredidoFmt(raw?: string) {
         return (raw ?? '').trim().toLowerCase().startsWith('s') ? 'Sim' : 'Não'
       }
+      // Observação das abas BAT: quando vem vazia, entra o texto padrão que a
+      // planilha oficial usa para diligências ainda sem retorno do local.
+      function obsBat(d: Diligencia) {
+        return d.observacoes?.trim() ? d.observacoes : 'Aguardando atendimento no local.'
+      }
       // Para a planilha SJR (Suporte Jurídico): usa data do EVENTO
       function dataEventoRef(d: Diligencia) { return d.dataEvento ?? d.dataAtendimento }
       function ano(d: Diligencia)  { const dt = dataEventoRef(d); return dt ? Number(dt.split('-')[0]) : '' }
@@ -234,7 +239,7 @@ export default function RelatoriosPage() {
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
         d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
         d.segmento ?? '', agredidoFmt(d.motoristaAgredido), d.dpRegistrou ?? '',
-        d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
+        obsBat(d), d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
         d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
         entrevistaData(d),
         entrevistaHora(d),
@@ -291,7 +296,7 @@ export default function RelatoriosPage() {
         nomeAdvMes(d),
         d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
         d.segmento ?? '', agredidoFmt(d.motoristaAgredido), d.dpRegistrou ?? '',
-        d.observacoes ?? '', d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
+        obsBat(d), d.sobraMercadoria ?? '', d.numeroBOProcesso ?? '',
         d.pesquisa.status, d.pesquisa.entrevistador ?? '', d.pesquisa.observacoes ?? '',
         entrevistaData(d),
         entrevistaHora(d),
