@@ -299,8 +299,9 @@ export default function RelatoriosPage() {
 
       await exportarExcelEstilizado([
         {
-          nome: 'BAT - Suporte Jurídico', headers: headersSJR, linhas: [...linhasSJR].reverse(), tema: 'bat',
+          nome: 'BAT - CCCs do Mês', headers: headersSJR, linhas: linhasMes, tema: 'bat',
           widths: [18,30,16,18,6,6,6,22,10,18,18,14,18,16,28,6,14,18,14,25,14,12,22,30,12,12,14,14,30,14,10],
+          resumo: `Apenas CCCs do período: ${dataInicio} a ${dataFim} · Total: ${batMesUnico.length}`,
         },
         {
           nome: 'BAT - Com Custo', headers: headersSC, linhas: [...linhasSC].reverse(), tema: 'bat',
@@ -313,9 +314,8 @@ export default function RelatoriosPage() {
           colsMoeda: [17],
         },
         {
-          nome: 'BAT - CCCs do Mês', headers: headersSJR, linhas: linhasMes, tema: 'bat',
+          nome: 'BAT - Suporte Jurídico', headers: headersSJR, linhas: [...linhasSJR].reverse(), tema: 'bat',
           widths: [18,30,16,18,6,6,6,22,10,18,18,14,18,16,28,6,14,18,14,25,14,12,22,30,12,12,14,14,30,14,10],
-          resumo: `Apenas CCCs do período: ${dataInicio} a ${dataFim} · Total: ${batMesUnico.length}`,
         },
       ], `diligencias_${dataInicio}_${dataFim}.xlsx`)
     } finally {
