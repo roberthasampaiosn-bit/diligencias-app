@@ -126,6 +126,25 @@ export default function RelatoriosPage() {
         return cccData >= periodoInicio && cccData <= periodoFim
       })
 
+      // A aba "CCCs do Mês" lista UM registro por CCC, em ordem numérica crescente.
+      // Quando o mesmo CCC tem 2ª diligência/aditamento (mesmo CCC, evento em outra
+      // data), fica só a diligência ORIGINAL — a do informativo do mês; o aditamento
+      // não entra nesta planilha. Critério do original: tem dataInformativo; empate
+      // → o mais antigo (createdAt).
+      const porCcc = new Map<string, Diligencia>()
+      for (const d of batMes) {
+        const atual = porCcc.get(d.ccc)
+        if (!atual) { porCcc.set(d.ccc, d); continue }
+        const dTemInfo = !!d.dataInformativo
+        const aTemInfo = !!atual.dataInformativo
+        if (dTemInfo !== aTemInfo) {
+          if (dTemInfo) porCcc.set(d.ccc, d)
+        } else if (d.createdAt < atual.createdAt) {
+          porCcc.set(d.ccc, d)
+        }
+      }
+      const batMesUnico = [...porCcc.values()].sort((a, b) => a.ccc.localeCompare(b.ccc))
+
       function dateBR(s?: string) {
         if (!s) return ''
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -262,7 +281,7 @@ export default function RelatoriosPage() {
         return nome ? 'Anne Caroline - ARodrigues' : '—'
       }
 
-      const linhasMes = batMes.map((d) => [
+      const linhasMes = batMesUnico.map((d) => [
         d.ccc, d.vitima,
         telFmt(d.telefoneVitima),
         d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
@@ -294,9 +313,9 @@ export default function RelatoriosPage() {
           colsMoeda: [17],
         },
         {
-          nome: 'BAT - CCCs do Mês', headers: headersSJR, linhas: [...linhasMes].reverse(), tema: 'bat',
+          nome: 'BAT - CCCs do Mês', headers: headersSJR, linhas: linhasMes, tema: 'bat',
           widths: [18,30,16,18,6,6,6,22,10,18,18,14,18,16,28,6,14,18,14,25,14,12,22,30,12,12,14,14,30,14,10],
-          resumo: `Apenas CCCs do período: ${dataInicio} a ${dataFim} · Total: ${batMes.length}`,
+          resumo: `Apenas CCCs do período: ${dataInicio} a ${dataFim} · Total: ${batMesUnico.length}`,
         },
       ], `diligencias_${dataInicio}_${dataFim}.xlsx`)
     } finally {
