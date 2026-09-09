@@ -2,21 +2,14 @@ import ExcelJS from 'exceljs'
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 
+// Estilo "simples", igual à planilha oficial (Suporte Jurídico Remoto):
+// fundo branco, texto preto, cabeçalho em negrito e grade fina ("Todas as
+// bordas"). Sem cabeçalho colorido nem linhas alternadas — assim o Ctrl+V
+// normal já cola idêntico à oficial, sem precisar reformatar.
 const PALETA = {
-  bat: {
-    header:    'FF1E3A5F',  // azul marinho
-    tab:       'FF2563EB',  // azul
-    altRow:    'FFF0F4FF',  // azul bem claro
-  },
-  vtal: {
-    header:    'FF4C1D95',  // violeta escuro
-    tab:       'FF7C3AED',  // violeta
-    altRow:    'FFF5F3FF',  // violeta bem claro
-  },
-  // Grade das células de dados — cinza nítido, equivalente ao "Todas as bordas"
-  // do Google Sheets/Excel (antes era FFCBD5E1, claro demais e quase invisível).
-  border:      'FF808080',
+  border:      'FF808080',  // grade nítida, equivalente a "Todas as bordas"
   white:       'FFFFFFFF',
+  black:       'FF000000',
 }
 
 // ─── Helpers de estilo ────────────────────────────────────────────────────────
@@ -25,17 +18,17 @@ function borderFino(color: string): ExcelJS.Border {
   return { style: 'thin', color: { argb: color } }
 }
 
-function applyHeader(cell: ExcelJS.Cell, headerColor: string) {
-  cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } }
-  cell.font   = { bold: true, color: { argb: PALETA.white }, size: 11, name: 'Calibri' }
+function applyHeader(cell: ExcelJS.Cell) {
+  cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
+  cell.font   = { bold: true, color: { argb: PALETA.black }, size: 11, name: 'Calibri' }
   cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
-  const b = borderFino(headerColor)
+  const b = borderFino(PALETA.border)
   cell.border = { top: b, bottom: b, left: b, right: b }
 }
 
-function applyData(cell: ExcelJS.Cell, altRow: boolean, altColor: string) {
-  cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: altRow ? altColor : PALETA.white } }
-  cell.font      = { size: 11, name: 'Calibri' }
+function applyData(cell: ExcelJS.Cell) {
+  cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
+  cell.font      = { size: 11, name: 'Calibri', color: { argb: PALETA.black } }
   cell.alignment = { vertical: 'middle' }
   const b = borderFino(PALETA.border)
   cell.border    = { top: b, bottom: b, left: b, right: b }
@@ -62,11 +55,7 @@ export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string
   wb.modified = new Date()
 
   for (const aba of abas) {
-    const cores = PALETA[aba.tema]
-
-    const ws = wb.addWorksheet(aba.nome, {
-      properties: { tabColor: { argb: cores.tab } },
-    })
+    const ws = wb.addWorksheet(aba.nome)
 
     // Larguras de coluna
     ws.columns = aba.widths.map((w, i) => ({ key: `c${i}`, width: w }))
@@ -78,8 +67,8 @@ export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string
       rRow.height = 20
       ws.mergeCells(1, 1, 1, aba.headers.length)
       const rCell = rRow.getCell(1)
-      rCell.font = { bold: true, size: 11, name: 'Calibri', color: { argb: cores.header } }
-      rCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: aba.tema === 'bat' ? 'FFE8F0FE' : 'FFF3E8FF' } }
+      rCell.font = { bold: true, size: 11, name: 'Calibri', color: { argb: PALETA.black } }
+      rCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
       rCell.alignment = { vertical: 'middle', horizontal: 'left' }
       dataRowOffset = 1
     }
@@ -87,14 +76,14 @@ export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string
     // Linha de cabeçalho
     const hRow = ws.addRow(aba.headers)
     hRow.height = 32
-    hRow.eachCell((cell) => applyHeader(cell, cores.header))
+    hRow.eachCell((cell) => applyHeader(cell))
 
     // Linhas de dados
-    aba.linhas.forEach((rowData, ri) => {
+    aba.linhas.forEach((rowData) => {
       const row = ws.addRow(rowData)
       row.height = 18
       row.eachCell({ includeEmpty: true }, (cell, colIdx) => {
-        applyData(cell, ri % 2 === 0, cores.altRow)
+        applyData(cell)
         if (aba.colsMoeda?.includes(colIdx - 1)) {
           cell.numFmt = '"R$"\\ #,##0.00'
         }
