@@ -20,7 +20,7 @@ function borderFino(color: string): ExcelJS.Border {
 
 function applyHeader(cell: ExcelJS.Cell) {
   cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
-  cell.font   = { bold: true, color: { argb: PALETA.black }, size: 11, name: 'Calibri' }
+  cell.font   = { bold: true, color: { argb: PALETA.black }, size: 12, name: 'Calibri' }
   cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
   const b = borderFino(PALETA.border)
   cell.border = { top: b, bottom: b, left: b, right: b }
@@ -28,7 +28,7 @@ function applyHeader(cell: ExcelJS.Cell) {
 
 function applyData(cell: ExcelJS.Cell) {
   cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
-  cell.font      = { size: 11, name: 'Calibri', color: { argb: PALETA.black } }
+  cell.font      = { size: 12, name: 'Calibri', color: { argb: PALETA.black } }
   cell.alignment = { vertical: 'middle' }
   const b = borderFino(PALETA.border)
   cell.border    = { top: b, bottom: b, left: b, right: b }
@@ -67,7 +67,7 @@ export async function exportarExcelEstilizado(abas: AbaExcel[], filename: string
       rRow.height = 20
       ws.mergeCells(1, 1, 1, aba.headers.length)
       const rCell = rRow.getCell(1)
-      rCell.font = { bold: true, size: 11, name: 'Calibri', color: { argb: PALETA.black } }
+      rCell.font = { bold: true, size: 12, name: 'Calibri', color: { argb: PALETA.black } }
       rCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
       rCell.alignment = { vertical: 'middle', horizontal: 'left' }
       dataRowOffset = 1
