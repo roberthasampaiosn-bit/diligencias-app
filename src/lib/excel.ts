@@ -21,7 +21,7 @@ function borderFino(color: string): ExcelJS.Border {
 function applyHeader(cell: ExcelJS.Cell) {
   cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
   cell.font   = { bold: true, color: { argb: PALETA.black }, size: 12, name: 'Calibri' }
-  cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
   const b = borderFino(PALETA.border)
   cell.border = { top: b, bottom: b, left: b, right: b }
 }
@@ -29,7 +29,10 @@ function applyHeader(cell: ExcelJS.Cell) {
 function applyData(cell: ExcelJS.Cell) {
   cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: PALETA.white } }
   cell.font      = { size: 12, name: 'Calibri', color: { argb: PALETA.black } }
-  cell.alignment = { vertical: 'middle' }
+  // Alinhamento à esquerda em tudo (inclusive números como Ano/Mês/Dia e os
+  // horários/datas que o Sheets converte em número), igual à planilha oficial.
+  // Sem isso, o padrão "geral" joga número para a direita ao colar com formato.
+  cell.alignment = { vertical: 'middle', horizontal: 'left' }
   const b = borderFino(PALETA.border)
   cell.border    = { top: b, bottom: b, left: b, right: b }
 }
