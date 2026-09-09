@@ -13,7 +13,9 @@ const PALETA = {
     tab:       'FF7C3AED',  // violeta
     altRow:    'FFF5F3FF',  // violeta bem claro
   },
-  border:      'FFCBD5E1',
+  // Grade das células de dados — cinza nítido, equivalente ao "Todas as bordas"
+  // do Google Sheets/Excel (antes era FFCBD5E1, claro demais e quase invisível).
+  border:      'FF808080',
   white:       'FFFFFFFF',
 }
 

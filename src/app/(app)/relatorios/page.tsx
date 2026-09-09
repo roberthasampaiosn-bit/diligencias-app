@@ -131,6 +131,9 @@ export default function RelatoriosPage() {
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         return m ? `${m[3]}/${m[2]}/${m[1]}` : s
       }
+      // Horário sem segundos (HH:MM) — a planilha oficial não usa segundos.
+      // "07:45:00" → "07:45"; valores já sem segundos ("13:26") passam intactos.
+      function hm(s?: string) { return (s ?? '').slice(0, 5) }
       // Telefone para a planilha: descarta placeholder/vazio e, quando há mais de
       // um número, separa por "; " (com espaço depois do ponto-e-vírgula).
       function telFmt(raw?: string) {
@@ -206,9 +209,9 @@ export default function RelatoriosPage() {
         d.ccc, d.vitima,
         telFmt(d.telefoneVitima),
         d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
-        d.horaEvento ?? '', dateBR(d.dataInformativo), d.horaInformativo ?? '',
+        hm(d.horaEvento), dateBR(d.dataInformativo), hm(d.horaInformativo),
         d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
-        dateBR(d.dataLigacaoAdvogado), d.horaLigacaoAdvogado ?? '',
+        dateBR(d.dataLigacaoAdvogado), hm(d.horaLigacaoAdvogado),
         advogadoMap.get(d.advogadoId)?.nomeCompleto ?? '—',
         d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
         d.segmento ?? '', agredidoFmt(d.motoristaAgredido), d.dpRegistrou ?? '',
@@ -263,9 +266,9 @@ export default function RelatoriosPage() {
         d.ccc, d.vitima,
         telFmt(d.telefoneVitima),
         d.cargo ?? '', ano(d), mes(d), dia(d), d.tipoEvento,
-        d.horaEvento ?? '', dateBR(d.dataInformativo), d.horaInformativo ?? '',
+        hm(d.horaEvento), dateBR(d.dataInformativo), hm(d.horaInformativo),
         d.modoDiligencia === 'Remoto' ? 'Remota' : d.modoDiligencia,
-        dateBR(d.dataLigacaoAdvogado), d.horaLigacaoAdvogado ?? '',
+        dateBR(d.dataLigacaoAdvogado), hm(d.horaLigacaoAdvogado),
         nomeAdvMes(d),
         d.uf, d.regiaoGtsc ?? '', d.cidade, d.operacao ?? '', d.empresa,
         d.segmento ?? '', agredidoFmt(d.motoristaAgredido), d.dpRegistrou ?? '',
