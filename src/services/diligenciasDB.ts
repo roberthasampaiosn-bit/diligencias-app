@@ -203,6 +203,7 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('statusAssinaturaContrato' in patch) row.status_assinatura_contrato = patch.statusAssinaturaContrato ?? null
   if ('statusAssinaturaRecibo' in patch) row.status_assinatura_recibo = patch.statusAssinaturaRecibo ?? null
   if ('dispensarDocumentos' in patch) row.dispensar_documentos = patch.dispensarDocumentos ?? null
+  if ('documentosDispensados' in patch) row.documentos_dispensados = patch.documentosDispensados ?? []
   if ('incluirNaPlanilha' in patch) row.incluir_na_planilha = patch.incluirNaPlanilha ?? null
   if ('pdfFinalGeradoEm' in patch) row.pdf_final_gerado_em = patch.pdfFinalGeradoEm ?? null
 
@@ -242,6 +243,9 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   }
 
   if (Object.keys(row).length === 0) return
+  // Carimba a última atividade — a lista de Diligências ordena por ela (mais
+  // recente no topo), então toda edição precisa atualizar updated_at.
+  row.updated_at = new Date().toISOString()
   const { error } = await supabase.from('diligencias').update(row).eq('id', id)
   if (error) throw error
 }
@@ -261,6 +265,7 @@ export async function patchPesquisa(id: string, pp: Partial<Pesquisa>): Promise<
   if ('tentativasWhatsApp' in pp) row.pesquisa_tentativas_whatsapp = pp.tentativasWhatsApp
   if ('dataConclusao' in pp) row.pesquisa_data_conclusao = pp.dataConclusao ?? null
   if (Object.keys(row).length === 0) return
+  row.updated_at = new Date().toISOString()
   const { error } = await supabase.from('diligencias').update(row).eq('id', id)
   if (error) throw error
 }
@@ -281,7 +286,7 @@ export async function patchAnexo(
   }
   const { error } = await supabase
     .from('diligencias')
-    .update({ [colMap[campo]]: valor })
+    .update({ [colMap[campo]]: valor, updated_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
 }
@@ -297,7 +302,7 @@ export async function removerAnexoDB(id: string, campo: keyof Anexos): Promise<v
   }
   const { error } = await supabase
     .from('diligencias')
-    .update({ [colMap[campo]]: null })
+    .update({ [colMap[campo]]: null, updated_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
 }

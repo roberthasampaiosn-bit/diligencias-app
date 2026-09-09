@@ -19,38 +19,28 @@ import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaC
 // Lógica compartilhada com o Dashboard — ver documentosFaltando em @/lib/utils.
 const docsFaltando = documentosFaltando
 
-// ── Ordenação por CCC ─────────────────────────────────────────────────────────
-// A lista é ordenada pelo CCC, do mais recente (número maior) para o mais antigo.
-// Como o CCC tem formato fixo e zero-preenchido (BR-2026080033), a comparação de
-// texto decrescente já coloca os mais novos no topo. Quem quiser ver "em andamento",
-// "docs faltando" etc. usa os filtros — a ordem base é sempre a do CCC.
+// ── Ordenação por ÚLTIMA ATIVIDADE ────────────────────────────────────────────
+// A lista mostra no topo a diligência em que se MEXEU por último — cadastrou,
+// marcou realizada/paga, finalizou o ciclo, anexou um documento, editou etc.
+// Isso resolve o "não acho a diligência que estou tocando agora": ela sobe sozinha.
+// A referência é o updatedAt (carimbado no banco a cada gravação — ver
+// services/diligenciasDB.ts). Quem quiser outra visão usa os filtros.
 
 function dataDiligencia(d: Diligencia): string {
   return d.dataAtendimento ?? d.dataInformativo ?? d.createdAt.split('T')[0]
 }
 
-// Data de CHEGADA da diligência (quando o caso entrou): prioriza a data do
-// informativo/e-mail recebido, depois a data do evento, depois a criação.
-function dataChegada(d: Diligencia): string {
-  return d.dataInformativo ?? d.dataEvento ?? d.dataLigacaoAdvogado ?? d.createdAt.split('T')[0]
+// Momento da última atividade (mais recente = topo). Cai para createdAt se, por
+// algum motivo, updatedAt vier vazio.
+function ultimaAtividade(d: Diligencia): string {
+  return d.updatedAt || d.createdAt || ''
 }
 
-// Tem número de CCC de verdade? (contém dígitos — exclui "AVULSO", vazio, etc.)
-function temNumeroCcc(ccc: string | undefined): boolean {
-  return !!ccc && /\d/.test(ccc)
-}
-
-// Ordena por ORDEM DE CHEGADA (mais recente em cima). Não ordena pelo texto do
-// CCC — os prefixos por cliente ("BR-…", "CCC-…", "AVULSO") faziam as letras
-// furarem a fila dos números na ordem alfabética. Quem tem número de CCC vem
-// primeiro; avulsas/placeholder (só letras ou sem CCC) vão para o fim.
 function sortDiligencias(list: Diligencia[]): Diligencia[] {
   return [...list].sort((a, b) => {
-    const na = temNumeroCcc(a.ccc), nb = temNumeroCcc(b.ccc)
-    if (na !== nb) return na ? -1 : 1
-    const cmp = dataChegada(b).localeCompare(dataChegada(a)) // mais recente primeiro
+    const cmp = ultimaAtividade(b).localeCompare(ultimaAtividade(a)) // mais recente primeiro
     if (cmp !== 0) return cmp
-    return (b.ccc ?? '').localeCompare(a.ccc ?? '')          // desempate estável por CCC
+    return (b.createdAt ?? '').localeCompare(a.createdAt ?? '')      // desempate estável
   })
 }
 
@@ -398,8 +388,10 @@ function DiligenciasContent() {
       corte.setDate(corte.getDate() - 30)
       const corteStr = corte.toISOString().split('T')[0]
       // Itens ainda na triagem ficam sempre visíveis (não somem no corte de 30
-      // dias) para não se perderem antes de serem completados.
-      l = l.filter((d) => naTriagem(d) || dataDiligencia(d) >= corteStr)
+      // dias) para não se perderem antes de serem completados. Também mantém o que
+      // foi MEXIDO nos últimos 30 dias (updatedAt) — assim uma diligência antiga
+      // que você acabou de tocar continua aparecendo (e no topo).
+      l = l.filter((d) => naTriagem(d) || dataDiligencia(d) >= corteStr || ultimaAtividade(d).split('T')[0] >= corteStr)
     }
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (filtrosAvancados.status === 'pendencia') {

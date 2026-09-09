@@ -33,14 +33,19 @@ export function semDocumentosDiligencia(d: Diligencia): boolean {
 
 // Documentos que ainda faltam anexar numa diligência já finalizada (ciclo
 // fechado). Vazio se o ciclo não fechou ou se ela não exige documentos.
+// Documentos marcados individualmente como "não se aplica"
+// (d.documentosDispensados) são ignorados — assim uma diligência que tem
+// contrato/recibo mas nunca terá, p.ex., o comprovante de serviço deixa de
+// ficar eternamente pendente.
 export function documentosFaltando(d: Diligencia): string[] {
   if (!d.cicloFinalizado || semDocumentosDiligencia(d)) return []
+  const dispensados = new Set(d.documentosDispensados ?? [])
   const faltam: string[] = []
-  if (!d.anexos.contratoAssinado) faltam.push('Contrato assinado')
-  if (!d.anexos.reciboAssinado) faltam.push('Recibo assinado')
-  if ((d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento)
+  if (!d.anexos.contratoAssinado && !dispensados.has('contratoAssinado')) faltam.push('Contrato assinado')
+  if (!d.anexos.reciboAssinado && !dispensados.has('reciboAssinado')) faltam.push('Recibo assinado')
+  if ((d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento && !dispensados.has('comprovantePagamento'))
     faltam.push('Comprovante de pagamento')
-  if (!d.anexos.comprovanteServico) faltam.push('Comprovante de serviço')
+  if (!d.anexos.comprovanteServico && !dispensados.has('comprovanteServico')) faltam.push('Comprovante de serviço')
   return faltam
 }
 

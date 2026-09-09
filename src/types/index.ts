@@ -220,6 +220,11 @@ export interface Diligencia {
   status: StatusDiligencia
   statusPagamento: StatusPagamento
   cicloFinalizado: boolean
+  // Documentos individuais marcados como "não se aplica" nesta diligência (ex.:
+  // presencial que tem contrato/recibo mas nunca terá comprovante de serviço).
+  // Guarda as MESMAS chaves de `anexos` — os documentos aqui deixam de contar
+  // como pendência, sem precisar dispensar TODOS via `dispensarDocumentos`.
+  documentosDispensados?: (keyof Anexos)[]
   // Diligência-rascunho vinda da triagem (evento do e-mail): dados corretos do
   // e-mail, mas ainda faltam os dados da diligência (modo, advogado, valores).
   // A Anne "completa" na triagem/edição → vira false. Rascunhos não entram em

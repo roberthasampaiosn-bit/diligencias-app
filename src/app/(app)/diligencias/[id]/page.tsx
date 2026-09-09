@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
-  ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2, Copy,
+  ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2, Copy, MinusCircle,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -189,13 +189,15 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const whatsappAdvLimpo = adv ? `https://wa.me/55${advPhone}` : '#'
 
   // Pendência documental: só para presenciais não-Fadel não dispensadas (remotas e
-  // Fadel não têm documento a anexar).
+  // Fadel não têm documento a anexar). Documentos marcados individualmente como
+  // "não se aplica" (documentosDispensados) também saem da conta.
   const semDocumentos = isRemoto || /fadel/i.test(d.empresa ?? '') || d.dispensarDocumentos
+  const dispensadosSet = new Set(d.documentosDispensados ?? [])
   const pendenciasDocumentais = !semDocumentos ? [
-    !d.anexos.contratoAssinado && 'Contrato assinado',
-    !d.anexos.reciboAssinado && 'Recibo assinado',
-    (d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento && 'Comprovante de pagamento',
-    !d.anexos.comprovanteServico && 'Comprovante de serviço',
+    !d.anexos.contratoAssinado && !dispensadosSet.has('contratoAssinado') && 'Contrato assinado',
+    !d.anexos.reciboAssinado && !dispensadosSet.has('reciboAssinado') && 'Recibo assinado',
+    (d.valorDiligencia ?? 0) > 0 && d.statusPagamento === StatusPagamento.Pago && !d.anexos.comprovantePagamento && !dispensadosSet.has('comprovantePagamento') && 'Comprovante de pagamento',
+    !d.anexos.comprovanteServico && !dispensadosSet.has('comprovanteServico') && 'Comprovante de serviço',
   ].filter(Boolean) as string[] : []
   const temPendenciaDocumental = d.cicloFinalizado && pendenciasDocumentais.length > 0
 
@@ -248,6 +250,21 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     } catch (err) {
       console.error('[remover anexo]', err)
       setUploadState((s) => ({ ...s, [campo]: 'error' }))
+    }
+  }
+
+  // Marca/desmarca um documento como "não se aplica" nesta diligência. O que fica
+  // dispensado deixa de contar como pendência; se depois o documento chegar, é só
+  // anexar normalmente (o anexo tem prioridade sobre a dispensa na exibição).
+  async function toggleDispensaDoc(campo: keyof Anexos) {
+    const atual = d!.documentosDispensados ?? []
+    const jaDispensado = atual.includes(campo)
+    const proximo = jaDispensado ? atual.filter((k) => k !== campo) : [...atual, campo]
+    try {
+      await updateDiligencia(id, { documentosDispensados: proximo })
+      addToast('success', jaDispensado ? 'Documento voltou a ser exigido.' : 'Documento marcado como "não se aplica".')
+    } catch {
+      addToast('error', 'Não foi possível salvar. Verifique sua conexão.')
     }
   }
 
@@ -889,6 +906,10 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               const estado = uploadState[item.campo] ?? 'idle'
               const uploading = estado === 'uploading'
               const erro = estado === 'error'
+              // "Não se aplica" só faz sentido quando ainda não há arquivo e a
+              // diligência exige documentos (não é remota/Fadel/sem documentos).
+              const dispensado = !valor && dispensadosSet.has(item.campo)
+              const podeDispensar = !valor && !semDocumentos
               return (
                 <div
                   key={item.campo}
@@ -896,6 +917,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                     uploading ? 'border-blue-200 bg-blue-50'
                     : erro ? 'border-red-200 bg-red-50'
                     : valor ? 'border-emerald-200 bg-emerald-50'
+                    : dispensado ? 'border-slate-200 bg-slate-100'
                     : 'border-dashed border-slate-200 bg-slate-50'
                   }`}
                 >
@@ -909,6 +931,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                       ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                       : valor
                       ? <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      : dispensado
+                      ? <MinusCircle className="w-4 h-4 text-slate-400" />
                       : <FileText className="w-4 h-4 text-slate-400" />
                     }
                   </div>
@@ -917,6 +941,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                       uploading ? 'text-blue-800'
                       : erro ? 'text-red-700'
                       : valor ? 'text-emerald-800'
+                      : dispensado ? 'text-slate-500'
                       : 'text-slate-700'
                     }`}>{item.label}</p>
 
@@ -937,11 +962,14 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                         <p className="text-xs text-emerald-600 truncate mt-0.5" title={valor}>{valor}</p>
                       )
                     )}
-                    {!uploading && !erro && !valor && (
+                    {!uploading && !erro && !valor && dispensado && (
+                      <p className="text-xs text-slate-500 mt-0.5">Não se aplica — não conta como pendência.</p>
+                    )}
+                    {!uploading && !erro && !valor && !dispensado && (
                       <p className="text-xs text-slate-400 mt-0.5">{item.descricao}</p>
                     )}
 
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
                       <button
                         disabled={uploading}
                         onClick={() => handleUpload(item.campo)}
@@ -961,6 +989,22 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                           title="Remover arquivo"
                         >
                           <Trash2 className="w-3 h-3 inline" />
+                        </button>
+                      )}
+                      {podeDispensar && !uploading && (
+                        <button
+                          onClick={() => toggleDispensaDoc(item.campo)}
+                          className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-colors border ${
+                            dispensado
+                              ? 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                          }`}
+                          title={dispensado ? 'Voltar a exigir este documento' : 'Marcar que este documento não se aplica nesta diligência'}
+                        >
+                          {dispensado
+                            ? 'Voltar a exigir'
+                            : <><MinusCircle className="w-3 h-3 inline mr-1" /> Não se aplica</>
+                          }
                         </button>
                       )}
                     </div>

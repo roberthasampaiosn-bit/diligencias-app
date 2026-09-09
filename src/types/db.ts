@@ -117,6 +117,8 @@ export interface DiligenciaRow {
   centro_custo?: string | null
   // Dispensar documentos
   dispensar_documentos?: boolean | null
+  // Documentos individuais marcados como "não se aplica" (chaves dos anexos)
+  documentos_dispensados?: string[] | null
   // Incluir na planilha de diligências mesmo com valor zero
   incluir_na_planilha?: boolean | null
   // ZapSign — assinatura digital

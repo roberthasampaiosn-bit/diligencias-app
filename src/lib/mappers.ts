@@ -176,6 +176,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     statusAssinaturaContrato: (row.status_assinatura_contrato as 'pendente' | 'assinado') ?? undefined,
     statusAssinaturaRecibo: (row.status_assinatura_recibo as 'pendente' | 'assinado') ?? undefined,
     dispensarDocumentos: row.dispensar_documentos ?? undefined,
+    documentosDispensados: (row.documentos_dispensados ?? undefined) as (keyof Diligencia['anexos'])[] | undefined,
     pdfFinalGeradoEm: row.pdf_final_gerado_em ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -255,6 +256,7 @@ export function fromDiligencia(
     ...(d.statusAssinaturaContrato != null && { status_assinatura_contrato: d.statusAssinaturaContrato }),
     ...(d.statusAssinaturaRecibo != null && { status_assinatura_recibo: d.statusAssinaturaRecibo }),
     ...(d.dispensarDocumentos != null && { dispensar_documentos: d.dispensarDocumentos }),
+    ...(d.documentosDispensados != null && { documentos_dispensados: d.documentosDispensados }),
     ...(d.incluirNaPlanilha != null && { incluir_na_planilha: d.incluirNaPlanilha }),
     ...(d.pdfFinalGeradoEm != null && { pdf_final_gerado_em: d.pdfFinalGeradoEm }),
   } as Omit<DiligenciaRow, 'id' | 'created_at' | 'updated_at' | 'ligacoes'>

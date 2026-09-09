@@ -13,15 +13,27 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { formatPhone, formatCurrency } from '@/lib/utils'
 import { StatusPagamento } from '@/types'
 
+type OrdemAdvogados = 'recentes' | 'az'
+
 export default function AdvogadosPage() {
   const { advogados } = useAdvogados()
   const { diligencias } = useDiligencias()
   const [search, setSearch] = useState('')
+  // Ordem padrão = "mais recentes" para que um advogado recém-cadastrado/confirmado
+  // apareça no topo — assim dá para encontrá-lo sem lembrar o nome. "A–Z" quando
+  // se quer varrer a lista inteira em ordem alfabética.
+  const [ordem, setOrdem] = useState<OrdemAdvogados>('recentes')
 
-  const lista = useMemo(
-    () => searchAdvogados(advogados, search),
-    [advogados, search],
-  )
+  const lista = useMemo(() => {
+    const base = searchAdvogados(advogados, search)
+    // Ao buscar, mantém a ordem por relevância (mais aderente ao termo primeiro).
+    if (search.trim()) return base
+    return [...base].sort(
+      ordem === 'az'
+        ? (a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto, 'pt', { sensitivity: 'base' })
+        : (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''), // mais recente primeiro
+    )
+  }, [advogados, search, ordem])
 
   // Média de avaliação por advogado
   const ratingMap = useMemo(() => {
@@ -79,12 +91,35 @@ export default function AdvogadosPage() {
 
       <Card>
         <CardHeader>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Nome, cidade, telefone, observações..."
-            className="sm:w-80"
-          />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Nome, cidade, telefone, observações..."
+              className="sm:w-80"
+            />
+            {/* Ordenação — desativada durante a busca (aí a ordem é por relevância) */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-slate-400">Ordenar:</span>
+              {([
+                { key: 'recentes', label: 'Mais recentes' },
+                { key: 'az', label: 'A–Z' },
+              ] as const).map((op) => (
+                <button
+                  key={op.key}
+                  onClick={() => setOrdem(op.key)}
+                  disabled={!!search.trim()}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    ordem === op.key && !search.trim()
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {op.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
 
         {lista.length === 0 ? (
