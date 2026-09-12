@@ -683,8 +683,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </CardBody>
         </Card>
 
-        {/* Evento */}
-        <Card>
+        {/* Evento — exibido primeiro (order-first) */}
+        <Card className="order-first">
           <CardHeader>
             <div className="flex items-center gap-2"><Building className="w-4 h-4 text-slate-400" /><CardTitle>Dados do Evento</CardTitle></div>
           </CardHeader>
