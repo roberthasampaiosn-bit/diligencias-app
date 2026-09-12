@@ -479,6 +479,11 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             {d.ccc && <p className="text-xs text-blue-600 font-mono">{d.ccc}</p>}
             <EmpresaBadge empresaCliente={d.empresaCliente} />
           </div>
+          {adv && (
+            <p className="text-xs text-slate-500 mt-0.5 truncate">
+              <span className="font-medium text-slate-600">Advogado:</span> {adv.nomeCompleto}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {d.cicloFinalizado && !temPendenciaDocumental && <Badge variant="success">Ciclo finalizado</Badge>}
