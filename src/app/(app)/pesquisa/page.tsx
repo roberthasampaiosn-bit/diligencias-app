@@ -1338,7 +1338,7 @@ function PesquisaContent() {
                       <p className="text-xs text-slate-500 mt-0.5">
                         {d.tipoEvento} · {d.cidade}/{d.uf}
                       </p>
-                      {advogadoNome && (
+                      {isPendente && advogadoNome && (
                         <p className="text-xs text-slate-500 mt-0.5">
                           <span className="font-medium text-slate-600">Atendimento:</span> {advogadoNome}
                         </p>
@@ -1560,6 +1560,12 @@ function PesquisaContent() {
                           {/* Resposta registrada (se houver) */}
                           {d.pesquisa.respostaVitima && (
                             <div className="text-slate-500 italic truncate">"{d.pesquisa.respostaVitima}"</div>
+                          )}
+                          {/* Advogado que fez o atendimento (diligência) */}
+                          {advogadoNome && (
+                            <div className="text-slate-400">
+                              <span className="font-medium text-slate-500">Atendimento:</span> {advogadoNome}
+                            </div>
                           )}
                           {/* Data/hora da conclusão + entrevistador */}
                           {d.pesquisa.dataConclusao ? (
