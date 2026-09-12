@@ -480,8 +480,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
             <EmpresaBadge empresaCliente={d.empresaCliente} />
           </div>
           {adv && (
-            <p className="text-xs text-slate-500 mt-0.5 truncate">
-              <span className="font-medium text-slate-600">Advogado:</span> {adv.nomeCompleto}
+            <p className="text-base text-slate-700 mt-1 truncate">
+              <span className="text-slate-400 text-sm">Advogado:</span>{' '}
+              <span className="font-semibold">{adv.nomeCompleto}</span>
             </p>
           )}
         </div>
@@ -658,7 +659,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         <DiligenciaProgressBar d={d} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Vítima */}
         <Card>
           <CardHeader>
@@ -682,8 +683,8 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </CardBody>
         </Card>
 
-        {/* Evento */}
-        <Card>
+        {/* Evento — exibido primeiro (order-first) */}
+        <Card className="order-first">
           <CardHeader>
             <div className="flex items-center gap-2"><Building className="w-4 h-4 text-slate-400" /><CardTitle>Dados do Evento</CardTitle></div>
           </CardHeader>
