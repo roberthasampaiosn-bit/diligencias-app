@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
+import { useAdvogados } from '@/context/AdvogadosContext'
 import { useToast } from '@/context/ToastContext'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -233,6 +234,7 @@ function PesquisaContent() {
   } = useDiligencias()
 
   const { eventos, arquivarEvento, restaurarEvento } = useEventos()
+  const { advogadoMap } = useAdvogados()
   const { addToast } = useToast()
   const eventoMap = useMemo(
     () => Object.fromEntries(eventos.map((e) => [e.id, e])),
@@ -1248,6 +1250,9 @@ function PesquisaContent() {
                 const horaEvento = eventoVinculado?.horaEvento ?? d.horaEvento
                 // Nome efetivo: vitima da diligência ou, se vazio, do evento vinculado
                 const nomeEfetivo = sanitizeName(d.vitima || eventoVinculado?.nomeVitima)
+                // Advogado que fez o atendimento (diligência). Rascunhos da triagem
+                // podem não ter advogado vinculado ainda → só mostra quando houver.
+                const advogadoNome = d.advogadoId ? advogadoMap.get(d.advogadoId)?.nomeCompleto : undefined
 
                 // Telefones múltiplos (separados por ";")
                 const phones = d.telefoneVitima.split(';').map((p) => p.trim()).filter(Boolean)
@@ -1333,6 +1338,11 @@ function PesquisaContent() {
                       <p className="text-xs text-slate-500 mt-0.5">
                         {d.tipoEvento} · {d.cidade}/{d.uf}
                       </p>
+                      {advogadoNome && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          <span className="font-medium text-slate-600">Atendimento:</span> {advogadoNome}
+                        </p>
+                      )}
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         {dataEvento && (
                           <span className="text-xs text-slate-400">
