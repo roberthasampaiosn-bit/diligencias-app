@@ -297,6 +297,15 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/55${digits}?text=${encoded}`
 }
 
+// Abre a conversa no WhatsApp SEM mensagem — usado para "ligar pelo WhatsApp":
+// o WhatsApp não expõe um link que inicie a chamada direto, então caímos na
+// conversa (pronta) e a pessoa toca no ícone de chamada. Sem ?text para não
+// deixar um rascunho de mensagem atrapalhando quem só quer ligar.
+export function buildWhatsAppChatUrl(phone: string): string {
+  const digits = cleanPhone(phone)
+  return `https://wa.me/55${digits}`
+}
+
 export function buildPesquisaMessage(vitima: string, tipoEvento: string, empresaCliente?: string, dataEvento?: string): string {
   const greeting = getGreeting()
   const nome = getFirstNames(vitima)

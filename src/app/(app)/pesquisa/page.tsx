@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useTransition, useEffect, Suspense } fr
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-  MessageSquare, MessageCircle, Phone, Calendar, CheckCircle2,
+  MessageSquare, MessageCircle, Phone, PhoneCall, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
   ArrowUp, ArrowDown, Trash2, RotateCcw, Archive,
 } from 'lucide-react'
@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { PushButton } from '@/components/shared/PushButton'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone, normalizarBusca } from '@/lib/utils'
+import { buildWhatsAppUrl, buildWhatsAppChatUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone, normalizarBusca } from '@/lib/utils'
 import {
   StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
   EmpresaCliente, TipoDiligencia, ModoDiligencia, TipoEvento,
@@ -656,6 +656,21 @@ function PesquisaContent() {
     setPinnedAt(Date.now())
   }
 
+  // "Ligar pelo WhatsApp": registra como uma ligação (conta em "Por Ligação"),
+  // marcada na observação para diferenciar da ligação normal, e abre a conversa
+  // no WhatsApp — de onde a pessoa toca no ícone de chamada. O WhatsApp não tem
+  // link que inicie a chamada direto, então esse é o passo mínimo possível.
+  function registrarLigacaoWhatsApp(d: Diligencia) {
+    const now = new Date()
+    registrarLigacao(d.id, {
+      data: now.toISOString().split('T')[0],
+      hora: now.toTimeString().slice(0, 5),
+      observacao: 'Ligação pelo WhatsApp',
+    })
+    setPinnedId(d.id)
+    setPinnedAt(Date.now())
+  }
+
   async function handleEnviarWhatsApp(d: Diligencia, phone: string) {
     const nomes = d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || ''
     const nome = sanitizeName(nomeDoTelefone(nomes, d.telefoneVitima, phone))
@@ -1160,6 +1175,28 @@ function PesquisaContent() {
                                 <MessageCircle className="w-3.5 h-3.5" />
                                 {evWa ? 'Reenviar WA' : 'WhatsApp'}{evPhones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
                               </button>
+                              <a
+                                href={buildWhatsAppChatUrl(phone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => {
+                                  // Registra em SEGUNDO PLANO — o href fica sempre válido para
+                                  // o WhatsApp abrir; se a gravação falhar, a conversa abre igual.
+                                  ;(async () => {
+                                    try {
+                                      const dil = evDil ?? await criarDiligenciaDoEvento(ev)
+                                      registrarLigacaoWhatsApp(dil)
+                                    } catch (err) {
+                                      addToast('error', `Erro ao registrar: ${err instanceof Error ? err.message : 'Tente novamente'}`)
+                                    }
+                                  })()
+                                }}
+                                title="Abre a conversa no WhatsApp — toque no ícone de chamada para ligar. Fica registrado como ligação."
+                                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                              >
+                                <PhoneCall className="w-3.5 h-3.5" />
+                                Ligar WhatsApp{evPhones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
+                              </a>
                             </div>
                           ))}
                           {/* Agendar retorno */}
@@ -1503,6 +1540,17 @@ function PesquisaContent() {
                               {d.pesquisa.dataEnvioWhatsApp ? 'Reenviar WA' : 'WhatsApp'}
                               {phones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
                             </button>
+                            <a
+                              href={buildWhatsAppChatUrl(phone)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => registrarLigacaoWhatsApp(d)}
+                              title="Abre a conversa no WhatsApp — toque no ícone de chamada para ligar. Fica registrado como ligação."
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5" />
+                              Ligar WhatsApp{phones.length > 1 ? ` · ${formatPhone(phone)}` : ''}
+                            </a>
                           </div>
                         ))}
                         {/* Linha 2: Agendar retorno */}

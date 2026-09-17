@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Phone, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw } from 'lucide-react'
+import { MessageCircle, Phone, PhoneCall, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
-import { buildWhatsAppUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
+import { buildWhatsAppUrl, buildWhatsAppChatUrl, buildPesquisaMessage, formatDate, formatPhone, cleanPhone, nomeDoTelefone } from '@/lib/utils'
 import { StatusPesquisa, ResultadoLigacao, Pesquisa } from '@/types'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
@@ -202,6 +202,24 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
               <a href={waUrl} target="_blank" rel="noopener noreferrer">
                 <Button variant="secondary" size="sm">
                   <MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp{telefones.length > 1 ? ` — ${nome.split(' ')[0]}` : ' vítima'}
+                </Button>
+              </a>
+              <a
+                href={buildWhatsAppChatUrl(phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Abre a conversa no WhatsApp — toque no ícone de chamada para ligar. Fica registrado como ligação."
+                onClick={() => {
+                  const now = new Date()
+                  registrarLigacao(id, {
+                    data: now.toISOString().split('T')[0],
+                    hora: now.toTimeString().slice(0, 5),
+                    observacao: 'Ligação pelo WhatsApp',
+                  })
+                }}
+              >
+                <Button variant="secondary" size="sm">
+                  <PhoneCall className="w-3.5 h-3.5 text-green-600" /> Ligar pelo WhatsApp
                 </Button>
               </a>
             </div>
