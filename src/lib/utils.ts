@@ -31,14 +31,14 @@ export function semDocumentosDiligencia(d: Diligencia): boolean {
     || !!d.dispensarDocumentos
 }
 
-// Documentos que ainda faltam anexar numa diligência já finalizada (ciclo
-// fechado). Vazio se o ciclo não fechou ou se ela não exige documentos.
+// Documentos que ainda faltam anexar numa diligência — INDEPENDENTE de o ciclo
+// estar fechado. Vazio se ela não exige documentos (remota/Fadel/dispensada).
 // Documentos marcados individualmente como "não se aplica"
 // (d.documentosDispensados) são ignorados — assim uma diligência que tem
 // contrato/recibo mas nunca terá, p.ex., o comprovante de serviço deixa de
 // ficar eternamente pendente.
-export function documentosFaltando(d: Diligencia): string[] {
-  if (!d.cicloFinalizado || semDocumentosDiligencia(d)) return []
+export function documentosPendentes(d: Diligencia): string[] {
+  if (semDocumentosDiligencia(d)) return []
   const dispensados = new Set(d.documentosDispensados ?? [])
   const faltam: string[] = []
   if (!d.anexos.contratoAssinado && !dispensados.has('contratoAssinado')) faltam.push('Contrato assinado')
@@ -47,6 +47,13 @@ export function documentosFaltando(d: Diligencia): string[] {
     faltam.push('Comprovante de pagamento')
   if (!d.anexos.comprovanteServico && !dispensados.has('comprovanteServico')) faltam.push('Comprovante de serviço')
   return faltam
+}
+
+// Igual à anterior, mas só faz sentido depois do ciclo fechado (uso histórico:
+// avisar documento pendente numa diligência já concluída).
+export function documentosFaltando(d: Diligencia): string[] {
+  if (!d.cicloFinalizado) return []
+  return documentosPendentes(d)
 }
 
 // Diligência com TODOS os documentos anexados, ciclo fechado, mas o PDF final

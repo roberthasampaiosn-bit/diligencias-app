@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca, documentosFaltando } from '@/lib/utils'
+import { formatCurrency, formatDate, tituloDiligencia, normalizarBusca, documentosFaltando, documentosPendentes } from '@/lib/utils'
 import { Diligencia, StatusDiligencia, StatusPagamento, ModoDiligencia, EmpresaCliente, Advogado, StatusEvento } from '@/types'
 
 // ── Documentos faltando ───────────────────────────────────────────────────────
@@ -60,14 +60,24 @@ const DOC_CURTO: Record<string, string> = {
 }
 
 function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docsFaltam: string[] } {
-  if (d.status === StatusDiligencia.EmAndamento) return { label: 'Em andamento', tone: 'slate', docsFaltam: [] }
-  // Realizada: só é pendência real um pagamento presencial com valor em aberto.
+  // Só é "Concluída" depois que você aperta Concluir (cicloFinalizado).
+  if (d.cicloFinalizado) return { label: 'Concluída', tone: 'emerald', docsFaltam: docsFaltando(d) }
+  // Ainda não concluída: em vez de um "Em andamento" genérico, o rótulo diz O QUE
+  // FALTA para poder concluir, na ordem natural do trabalho:
+  //   realização → pagamento → documentação → conclusão.
+  if (d.status === StatusDiligencia.EmAndamento) {
+    return { label: 'Aguardando realização', tone: 'amber', docsFaltam: [] }
+  }
+  // Já realizada: pagamento presencial em aberto é a próxima pendência.
   const aguardaPagamento = d.modoDiligencia !== ModoDiligencia.Remoto
     && (d.valorDiligencia ?? 0) > 0
     && d.statusPagamento !== StatusPagamento.Pago
   if (aguardaPagamento) return { label: 'Aguardando pagamento', tone: 'amber', docsFaltam: [] }
-  // Sem pendência → concluída. Mantém o aviso de docs só se o ciclo foi finalizado.
-  return { label: 'Concluída', tone: 'emerald', docsFaltam: d.cicloFinalizado ? docsFaltando(d) : [] }
+  // Falta anexar documento (contrato/recibo/comprovante).
+  const docs = documentosPendentes(d)
+  if (docs.length > 0) return { label: 'Aguardando documentação', tone: 'amber', docsFaltam: docs }
+  // Tudo pronto — só falta apertar Concluir.
+  return { label: 'Aguardando conclusão', tone: 'blue', docsFaltam: [] }
 }
 
 // ── Row memoizado ─────────────────────────────────────────────────────────────
@@ -398,6 +408,10 @@ function DiligenciasContent() {
       l = l.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
     } else if (filtrosAvancados.status === 'cicloFechado') {
       l = l.filter((d) => d.cicloFinalizado)
+    } else if (filtrosAvancados.status === StatusDiligencia.EmAndamento) {
+      // "Em andamento" = ainda não concluída (não apertou "Concluir"). Inclui as
+      // já marcadas como realizadas que seguem em etapas (contrato/pagamento/recibo).
+      l = l.filter((d) => !d.cicloFinalizado)
     } else if (filtrosAvancados.status !== 'todos') {
       l = l.filter((d) => d.status === filtrosAvancados.status)
     }

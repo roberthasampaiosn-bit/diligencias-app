@@ -8,7 +8,11 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
   const mesStr = `${mesAtual.getFullYear()}-${String(mesAtual.getMonth() + 1).padStart(2, '0')}`
   const doMes = (d: Diligencia) => (d.dataAtendimento ?? d.createdAt.split('T')[0]).startsWith(mesStr)
 
-  const emAndamento = diligencias.filter((d) => d.status === StatusDiligencia.EmAndamento)
+  // "Em andamento" = tudo que ainda NÃO foi concluído (não apertou "Concluir").
+  // Independe de já estar "Marcada como realizada": a diligência só sai daqui
+  // quando o ciclo é finalizado (cicloFinalizado). Assim as que você trabalha
+  // por etapas (contrato → pagamento → recibo) continuam em andamento até o fim.
+  const emAndamento = diligencias.filter((d) => !d.cicloFinalizado)
   const realizadas = diligencias.filter((d) => d.status === StatusDiligencia.Realizada)
   const realizadasMes = diligencias.filter((d) => d.status === StatusDiligencia.Realizada && doMes(d))
   const pesquisasPendentes = diligencias.filter(

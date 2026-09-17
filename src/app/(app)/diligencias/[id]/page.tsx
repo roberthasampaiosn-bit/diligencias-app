@@ -1217,10 +1217,9 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               </ul>
             </div>
           </div>
-          <p className="text-xs text-slate-500">Você pode voltar e anexar os documentos, ou concluir mesmo assim — a diligência ficará marcada com pendência documental.</p>
+          <p className="text-xs text-slate-500">Para concluir, resolva cada documento acima: <strong>anexe o arquivo</strong> ou, se ele não vai vir (ex.: o advogado não assina o recibo), clique em <strong>&ldquo;Não se aplica&rdquo;</strong> ao lado do documento. Enquanto houver documento pendente, a diligência continua <strong>Em andamento</strong>.</p>
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setModalPendencia(false)}>Voltar e anexar</Button>
-            <Button variant="warning" size="sm" onClick={() => { setModalPendencia(false); if (isFuncionariaInterna) setModalFinalizarAnne(true); else setModalFinalizar(true) }}>Concluir mesmo assim</Button>
+            <Button variant="primary" size="sm" onClick={() => setModalPendencia(false)}>Voltar e resolver</Button>
           </div>
         </div>
       </Modal>

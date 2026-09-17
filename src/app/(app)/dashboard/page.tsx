@@ -107,7 +107,7 @@ export default function DashboardPage() {
           <StatCard title="Eventos novos" value={stats.eventosNovos} icon={FileSearch} color="blue" subtitle="Aguardando triagem" />
         </Link>
         <Link href="/diligencias?status=Em+andamento" className="block hover:scale-[1.02] transition-transform">
-          <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Aguardando execução" />
+          <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Ainda não concluídas" />
         </Link>
         <Link href="/diligencias?status=Realizada" className="block hover:scale-[1.02] transition-transform">
           <StatCard title="Realizadas este mês" value={stats.diligenciasRealizadasMes} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
