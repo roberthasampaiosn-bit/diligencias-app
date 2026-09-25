@@ -7,11 +7,13 @@ import {
   Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
   ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2, Copy, MinusCircle,
+  ArrowUp, ArrowDown, X,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { useEventos } from '@/context/EventosContext'
 import { gerarPDFFinal } from '@/lib/pdfFinal'
+import { juntarEmPdf, ehPdf, ehImagem } from '@/lib/juntarArquivos'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoBase64Only, gerarReciboBase64Only } from '@/lib/pdf'
 import { useToast } from '@/context/ToastContext'
 import { CCCHistorico } from '@/components/diligencias/CCCHistorico'
@@ -95,6 +97,10 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
 
   // Refs para inputs de arquivo ocultos
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // Comprovante de serviço com várias fotos: páginas escolhidas, na ordem do PDF
+  const [paginasJuntar, setPaginasJuntar] = useState<{ file: File; preview: string | null }[] | null>(null)
+  const [juntando, setJuntando] = useState(false)
 
   // ZapSign — loading states (links são derivados do DB via d.linkAssinatura*)
   const [enviandoContratoZap, setEnviandoContratoZap] = useState(false)
@@ -280,6 +286,57 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
       addToast('error', `Falha no upload: ${(err as Error).message}`)
     }
   }, [id, uploadAnexo, addToast])
+
+  // Várias fotos/PDFs de uma vez no Comprovante de serviço → janela para
+  // conferir a ordem e juntar tudo num PDF só antes de anexar.
+  function handleVariosArquivos(files: File[]) {
+    const invalido = files.find((f) => !ehPdf(f) && !ehImagem(f))
+    if (invalido) {
+      addToast('error', `"${invalido.name}" não é foto nem PDF. Para juntar, escolha só fotos e PDFs.`)
+      return
+    }
+    setPaginasJuntar(files.map((file) => ({ file, preview: ehImagem(file) ? URL.createObjectURL(file) : null })))
+  }
+
+  function fecharJuntar() {
+    paginasJuntar?.forEach((p) => p.preview && URL.revokeObjectURL(p.preview))
+    setPaginasJuntar(null)
+  }
+
+  function moverPagina(i: number, delta: number) {
+    setPaginasJuntar((ps) => {
+      if (!ps) return ps
+      const j = i + delta
+      if (j < 0 || j >= ps.length) return ps
+      const novo = [...ps]
+      ;[novo[i], novo[j]] = [novo[j], novo[i]]
+      return novo
+    })
+  }
+
+  function removerPagina(i: number) {
+    setPaginasJuntar((ps) => {
+      if (!ps) return ps
+      const p = ps[i]
+      if (p.preview) URL.revokeObjectURL(p.preview)
+      return ps.filter((_, k) => k !== i)
+    })
+  }
+
+  async function handleJuntarEAnexar() {
+    if (!paginasJuntar?.length) return
+    setJuntando(true)
+    try {
+      const pdf = await juntarEmPdf(paginasJuntar.map((p) => p.file), 'comprovante-servico.pdf')
+      fecharJuntar()
+      await handleFileChange('comprovanteServico', pdf)
+    } catch (err) {
+      console.error('[juntar comprovante]', err)
+      addToast('error', `Não foi possível juntar os arquivos: ${(err as Error).message}`)
+    } finally {
+      setJuntando(false)
+    }
+  }
 
   function handleFinalizar() {
     if (!notaAdv) return
@@ -1021,8 +1078,13 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                     ref={(el) => { inputRefs.current[item.campo] = el }}
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    multiple={item.campo === 'comprovanteServico'}
                     className="hidden"
-                    onChange={(e) => handleFileChange(item.campo, e.target.files?.[0])}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? [])
+                      if (files.length > 1) handleVariosArquivos(files)
+                      else handleFileChange(item.campo, files[0])
+                    }}
                   />
                 </div>
               )
@@ -1416,6 +1478,63 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           <Trash2 className="w-3.5 h-3.5" /> Excluir diligência
         </button>
       </div>
+
+      <Modal
+        open={!!paginasJuntar}
+        onClose={() => !juntando && fecharJuntar()}
+        title="Juntar comprovante de serviço"
+        size="md"
+      >
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-600">
+            Confira a ordem das páginas. Os arquivos serão juntados num <strong>PDF único</strong> e anexados como comprovante de serviço.
+          </p>
+          <ol className="space-y-2">
+            {paginasJuntar?.map((p, i) => (
+              <li key={p.preview ?? `${p.file.name}-${i}`} className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
+                <span className="w-6 text-center text-xs font-semibold text-slate-500">{i + 1}</span>
+                {p.preview
+                  ? <img src={p.preview} alt="" className="w-12 h-16 object-cover rounded border border-slate-200 bg-slate-50" />
+                  : <div className="w-12 h-16 rounded border border-slate-200 bg-red-50 flex items-center justify-center"><FileText className="w-5 h-5 text-red-500" /></div>
+                }
+                <p className="flex-1 min-w-0 text-xs text-slate-700 truncate" title={p.file.name}>{p.file.name}</p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => moverPagina(i, -1)}
+                    disabled={juntando || i === 0}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                    title="Subir"
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => moverPagina(i, 1)}
+                    disabled={juntando || i === paginasJuntar.length - 1}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+                    title="Descer"
+                  >
+                    <ArrowDown className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => removerPagina(i)}
+                    disabled={juntando}
+                    className="p-2 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-30"
+                    title="Tirar esta página"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" size="sm" onClick={fecharJuntar} disabled={juntando}>Cancelar</Button>
+            <Button size="sm" onClick={handleJuntarEAnexar} disabled={juntando || !paginasJuntar?.length}>
+              {juntando ? 'Juntando...' : `Juntar ${paginasJuntar?.length ?? 0} e anexar`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={modalExcluir} onClose={() => !excluindo && setModalExcluir(false)} title="Excluir diligência" size="sm">
         <div className="space-y-4">
