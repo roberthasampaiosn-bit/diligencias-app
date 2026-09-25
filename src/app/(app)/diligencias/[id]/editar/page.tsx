@@ -10,6 +10,7 @@ import { useEventos } from '@/context/EventosContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { AdvogadoPicker } from '@/components/advogados/AdvogadoPicker'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { BotaoVoltar } from '@/components/layout/BotaoVoltar'
@@ -304,9 +305,8 @@ export default function EditarDiligenciaPage({ params }: { params: Promise<Param
         <CardHeader><CardTitle>Advogado e Valor</CardTitle></CardHeader>
         <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Select label="Advogado" value={form.advogadoId} onChange={(e) => set('advogadoId', e.target.value)}
-              options={advogados.map((a) => ({ value: a.id, label: `${a.nomeCompleto} — ${a.cidadePrincipal}/${a.uf}` }))}
-              error={errors.advogadoId} />
+            <AdvogadoPicker label="Advogado" value={form.advogadoId} onChange={(id) => set('advogadoId', id)}
+              advogados={advogados} error={errors.advogadoId} />
           </div>
 
           {sugestoes.length > 0 && (
