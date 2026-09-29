@@ -29,7 +29,7 @@ import {
   Diligencia, Pesquisa, Evento,
 } from '@/types'
 import { AbaExcel, exportarExcelEstilizado } from '@/lib/excel'
-import { naoEhCasoDePesquisa, motivoNaoEhPesquisa } from '@/lib/pesquisaElegibilidade'
+import { naoEhCasoDePesquisa, motivoNaoEhPesquisa, idsAditamentoPesquisa } from '@/lib/pesquisaElegibilidade'
 
 const FORMS_BASE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=dHSc_x1CV0mNR8S2TeyHtRaQVWV2fP9Cvho3pQhCA1tURDFISEJGM1hMTlJDTkFRRk1STFcwVUhPUS4u'
 
@@ -455,6 +455,10 @@ function PesquisaContent() {
 
   // ── Dados filtrados ──────────────────────────────────────────────────────────
 
+  // Aditamento / 2ª diligência do mesmo CCC: pesquisa é uma por sinistro — só a
+  // diligência principal do CCC entra na fila (ver idsAditamentoPesquisa).
+  const aditamentos = useMemo(() => idsAditamentoPesquisa(diligencias), [diligencias])
+
   const realizadas = useMemo(() => {
     // Rascunho da triagem (incompleta) só entra na fila 24h após o evento — para não
     // contatar a vítima cedo demais (mesmo critério que a triagem usava antes).
@@ -463,6 +467,7 @@ function PesquisaContent() {
     return diligencias.filter((d) => {
       if (d.status !== StatusDiligencia.Realizada) return false
       if (d.empresaCliente === EmpresaCliente.VTAL) return false
+      if (aditamentos.has(d.id)) return false
       if (d.pesquisa.status === StatusPesquisa.Dispensada) return false   // dispensadas fora da fila
       // Audiência / acidente pendente → dispensa automática (nunca é caso de pesquisa).
       // Fica só na lista de "Dispensadas". Se já estiver Concluída (pesquisa feita no
@@ -474,7 +479,7 @@ function PesquisaContent() {
       }
       return true
     })
-  }, [diligencias, eventoMap])
+  }, [diligencias, eventoMap, aditamentos])
 
   // Empresas (transportadoras) presentes na fila — para o filtro por empresa
   const empresasDisponiveis = useMemo(() => {
@@ -491,12 +496,12 @@ function PesquisaContent() {
   // automaticamente (audiência/acidente ainda pendente).
   const dispensadas = useMemo(
     () => diligencias.filter((d) =>
-      d.empresaCliente !== EmpresaCliente.VTAL && (
+      d.empresaCliente !== EmpresaCliente.VTAL && !aditamentos.has(d.id) && (
         d.pesquisa.status === StatusPesquisa.Dispensada ||
         (d.pesquisa.status === StatusPesquisa.Pendente && naoEhCasoDePesquisa(d))
       )
     ),
-    [diligencias],
+    [diligencias, aditamentos],
   )
 
   const realizadasFiltradas = useMemo(() => {

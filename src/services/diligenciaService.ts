@@ -1,5 +1,5 @@
 import { Diligencia, DashboardStats, StatusDiligencia, StatusPagamento, StatusPesquisa, EmpresaCliente } from '@/types'
-import { naoEhCasoDePesquisa } from '@/lib/pesquisaElegibilidade'
+import { naoEhCasoDePesquisa, idsAditamentoPesquisa } from '@/lib/pesquisaElegibilidade'
 
 // Funções puras — sem estado interno. O estado vive no AppContext.
 
@@ -15,8 +15,11 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
   const emAndamento = diligencias.filter((d) => !d.cicloFinalizado)
   const realizadas = diligencias.filter((d) => d.status === StatusDiligencia.Realizada)
   const realizadasMes = diligencias.filter((d) => d.status === StatusDiligencia.Realizada && doMes(d))
+  // Aditamento do mesmo CCC não gera 2ª pesquisa (uma por sinistro)
+  const aditamentos = idsAditamentoPesquisa(diligencias)
   const pesquisasPendentes = diligencias.filter(
     (d) =>
+      !aditamentos.has(d.id) &&
       d.status === StatusDiligencia.Realizada &&
       d.pesquisa.status === StatusPesquisa.Pendente &&
       d.empresaCliente !== EmpresaCliente.VTAL &&
@@ -30,6 +33,7 @@ export function computeDashboardStats(diligencias: Diligencia[]): DashboardStats
   const pesquisasPendentesMes = pesquisasPendentes.filter(doMesEvento)
   const pesquisasConcluidas = diligencias.filter(
     (d) =>
+      !aditamentos.has(d.id) &&
       d.pesquisa.status === StatusPesquisa.Concluida &&
       d.empresaCliente !== EmpresaCliente.VTAL
   )
