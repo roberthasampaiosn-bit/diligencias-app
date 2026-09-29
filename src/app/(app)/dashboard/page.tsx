@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   FileSearch, ClipboardList, CheckCircle2, MessageSquare,
-  Trophy, ArrowRight, Search, CarFront, XCircle, DollarSign, Plus,
+  ArrowRight, Search, CarFront, XCircle, DollarSign, Plus,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -102,7 +102,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats gerais (aplicam o filtro) */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         <Link href="/triagem" className="block hover:scale-[1.02] transition-transform">
           <StatCard title="Eventos novos" value={stats.eventosNovos} icon={FileSearch} color="blue" subtitle="Aguardando triagem" />
         </Link>
@@ -110,10 +110,7 @@ export default function DashboardPage() {
           <StatCard title="Em andamento" value={stats.diligenciasEmAndamento} icon={ClipboardList} color="amber" subtitle="Ainda não concluídas" />
         </Link>
         <Link href="/diligencias?status=Realizada" className="block hover:scale-[1.02] transition-transform">
-          <StatCard title="Realizadas este mês" value={stats.diligenciasRealizadasMes} icon={CheckCircle2} color="emerald" subtitle="Serviço executado" />
-        </Link>
-        <Link href="/diligencias?ciclo=fechado" className="block hover:scale-[1.02] transition-transform">
-          <StatCard title="Ciclos fechados mês" value={stats.ciclosFinalizadosMes} icon={Trophy} color="slate" subtitle="Docs + pgto liquidados" />
+          <StatCard title="Realizadas este mês" value={stats.diligenciasRealizadasMes} icon={CheckCircle2} color="emerald" subtitle={`${stats.ciclosFinalizadosMes} com ciclo fechado`} />
         </Link>
         <Link href="/pesquisa?filtro=pendentes" className="block hover:scale-[1.02] transition-transform">
           <StatCard title="Pesq. pendentes mês" value={stats.pesquisasPendentesMes} icon={MessageSquare} color="purple" subtitle="Vítimas a contatar · este mês" />
