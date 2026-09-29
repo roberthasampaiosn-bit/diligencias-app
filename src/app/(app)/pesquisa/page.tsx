@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import {
   MessageSquare, MessageCircle, Phone, PhoneCall, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
-  ArrowUp, ArrowDown, Trash2, RotateCcw, Archive,
+  ArrowUp, ArrowDown, ListOrdered, Trash2, RotateCcw, Archive,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
@@ -137,13 +137,17 @@ function getPendentePriority(d: Diligencia): number {
   return 4
 }
 
-function sortPesquisa(a: Diligencia, b: Diligencia, order: 'asc' | 'desc' = 'desc'): number {
+type SortOrder = 'prioridade' | 'desc' | 'asc'
+
+function sortPesquisa(a: Diligencia, b: Diligencia, order: SortOrder = 'prioridade'): number {
   const aConc = a.pesquisa.status === StatusPesquisa.Concluida
   const bConc = b.pesquisa.status === StatusPesquisa.Concluida
   if (aConc !== bConc) return aConc ? 1 : -1
   const dateA = new Date(a.dataAtendimento ?? a.createdAt).getTime()
   const dateB = new Date(b.dataAtendimento ?? b.createdAt).getTime()
-  if (aConc) return order === 'desc' ? dateB - dateA : dateA - dateB
+  // "Mais recente"/"Mais antigo" ordenam só pela data; "Prioridade" usa a regra abaixo
+  if (order === 'asc') return dateA - dateB
+  if (aConc || order === 'desc') return dateB - dateA
   const pa = getPendentePriority(a)
   const pb = getPendentePriority(b)
   if (pa !== pb) return pa - pb
@@ -151,7 +155,7 @@ function sortPesquisa(a: Diligencia, b: Diligencia, order: 'asc' | 'desc' = 'des
   const ligA = a.pesquisa.historicoLigacoes.length
   const ligB = b.pesquisa.historicoLigacoes.length
   if (ligA !== ligB) return ligA - ligB
-  return order === 'desc' ? dateB - dateA : dateA - dateB
+  return dateB - dateA
 }
 
 // ─── Retorno ──────────────────────────────────────────────────────────────────
@@ -255,7 +259,7 @@ function PesquisaContent() {
   const [filtro, setFiltro] = useState(
     paramFiltro && ['pendentes', 'concluidas', 'todas'].includes(paramFiltro) ? paramFiltro : 'pendentes'
   )
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('prioridade')
   const [, startTransition] = useTransition()
 
   // ── Triagem: criação automática de diligência ao primeiro contato ────────────
@@ -817,11 +821,17 @@ function PesquisaContent() {
                   className="flex-1 min-w-0 sm:w-64"
                 />
                 <button
-                  onClick={() => setSortOrder((o) => o === 'desc' ? 'asc' : 'desc')}
+                  onClick={() => setSortOrder((o) => o === 'prioridade' ? 'desc' : o === 'desc' ? 'asc' : 'prioridade')}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                  title={sortOrder === 'desc' ? 'Mais recente primeiro — clique para inverter' : 'Mais antigo primeiro — clique para inverter'}
+                  title={
+                    sortOrder === 'prioridade' ? 'Prioridade (retorno atrasado, sem WA...) — clique para ordenar por data'
+                    : sortOrder === 'desc' ? 'Mais recente primeiro — clique para inverter'
+                    : 'Mais antigo primeiro — clique para voltar à prioridade'
+                  }
                 >
-                  {sortOrder === 'desc'
+                  {sortOrder === 'prioridade'
+                    ? <><ListOrdered className="w-3.5 h-3.5" /> Prioridade</>
+                    : sortOrder === 'desc'
                     ? <><ArrowDown className="w-3.5 h-3.5" /> Mais recente</>
                     : <><ArrowUp className="w-3.5 h-3.5" /> Mais antigo</>
                   }
