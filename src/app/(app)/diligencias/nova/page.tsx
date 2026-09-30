@@ -183,13 +183,15 @@ function FormBatBrasil() {
       tipoEvento: d.tipoEvento || prev.tipoEvento,
       dataEvento: d.dataEvento || prev.dataEvento,
       horaEvento: d.horaEvento || prev.horaEvento,
-      modoDiligencia: d.modoDiligencia || prev.modoDiligencia,
       operacao: d.operacao || prev.operacao,
       segmento: d.segmento || prev.segmento,
       regiaoGtsc: d.regiaoGtsc || prev.regiaoGtsc,
       // ── Dados do SERVIÇO — próprios de cada diligência ──
       // "Dobrada" copia (é o mesmo serviço replicado). "Nova diligência"
       // (aditamento) começa limpa: outro dia, muitas vezes outro advogado/valor.
+      // Modo também é do serviço: a 1ª pode ter sido suporte remoto e o aditamento
+      // ser presencial (com contrato/recibo). Aditamento começa Presencial.
+      modoDiligencia: isDobrada ? (d.modoDiligencia || prev.modoDiligencia) : ModoDiligencia.Presencial,
       tipoDiligencia: isDobrada ? (d.tipoDiligencia || prev.tipoDiligencia) : prev.tipoDiligencia,
       advogadoId: isDobrada ? (d.advogadoId || prev.advogadoId) : '',
       valorDiligencia: isDobrada ? (d.valorDiligencia ? String(d.valorDiligencia) : prev.valorDiligencia) : '',
