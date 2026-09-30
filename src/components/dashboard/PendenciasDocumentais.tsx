@@ -132,6 +132,9 @@ export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia
   const mesPadrao = mesesOrdenados.includes(mesAtual) ? mesAtual : mesesOrdenados[0]
   const [mesSel, setMesSel] = useState<string>(mesPadrao ?? mesAtual)
 
+  // Soma de todos os meses — para não esquecer pendência antiga escondida no seletor.
+  const totalFaltam = Array.from(porMes.values()).reduce((acc, g) => acc + g.faltam.length, 0)
+
   const grupo = porMes.get(mesSel) ?? { faltam: [], prontas: [] }
   const total = grupo.faltam.length + grupo.prontas.length
 
@@ -151,10 +154,16 @@ export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia
             onChange={(e) => setMesSel(e.target.value)}
             className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 capitalize"
           >
-            {mesesOrdenados.map((m) => (
-              <option key={m} value={m}>{rotuloMes(m)}</option>
-            ))}
+            {mesesOrdenados.map((m) => {
+              const n = porMes.get(m)?.faltam.length ?? 0
+              return <option key={m} value={m}>{rotuloMes(m)}{n > 0 ? ` (${n} faltando)` : ''}</option>
+            })}
           </select>
+        )}
+        {totalFaltam > 0 && (
+          <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+            {totalFaltam} com documento faltando no total
+          </span>
         )}
       </div>
 

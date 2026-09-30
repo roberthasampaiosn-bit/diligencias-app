@@ -61,7 +61,14 @@ const DOC_CURTO: Record<string, string> = {
 
 function situacaoCiclo(d: Diligencia): { label: string; tone: SitTone; docsFaltam: string[] } {
   // Só é "Concluída" depois que você aperta Concluir (cicloFinalizado).
-  if (d.cicloFinalizado) return { label: 'Concluída', tone: 'emerald', docsFaltam: docsFaltando(d) }
+  // Pode ter sido concluída faltando documento: nesse caso o rótulo avisa (âmbar)
+  // e ela continua aparecendo nas "Pendências de documentos" do Dashboard.
+  if (d.cicloFinalizado) {
+    const faltam = docsFaltando(d)
+    return faltam.length > 0
+      ? { label: 'Concluída c/ pendência', tone: 'amber', docsFaltam: faltam }
+      : { label: 'Concluída', tone: 'emerald', docsFaltam: [] }
+  }
   // Ainda não concluída: em vez de um "Em andamento" genérico, o rótulo diz O QUE
   // FALTA para poder concluir, na ordem natural do trabalho:
   //   realização → pagamento → documentação → conclusão.
@@ -405,7 +412,8 @@ function DiligenciasContent() {
     }
     if (filtroEmpresa !== 'todas') l = l.filter((d) => d.empresaCliente === filtroEmpresa)
     if (filtrosAvancados.status === 'pendencia') {
-      l = l.filter((d) => d.status === StatusDiligencia.Realizada && !d.cicloFinalizado)
+      // Realizadas (concluídas ou não) que ainda têm documento faltando.
+      l = l.filter((d) => d.status === StatusDiligencia.Realizada && documentosPendentes(d).length > 0)
     } else if (filtrosAvancados.status === 'cicloFechado') {
       l = l.filter((d) => d.cicloFinalizado)
     } else if (filtrosAvancados.status === StatusDiligencia.EmAndamento) {
