@@ -7,12 +7,12 @@ import {
   Phone, MessageCircle, Edit, CheckCircle2,
   DollarSign, FileText, User, MapPin, Building, AlertCircle,
   ExternalLink, Plus, Upload, Download, Star, Package, Send, Trash2, Copy, MinusCircle,
-  ArrowUp, ArrowDown, X, CloudUpload,
+  ArrowUp, ArrowDown, X,
 } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { useEventos } from '@/context/EventosContext'
-import { gerarPDFFinal, salvarPDFFinalNoDrive } from '@/lib/pdfFinal'
+import { gerarPDFFinal } from '@/lib/pdfFinal'
 import { juntarEmPdf, ehPdf, ehImagem } from '@/lib/juntarArquivos'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoBase64Only, gerarReciboBase64Only } from '@/lib/pdf'
 import { useToast } from '@/context/ToastContext'
@@ -77,8 +77,6 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   const [showDownloads, setShowDownloads] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfErro, setPdfErro] = useState<string | null>(null)
-  const [driveLoading, setDriveLoading] = useState(false)
-  const [driveSalvo, setDriveSalvo] = useState<{ url: string; pasta: string } | null>(null)
 
   // Reaproveitar contrato já assinado deste advogado (item C)
   const [modalReusarContrato, setModalReusarContrato] = useState(false)
@@ -493,15 +491,16 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     }
   }
 
-  // Ordem fixa do PDF final: contrato, recibo, comprovante de pagamento, comprovante de serviço.
-  function itensPDFFinal(dLocal: Diligencia) {
+  async function handleBaixarPDF() {
+    const dLocal = d!   // seguro: função só é acessível após o guard `if (!d) return`
+    // Ordem fixa do PDF final: contrato, recibo, comprovante de pagamento, comprovante de serviço.
     const ordemPDF = [
       { campo: 'contratoAssinado' as const, nome: 'Contrato assinado' },
       { campo: 'reciboAssinado' as const, nome: 'Recibo assinado' },
       { campo: 'comprovantePagamento' as const, nome: 'Comprovante de pagamento' },
       { campo: 'comprovanteServico' as const, nome: 'Comprovante de serviço' },
     ]
-    return ordemPDF
+    const itens = ordemPDF
       .filter((i) => {
         const url = dLocal.anexos[i.campo]
         return url && url.startsWith('http')
@@ -510,45 +509,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
         url: dLocal.anexos[i.campo]!,
         nome: i.nome,
       }))
-  }
 
-  // Salva o PDF final direto na pasta do mês no Google Drive do escritório
-  // (Cliente / "MM - Mês AAAA"), pelo mês da diligência — o mesmo do nome do arquivo.
-  async function handleSalvarNoDrive() {
-    const dLocal = d!
-    const itens = itensPDFFinal(dLocal)
-    if (itens.length === 0) return
-
-    const dataBruta = (dLocal.dataAtendimento || dLocal.dataEvento || dLocal.createdAt || '').split('T')[0]
-    const [ano, mes] = dataBruta.split('-')
-    if (!ano || !mes) {
-      setPdfErro('Diligência sem data — não dá para saber em qual mês do Drive salvar.')
-      return
-    }
-
-    setDriveLoading(true)
-    setPdfErro(null)
-    setDriveSalvo(null)
-    try {
-      const r = await salvarPDFFinalNoDrive(nomeArquivoPDFFinal(dLocal, adv?.nomeCompleto), itens, {
-        empresa: dLocal.empresaCliente === EmpresaCliente.VTAL ? 'VTAL' : 'BAT',
-        ano,
-        mes,
-      })
-      setDriveSalvo({ url: r.url, pasta: r.pasta })
-      addToast('success', `${r.substituiu ? 'PDF atualizado' : 'PDF salvo'} no Drive: ${r.pasta}`)
-      if (r.avisoErros) setPdfErro(r.avisoErros)
-      updateDiligencia(id, { pdfFinalGeradoEm: new Date().toISOString() }).catch(() => {})
-    } catch (err) {
-      setPdfErro((err as Error).message)
-    } finally {
-      setDriveLoading(false)
-    }
-  }
-
-  async function handleBaixarPDF() {
-    const dLocal = d!   // seguro: função só é acessível após o guard `if (!d) return`
-    const itens = itensPDFFinal(dLocal)
     if (itens.length === 0) return
 
     setPdfLoading(true)
@@ -934,18 +895,6 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
                       : <><Download className="w-3.5 h-3.5" /> Baixar PDF final</>
                     }
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleSalvarNoDrive}
-                    disabled={driveLoading || pdfLoading}
-                    title="Gera o PDF final e salva direto na pasta do mês no Google Drive"
-                  >
-                    {driveLoading
-                      ? <><span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block" /> Salvando no Drive...</>
-                      : <><CloudUpload className="w-3.5 h-3.5" /> Salvar no Drive</>
-                    }
-                  </Button>
                 </div>
               )}
             </div>
@@ -958,17 +907,6 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               {pdfErro}
               <button className="ml-auto text-red-500 hover:text-red-700" onClick={() => setPdfErro(null)}>✕</button>
-            </div>
-          )}
-
-          {/* Confirmação do envio ao Google Drive */}
-          {driveSalvo && (
-            <div className="mb-3 flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-              <CloudUpload className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>Salvo no Drive em <strong className="font-semibold">{driveSalvo.pasta}</strong>.</span>
-              <a href={driveSalvo.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline">
-                Abrir <ExternalLink className="w-3 h-3" />
-              </a>
             </div>
           )}
 
