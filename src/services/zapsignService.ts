@@ -121,6 +121,40 @@ export function getAdvogadoSignUrl(
   return signer?.sign_url ?? response.signers.at(-1)?.sign_url ?? ''
 }
 
+// ─── Link curto para o WhatsApp ──────────────────────────────────────────────
+// O WhatsApp passou a reconhecer o token do ZapSign (UUID) como chave Pix
+// aleatória: o link não fica clicável e o toque mostra "Chave Pix copiada".
+// Por isso as mensagens levam um link nosso (/z/<código>) que redireciona pro
+// ZapSign. O código é o UUID em base64url (22 caracteres, sem cara de UUID).
+
+const APP_URL = 'https://diligencias-arodrigues.vercel.app'
+const ZAPSIGN_VERIFICAR = /^https:\/\/app\.zapsign\.com\.br\/verificar\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
+
+export function encodeZapSignToken(uuid: string): string {
+  const hex = uuid.replace(/-/g, '')
+  let bin = ''
+  for (let i = 0; i < 32; i += 2) bin += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16))
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+export function decodeZapSignToken(code: string): string | null {
+  if (!/^[A-Za-z0-9_-]{22}$/.test(code)) return null
+  let bin: string
+  try {
+    bin = atob(code.replace(/-/g, '+').replace(/_/g, '/') + '==')
+  } catch {
+    return null
+  }
+  if (bin.length !== 16) return null
+  const hex = Array.from(bin, (c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+export function linkCurtoWhatsApp(signUrl: string): string {
+  const m = signUrl.trim().match(ZAPSIGN_VERIFICAR)
+  return m ? `${APP_URL}/z/${encodeZapSignToken(m[1].toLowerCase())}` : signUrl
+}
+
 // ─── Helper: monta URL do WhatsApp para o advogado ───────────────────────────
 
 export function buildWhatsAppZapSign(
@@ -131,7 +165,7 @@ export function buildWhatsAppZapSign(
   signUrl: string,
 ): string {
   const primeiro = nomeAdvogado.split(' ')[0]
-  const msg = `Olá ${primeiro}, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${signUrl}`
+  const msg = `Olá ${primeiro}, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${linkCurtoWhatsApp(signUrl)}`
   const numero = (whatsapp ?? '').replace(/\D/g, '')
   return `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
 }
@@ -146,7 +180,7 @@ export function buildWhatsAppLembreteZapSign(
   signUrl: string,
 ): string {
   const primeiro = nomeAdvogado.split(' ')[0]
-  const msg = `Olá ${primeiro}, tudo bem? 😊 Passando só pra lembrar da assinatura do ${tipoDoc} referente à diligência ${ccc} — vi que ainda está pendente. Quando puder, é rapidinho por aqui:\n${signUrl}\nQualquer dúvida, me avise. Obrigada!`
+  const msg = `Olá ${primeiro}, tudo bem? 😊 Passando só pra lembrar da assinatura do ${tipoDoc} referente à diligência ${ccc} — vi que ainda está pendente. Quando puder, é rapidinho por aqui:\n${linkCurtoWhatsApp(signUrl)}\nQualquer dúvida, me avise. Obrigada!`
   const numero = (whatsapp ?? '').replace(/\D/g, '')
   return `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
 }
@@ -161,6 +195,6 @@ export function buildWhatsAppAdriana(
   const telefone = (
     process.env.NEXT_PUBLIC_ZAPSIGN_TELEFONE_ADRIANA ?? ''
   ).replace(/\D/g, '')
-  const msg = `Adriana, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${signUrl}`
+  const msg = `Adriana, segue o link para assinatura do ${tipoDoc} referente à diligência ${ccc}:\n${linkCurtoWhatsApp(signUrl)}`
   return `https://wa.me/55${telefone}?text=${encodeURIComponent(msg)}`
 }
