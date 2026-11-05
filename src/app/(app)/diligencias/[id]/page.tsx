@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone, nomeArquivoPDFFinal } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone, nomeArquivoPDFFinal, comValorDoDobro, dobroDe } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
 import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -369,7 +369,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     setEnviandoContratoZap(true)
     try {
       // Regenera o PDF como base64 (sem disparar download — já foi baixado antes)
-      const { filename, base64 } = gerarContratoBase64Only(d!, adv)
+      const { filename, base64 } = gerarContratoBase64Only(comValorDoDobro(d!, diligencias), adv)
       const res = await fetch('/api/zapsign/enviar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -410,7 +410,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     setEnviandoReciboZap(true)
     try {
       // Regenera o PDF como base64 (sem disparar download)
-      const { filename, base64 } = gerarReciboBase64Only(d!, adv)
+      const { filename, base64 } = gerarReciboBase64Only(comValorDoDobro(d!, diligencias), adv)
       const res = await fetch('/api/zapsign/enviar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -449,7 +449,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     if (!adv) { addToast('error', 'Advogado não encontrado para esta diligência.'); return }
     setGerandoContrato(true)
     try {
-      const filename = gerarContratoPDF(d!, adv)
+      const filename = gerarContratoPDF(comValorDoDobro(d!, diligencias), adv)
       atualizarAnexo(id, 'contratoGerado', filename)
       addToast('success', 'Contrato gerado com sucesso.')
     } catch (err) {
@@ -464,7 +464,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     if (!adv) { addToast('error', 'Advogado não encontrado para esta diligência.'); return }
     setGerandoRecibo(true)
     try {
-      const filename = gerarReciboPDF(d!, adv, dataRecibo)
+      const filename = gerarReciboPDF(comValorDoDobro(d!, diligencias), adv, dataRecibo)
       atualizarAnexo(id, 'reciboGerado', filename)
       // Recibo novo = documento NÃO assinado. Se havia uma assinatura anterior
       // (ex.: recibo antigo já assinado, e agora um novo por causa de outro
@@ -545,6 +545,30 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
           </Link>
         </div>
       </div>
+
+      {/* ── Diligência em dobro: aviso na linha dobrada e na principal ── */}
+      {(() => {
+        const principalId = dobroDe(d)
+        const linhasDobro = diligencias.filter((x) => dobroDe(x) === d.id)
+        if (principalId) {
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+              Esta é a <strong>linha em dobro</strong>. Os documentos (contrato, recibo e comprovante) ficam na{' '}
+              <Link href={`/diligencias/${principalId}`} className="underline font-medium">diligência principal</Link>.
+            </div>
+          )
+        }
+        if (linhasDobro.length > 0) {
+          const total = comValorDoDobro(d, diligencias).valorDiligencia
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+              Diligência <strong>dobrada</strong>: contrato e recibo saem com o total de{' '}
+              <strong>{formatCurrency(total)}</strong> (esta linha + {linhasDobro.length === 1 ? 'a linha' : 'as linhas'} em dobro).
+            </div>
+          )
+        }
+        return null
+      })()}
 
       {/* ── Alerta de documentos faltando ── */}
       {temPendenciaDocumental && (

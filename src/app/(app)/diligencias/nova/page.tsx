@@ -19,7 +19,7 @@ import {
   ModoDiligencia, TipoDiligencia, TipoEvento, EmpresaCliente, normalizeEmpresa,
   Diligencia,
 } from '@/types'
-import { cleanPhone, cleanPhones, toTitleCase, normalizarCccBat, validarCccBat, cccAgrupavel } from '@/lib/utils'
+import { cleanPhone, cleanPhones, toTitleCase, normalizarCccBat, validarCccBat, cccAgrupavel, marcaDobro } from '@/lib/utils'
 import { TIPOS_EVENTO_BAT, MACROS_VTAL, TIPOS_DILIGENCIA_BAT, TIPOS_DILIGENCIA_VTAL, OPERACOES_BAT, SEGMENTOS_BAT, SOBRA_MERCADORIA_OPS } from '@/lib/constants'
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -198,8 +198,9 @@ function FormBatBrasil() {
       // Data em que ESTA diligência está sendo feita (hoje) — não confundir com data do evento.
       // Dobrada é o MESMO serviço lançado 2x → mesma data da original.
       dataAtendimento: isDobrada ? (d.dataAtendimento || hojeStr) : hojeStr,
-      // Dobrada = cópia de TUDO da original (o formulário segue editável antes de salvar)
-      observacoes: isDobrada ? (d.observacoes ?? '') : '',
+      // Dobrada = cópia de TUDO da original (o formulário segue editável antes de salvar),
+      // com a observação de dobro que vai para a planilha da BAT.
+      observacoes: isDobrada ? 'Diligência lançada em dobro tendo em vista que durou mais de 6 horas.' : '',
       numeroBOProcesso: isDobrada ? (d.numeroBOProcesso || prev.numeroBOProcesso) : prev.numeroBOProcesso,
       dpRegistrou: isDobrada ? (d.dpRegistrou || prev.dpRegistrou) : prev.dpRegistrou,
       ...(isDobrada ? {
@@ -422,6 +423,8 @@ function FormBatBrasil() {
       horaLigacaoAdvogado: form.horaLigacaoAdvogado || undefined,
       incluirNaPlanilha: incluirNaPlanilha || undefined,
       dispensarDocumentos: dispensarDocumentos || undefined,
+      // Linha em dobro: documentos ficam na principal (contrato/recibo dela somam esta linha)
+      ...(isDobrada && fromId ? { observacaoInterna: marcaDobro(fromId), dispensarDocumentos: true } : {}),
     }
 
     const statusPagamentoFinal = (valorNumerico === 0 && (concluir || incluirNaPlanilha))

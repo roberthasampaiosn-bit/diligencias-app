@@ -9,7 +9,7 @@ import { useToast } from '@/context/ToastContext'
 import { supabase } from '@/lib/supabase'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { documentosFaltando, formatCurrency, formatDate, tituloDiligencia, cn } from '@/lib/utils'
+import { documentosFaltando, formatCurrency, formatDate, tituloDiligencia, cn, comValorDoDobro } from '@/lib/utils'
 import { gerarContratoBase64Only, gerarReciboBase64Only } from '@/lib/pdf'
 import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -153,7 +153,7 @@ export default function PendenciasPage() {
 function LinhaPendencia({ d, faltam, adv, status, onStatusMudou }: {
   d: Diligencia; faltam: Campo[]; adv?: Advogado; status: StatusZapSignResult; onStatusMudou: () => void
 }) {
-  const { updateDiligencia, atualizarAnexo, uploadAnexo, refetch } = useDiligencias()
+  const { diligencias, updateDiligencia, atualizarAnexo, uploadAnexo, refetch } = useDiligencias()
   const { addToast } = useToast()
   const [ocupado, setOcupado] = useState<string | null>(null)
   const inputs = useRef<Partial<Record<Campo, HTMLInputElement | null>>>({})
@@ -164,7 +164,7 @@ function LinhaPendencia({ d, faltam, adv, status, onStatusMudou }: {
     if (!adv) { addToast('error', 'Defina o advogado desta diligência primeiro.'); return }
     setOcupado(tipo)
     try {
-      const { filename, base64 } = tipo === 'contrato' ? gerarContratoBase64Only(d, adv) : gerarReciboBase64Only(d, adv)
+      const { filename, base64 } = tipo === 'contrato' ? gerarContratoBase64Only(comValorDoDobro(d, diligencias), adv) : gerarReciboBase64Only(comValorDoDobro(d, diligencias), adv)
       const res = await fetch('/api/zapsign/enviar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfBase64: base64, filename, tipo, diligenciaId: d.id, nomeAdvogado: adv.nomeCompleto, whatsappAdvogado: adv.whatsapp }),

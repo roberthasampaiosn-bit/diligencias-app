@@ -446,3 +446,26 @@ export function cccAgrupavel(ccc: string | null | undefined): boolean {
   if (v === 'AIT') return false
   return true
 }
+
+// ─── Diligência em dobro ──────────────────────────────────────────────────────
+// A 2ª linha de uma diligência dobrada (>6h / noturna) guarda em observacaoInterna
+// a marca "[DOBRO-DE:<id da principal>]". Cada linha tem o seu valor (ex.: 500 +
+// 500) para a planilha, mas os documentos são UM só, na linha principal — o
+// contrato e o recibo dela saem com a soma das duas (ex.: R$ 1.000).
+const MARCA_DOBRO = /\[DOBRO-DE:([0-9a-f-]{36})\]/i
+
+export function marcaDobro(principalId: string): string {
+  return `[DOBRO-DE:${principalId}] Documentos na linha principal.`
+}
+
+// Id da diligência principal, se esta for a linha em dobro.
+export function dobroDe(d: Diligencia): string | undefined {
+  return d.observacaoInterna?.match(MARCA_DOBRO)?.[1]
+}
+
+// Diligência com o valor somado das linhas em dobro — usar ao gerar contrato/recibo.
+export function comValorDoDobro(d: Diligencia, todas: Diligencia[]): Diligencia {
+  const extra = todas.filter((x) => x.id !== d.id && dobroDe(x) === d.id)
+    .reduce((s, x) => s + (x.valorDiligencia ?? 0), 0)
+  return extra ? { ...d, valorDiligencia: (d.valorDiligencia ?? 0) + extra } : d
+}
