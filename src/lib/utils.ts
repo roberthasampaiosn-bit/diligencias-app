@@ -137,6 +137,35 @@ export function cleanPhones(phones: string): string {
     .join(';')
 }
 
+// Variantes de um número para comparação: tira o 55 do país (o WhatsApp mostra
+// "+55 21 99999-9999", o app guarda "21999999999") e cobre o 9º dígito —
+// o WhatsApp às vezes exibe celular antigo sem ele ("+55 81 9976-0196").
+function variantesTelefone(digits: string): string[] {
+  let d = digits
+  if (d.length >= 12 && d.startsWith('55')) d = d.slice(2)
+  const out = [d]
+  if (d.length === 10 && /[6-9]/.test(d[2])) out.push(d.slice(0, 2) + '9' + d.slice(2))
+  if (d.length === 11 && d[2] === '9') out.push(d.slice(0, 2) + d.slice(3))
+  return out
+}
+
+// A busca bate com algum dos telefones gravados (campo pode ter vários,
+// separados por ";")? Aceita o número colado do WhatsApp (+55, espaços, traço)
+// ou só um pedaço, como os últimos dígitos.
+export function telefoneCasaBusca(telefones: string | null | undefined, busca: string): boolean {
+  const q = busca.replace(/\D/g, '')
+  if (!q) return false
+  const buscas = variantesTelefone(q)
+  return (telefones ?? '')
+    .split(/[;,/]/)
+    .map((p) => p.replace(/\D/g, ''))
+    .filter(Boolean)
+    .some((p) => {
+      const gravados = variantesTelefone(p)
+      return buscas.some((b) => gravados.some((g) => g.includes(b)))
+    })
+}
+
 // Pareia nome<->telefone por POSIÇÃO. Nomes e telefones podem ter vários itens
 // separados por ";" (2 vítimas). Devolve o nome da vítima na mesma posição do
 // telefone informado, para não saudar a pessoa errada. Sem correspondência
@@ -170,6 +199,34 @@ export function formatDate(dateStr: string): string {
   if (!dateStr) return '-'
   const [year, month, day] = dateStr.split('-')
   return `${day}/${month}/${year}`
+}
+
+// ─── Datas no horário de Brasília ─────────────────────────────────────────────
+// toISOString() usa UTC: depois das 21h em Brasília já devolve o dia seguinte.
+
+const FMT_DATA_BR = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
+const FMT_HORA_BR = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+// "AAAA-MM-DD" de hoje (ou do instante informado) em Brasília
+export function hojeBR(d: Date = new Date()): string {
+  return FMT_DATA_BR.format(d)
+}
+
+// "HH:MM" agora em Brasília
+export function horaBR(d: Date = new Date()): string {
+  return FMT_HORA_BR.format(d)
+}
+
+// Soma dias a uma data "AAAA-MM-DD" (sem depender do fuso do aparelho)
+export function somarDias(iso: string, dias: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10)
+}
+
+// 0 = domingo … 6 = sábado, para uma data "AAAA-MM-DD"
+export function diaDaSemana(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
 }
 
 // Data + hora opcional, no formato "DD/MM/AAAA às HH:MM" (ou só a data se não houver hora).

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useMemo, useCallback, useTransition, useEffect, Suspense } from 'react'
 import Link from 'next/link'
@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusPesquisaBadge } from '@/components/shared/StatusBadge'
 import { PushButton } from '@/components/shared/PushButton'
-import { buildWhatsAppUrl, buildWhatsAppChatUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone, normalizarBusca } from '@/lib/utils'
+import { cn, buildWhatsAppUrl, buildWhatsAppChatUrl, buildPesquisaMessage, formatDate, formatDataHora, formatPhone, cleanPhone, nomeDoTelefone, normalizarBusca, telefoneCasaBusca, hojeBR, horaBR, somarDias, diaDaSemana } from '@/lib/utils'
 import {
   StatusPesquisa, StatusDiligencia, ResultadoLigacao, StatusEvento,
   EmpresaCliente, TipoDiligencia, ModoDiligencia, TipoEvento,
@@ -117,21 +117,28 @@ function sanitizeName(s: string | null | undefined): string {
 
 // ─── Ordenação ────────────────────────────────────────────────────────────────
 
+// Tem retorno agendado: com data (dataCombinada) ou "qualquer dia" (só horaEntrevista)
+function temRetorno(d: Diligencia): boolean {
+  return !!d.pesquisa.dataCombinada || !!d.pesquisa.horaEntrevista
+}
+
 function getPendentePriority(d: Diligencia): number {
   const dc = d.pesquisa.dataCombinada
   const hasWA = !!d.pesquisa.dataEnvioWhatsApp
 
   // Retorno atrasado → máxima prioridade
   if (dc && !/^\d{2}:\d{2}$/.test(dc)) {
-    const today = new Date().toISOString().split('T')[0]
-    if (dc.split(' ')[0] <= today) return 1
+    if (dc.split(' ')[0] <= hojeBR()) return 1
   }
+  // "Qualquer dia após X": vale todo dia — sobe quando o horário de hoje já chegou
+  const horaQualquerDia = /^\d{2}:\d{2}$/.test(dc ?? '') ? dc : (!dc ? d.pesquisa.horaEntrevista : undefined)
+  if (horaQualquerDia && horaQualquerDia.slice(0, 5) <= horaBR()) return 1
 
   // Sem WA enviado → precisa de contato inicial
   if (!hasWA) return 2
 
   // WA enviado + retorno futuro agendado
-  if (dc) return 3
+  if (temRetorno(d)) return 3
 
   // WA enviado, aguardando resposta
   return 4
@@ -162,13 +169,17 @@ function sortPesquisa(a: Diligencia, b: Diligencia, order: SortOrder = 'priorida
 
 type RetornoVariant = 'normal' | 'late' | 'timeonly'
 
+// Botões rápidos do modal "Agendar retorno"
+const HORAS_RETORNO = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+const DIAS_SEMANA_CURTO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
 function parseRetorno(
   dc: string | undefined,
   horaEntrevista?: string,
 ): { text: string; variant: RetornoVariant } | null {
   if (!dc && !horaEntrevista) return null
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = hojeBR()
 
   // Sem data, só horário: "HH:MM" em dataCombinada (legado) ou horaEntrevista sem data
   if (!dc || /^\d{2}:\d{2}$/.test(dc)) {
@@ -233,7 +244,7 @@ function getUltimaTentativa(p: Pesquisa): { label: string; dateStr: string } | n
 function PesquisaContent() {
   const {
     diligencias, registrarWhatsApp, registrarLigacao,
-    agendarRetorno, marcarRespondida, encerrarSemResposta, dispensarPesquisa, reabrirPesquisa, atualizarPesquisa,
+    marcarRespondida, encerrarSemResposta, dispensarPesquisa, reabrirPesquisa, atualizarPesquisa,
     createDiligencia,
   } = useDiligencias()
 
@@ -346,6 +357,7 @@ function PesquisaContent() {
   const [modalRetorno, setModalRetorno] = useState<ModalRetornoState | null>(null)
   const [retornoData, setRetornoData] = useState('')
   const [retornoHora, setRetornoHora] = useState('')
+  const [retornoOutraData, setRetornoOutraData] = useState(false)
 
   // Modal: Marcar respondida
   const [modalResposta, setModalResposta] = useState<ModalRespostaState | null>(null)
@@ -575,7 +587,6 @@ function PesquisaContent() {
       // Busca global: ignora filtro de status para encontrar qualquer nome/CCC/telefone
       const q = normalizeStr(search)
       const ql = search.toLowerCase().trim()
-      const phoneDigits = search.replace(/\D/g, '') // vazio se busca por nome
       l = l.filter((d) => {
         const v = String(d.vitima ?? '').toLowerCase().trim()
         const nomeEv = String(eventoMap[d.eventoId ?? '']?.nomeVitima ?? '').toLowerCase().trim()
@@ -586,8 +597,8 @@ function PesquisaContent() {
           normalizeStr(nomeEv).includes(q) ||
           c.includes(ql) ||
           normalizeStr(d.ccc).includes(q) ||
-          // Busca por telefone SÓ quando há dígitos na pesquisa
-          (phoneDigits.length > 0 && String(d.telefoneVitima ?? '').replace(/\D/g, '').includes(phoneDigits))
+          // Telefone: aceita o número colado do WhatsApp (+55, espaços, traço) ou só os últimos dígitos
+          telefoneCasaBusca(d.telefoneVitima, search)
       })
     } else {
       if (filtro === 'pendentes')  l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
@@ -598,7 +609,7 @@ function PesquisaContent() {
       const hoje = new Date().toISOString().split('T')[0]
       const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
       if (subFiltro === 'agendados') {
-        l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && !!d.pesquisa.dataCombinada)
+        l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && temRetorno(d))
       } else if (subFiltro === 'semWa') {
         l = l.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente && !d.pesquisa.dataEnvioWhatsApp)
       } else if (subFiltro === 'waAntigo') {
@@ -662,7 +673,8 @@ function PesquisaContent() {
     return base.filter((e) =>
       normalizeStr(e.nomeVitima).includes(q) ||
       (e.nomeVitima ?? '').toLowerCase().includes(ql) ||
-      e.ccc.toLowerCase().includes(ql)
+      e.ccc.toLowerCase().includes(ql) ||
+      telefoneCasaBusca(e.telefoneVitima, search)
     )
   }, [eventos, filtro, search, dilPorEventoId])
 
@@ -679,7 +691,7 @@ function PesquisaContent() {
     const pendentes = realizadasFiltradas.filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
     const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
     return {
-      agendados: pendentes.filter((d) => !!d.pesquisa.dataCombinada).length,
+      agendados: pendentes.filter(temRetorno).length,
       semWa:     pendentes.filter((d) => !d.pesquisa.dataEnvioWhatsApp).length,
       waAntigo:  pendentes.filter((d) => !!d.pesquisa.dataEnvioWhatsApp && d.pesquisa.dataEnvioWhatsApp <= cutoff).length,
     }
@@ -690,8 +702,8 @@ function PesquisaContent() {
   function registrarLigacaoIniciada(d: Diligencia) {
     const now = new Date()
     registrarLigacao(d.id, {
-      data: now.toISOString().split('T')[0],
-      hora: now.toTimeString().slice(0, 5),
+      data: hojeBR(now),
+      hora: horaBR(now),
       observacao: 'Ligação iniciada',
     })
     // Pina o card no topo para manter dados visíveis durante a ligação
@@ -706,8 +718,8 @@ function PesquisaContent() {
   function registrarLigacaoWhatsApp(d: Diligencia) {
     const now = new Date()
     registrarLigacao(d.id, {
-      data: now.toISOString().split('T')[0],
-      hora: now.toTimeString().slice(0, 5),
+      data: hojeBR(now),
+      hora: horaBR(now),
       observacao: 'Ligação pelo WhatsApp',
     })
     setPinnedId(d.id)
@@ -724,20 +736,26 @@ function PesquisaContent() {
     if (ok) window.open(buildWhatsAppUrl(phone, mensagem), '_blank')
   }
 
+  // Abre já em "Hoje" (horário de Brasília): na maioria dos casos é só tocar na hora
+  function abrirRetorno(diligenciaId: string, vitima: string) {
+    setModalRetorno({ diligenciaId, vitima })
+    setRetornoData(hojeBR()); setRetornoHora(''); setRetornoOutraData(false)
+  }
+
+  function fecharRetorno() {
+    setModalRetorno(null); setRetornoData(''); setRetornoHora(''); setRetornoOutraData(false)
+  }
+
   function handleSalvarRetorno() {
     if (!modalRetorno || !retornoHora) return
-    // pesquisa_data_combinada é coluna date no Supabase → trunca o horário.
-    // Salvamos a data em dataCombinada e o horário em horaEntrevista separadamente.
-    if (retornoData) {
-      atualizarPesquisa(modalRetorno.diligenciaId, {
-        dataCombinada: retornoData,
-        horaEntrevista: retornoHora,
-      }).catch(() => {})
-    } else {
-      // Sem data fixa: guarda "HH:MM" em dataCombinada (mantém comportamento legado)
-      agendarRetorno(modalRetorno.diligenciaId, retornoHora)
-    }
-    setModalRetorno(null); setRetornoData(''); setRetornoHora('')
+    // pesquisa_data_combinada é coluna date no Supabase: a data vai nela e o
+    // horário em horaEntrevista. "Qualquer dia" = sem data, só horaEntrevista
+    // (gravar "HH:MM" na coluna date falhava).
+    atualizarPesquisa(modalRetorno.diligenciaId, {
+      dataCombinada: retornoData || undefined,
+      horaEntrevista: retornoHora,
+    }).catch(() => {})
+    fecharRetorno()
   }
 
   function handleSalvarResposta() {
@@ -1254,8 +1272,7 @@ function PesquisaContent() {
                             onClick={async () => {
                               try {
                                 const dil = evDil ?? await criarDiligenciaDoEvento(ev)
-                                setModalRetorno({ diligenciaId: dil.id, vitima: sanitizeName(ev.nomeVitima) })
-                                setRetornoData(''); setRetornoHora('')
+                                abrirRetorno(dil.id, sanitizeName(ev.nomeVitima))
                               } catch (err) {
                                 addToast('error', `Erro ao criar registro: ${err instanceof Error ? err.message : 'Tente novamente'}`)
                               }
@@ -1604,7 +1621,7 @@ function PesquisaContent() {
                         ))}
                         {/* Linha 2: Agendar retorno */}
                         <button
-                          onClick={() => setModalRetorno({ diligenciaId: d.id, vitima: nomeEfetivo })}
+                          onClick={() => abrirRetorno(d.id, nomeEfetivo)}
                           className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                           <Calendar className="w-3.5 h-3.5" /> Agendar retorno
@@ -1924,45 +1941,96 @@ function PesquisaContent() {
       {/* Modal: Agendar retorno */}
       <Modal
         open={!!modalRetorno}
-        onClose={() => { setModalRetorno(null); setRetornoData(''); setRetornoHora('') }}
+        onClose={fecharRetorno}
         title={`Agendar retorno — ${modalRetorno?.vitima}`}
         size="sm"
       >
+        {(() => {
+          const hoje = hojeBR()
+          const amanha = somarDias(hoje, 1)
+          // Próximos dias úteis depois de amanhã (respostas tipo "06/11 às 14:00")
+          const proximos: string[] = []
+          for (let i = 2; proximos.length < 3 && i < 10; i++) {
+            const dia = somarDias(hoje, i)
+            const dow = diaDaSemana(dia)
+            if (dow !== 0 && dow !== 6) proximos.push(dia)
+          }
+          const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+          const rotuloDia = (iso: string) => `${DIAS_SEMANA_CURTO[diaDaSemana(iso)]} ${ddmm(iso)}`
+          const chip = (ativo: boolean) => cn(
+            'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+            ativo
+              ? 'bg-blue-600 border-blue-600 text-white'
+              : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50',
+          )
+          const escolherDia = (iso: string) => { setRetornoData(iso); setRetornoOutraData(false) }
+          const diaResumo = !retornoData ? 'qualquer dia'
+            : retornoData === hoje ? `hoje ${ddmm(retornoData)}`
+            : retornoData === amanha ? `amanhã ${ddmm(retornoData)}`
+            : rotuloDia(retornoData).toLowerCase()
+          return (
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Data (opcional)"
-              type="date"
-              value={retornoData}
-              onChange={(e) => setRetornoData(e.target.value)}
-            />
-            <Input
-              label="Horário *"
-              type="time"
-              value={retornoHora}
-              onChange={(e) => setRetornoHora(e.target.value)}
-            />
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-1.5">Dia</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" className={chip(!retornoOutraData && retornoData === hoje)} onClick={() => escolherDia(hoje)}>Hoje</button>
+              <button type="button" className={chip(!retornoOutraData && retornoData === amanha)} onClick={() => escolherDia(amanha)}>Amanhã</button>
+              {proximos.map((dia) => (
+                <button key={dia} type="button" className={chip(!retornoOutraData && retornoData === dia)} onClick={() => escolherDia(dia)}>
+                  {rotuloDia(dia)}
+                </button>
+              ))}
+              <button type="button" className={chip(!retornoOutraData && !retornoData)} onClick={() => escolherDia('')}>Qualquer dia</button>
+              <button type="button" className={chip(retornoOutraData)} onClick={() => { setRetornoOutraData(true); setRetornoData('') }}>Outra data</button>
+            </div>
+            {retornoOutraData && (
+              <div className="mt-2">
+                <Input
+                  type="date"
+                  value={retornoData}
+                  min={hoje}
+                  onChange={(e) => setRetornoData(e.target.value)}
+                />
+              </div>
+            )}
           </div>
-          {retornoHora && (
-            <p className="text-xs text-slate-400 -mt-1">
-              {retornoData
-                ? `Retorno agendado para ${retornoData.split('-').reverse().join('/')} às ${retornoHora}`
-                : `Sem data fixa — retorno: qualquer dia após ${retornoHora}`
-              }
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-1.5">A partir de</p>
+            <div className="flex flex-wrap gap-1.5">
+              {HORAS_RETORNO.map((h) => (
+                <button key={h} type="button" className={chip(retornoHora === h)} onClick={() => setRetornoHora(h)}>
+                  {Number(h.slice(0, 2))}h
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 w-36">
+              <Input
+                type="time"
+                value={retornoHora}
+                onChange={(e) => setRetornoHora(e.target.value)}
+              />
+            </div>
+          </div>
+          {retornoHora && (!retornoOutraData || retornoData) && (
+            <p className="text-sm font-medium text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
+              Retorno: {diaResumo} a partir das {retornoHora}
+              {!retornoData && <span className="block text-xs font-normal text-blue-600">Aviso no celular todo dia nesse horário, até concluir.</span>}
             </p>
           )}
           <div className="flex gap-2 justify-end">
             <Button
               variant="secondary" size="sm"
-              onClick={() => { setModalRetorno(null); setRetornoData(''); setRetornoHora('') }}
+              onClick={fecharRetorno}
             >
               Cancelar
             </Button>
-            <Button size="sm" onClick={handleSalvarRetorno} disabled={!retornoHora}>
+            <Button size="sm" onClick={handleSalvarRetorno} disabled={!retornoHora || (retornoOutraData && !retornoData)}>
               <Calendar className="w-3.5 h-3.5" /> Confirmar
             </Button>
           </div>
         </div>
+          )
+        })()}
       </Modal>
 
       {/* Modal: Pesquisa respondida */}

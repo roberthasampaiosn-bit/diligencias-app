@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, X, ClipboardList, Users } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
-import { cn, tituloDiligencia, normalizarBusca } from '@/lib/utils'
+import { cn, tituloDiligencia, normalizarBusca, telefoneCasaBusca } from '@/lib/utils'
 
 interface Result {
   type: 'diligencia' | 'advogado'
@@ -54,7 +54,7 @@ const SearchDropdown = memo(function SearchDropdown({
         normalizarBusca(d.ccc).includes(q) ||
         normalizarBusca(d.vitima).includes(q) ||
         normalizarBusca(d.empresa).includes(q) ||
-        (qDigits.length >= 4 && d.telefoneVitima.includes(qDigits))
+        (qDigits.length >= 4 && telefoneCasaBusca(d.telefoneVitima, qDigits))
       ) {
         out.push({
           type: 'diligencia',
@@ -70,7 +70,7 @@ const SearchDropdown = memo(function SearchDropdown({
       if (out.filter((r) => r.type === 'advogado').length >= 5) break
       if (
         normalizarBusca(a.nomeCompleto).includes(q) ||
-        (qDigits.length >= 4 && (a.cpf?.includes(qDigits) || a.telefone.includes(qDigits)))
+        (qDigits.length >= 4 && (a.cpf?.includes(qDigits) || telefoneCasaBusca(a.telefone, qDigits)))
       ) {
         out.push({
           type: 'advogado',

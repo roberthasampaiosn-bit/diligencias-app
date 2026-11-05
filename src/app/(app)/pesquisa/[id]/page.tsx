@@ -73,7 +73,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
   // Retorno agendado: data e hora separados, combinados na string dataCombinada
   const existingRetorno = diligencia?.pesquisa.dataCombinada || ''
   const [retornoData, setRetornoData] = useState(() => existingRetorno.split(' ')[0] || '')
-  const [retornoHora, setRetornoHora] = useState(() => existingRetorno.split(' ')[1] || '')
+  const [retornoHora, setRetornoHora] = useState(() => diligencia?.pesquisa.horaEntrevista || existingRetorno.split(' ')[1] || '')
 
   const [novaLig, setNovaLig] = useState({
     data: new Date().toISOString().split('T')[0],
@@ -125,8 +125,8 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
 
   function handleAgendarRetorno() {
     if (!retornoData) return
-    const combinado = retornoHora ? `${retornoData} ${retornoHora}` : retornoData
-    setPesquisa({ dataCombinada: combinado })
+    // pesquisa_data_combinada é coluna date (cortava o horário): hora vai em horaEntrevista
+    setPesquisa({ dataCombinada: retornoData, horaEntrevista: retornoHora || undefined })
   }
 
   async function handleSave() {
@@ -275,7 +275,7 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
           <Clock className="w-4 h-4 flex-shrink-0" />
           <div>
             <span className="font-semibold">Retorno agendado: </span>
-            {formatDataRetorno(pesquisa.dataCombinada)}
+            {formatDataRetorno(pesquisa.dataCombinada)}{pesquisa.horaEntrevista && !pesquisa.dataCombinada?.includes(' ') ? ` às ${pesquisa.horaEntrevista}` : ''}
           </div>
         </div>
       )}

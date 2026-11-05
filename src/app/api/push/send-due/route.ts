@@ -10,10 +10,23 @@ import { StatusDiligencia, StatusPesquisa } from '@/types'
 
 const LOOKBACK_MS = 12 * 60 * 60 * 1000 // não avisa retornos vencidos há mais de 12h
 
-function parseScheduled(dataCombinada: string | null, hora: string | null): { key: string; when: Date } | null {
+// Hoje em Brasília, "AAAA-MM-DD" (o servidor roda em UTC)
+function hojeBrasilia(agora: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(agora)
+}
+
+function parseScheduled(dataCombinada: string | null, hora: string | null, agora: Date): { key: string; when: Date } | null {
+  // "Qualquer dia após X": sem data (só horário) → vale para HOJE, todo dia até
+  // concluir. A chave leva a data de hoje, então avisa no máximo uma vez por dia.
+  const soHora = !dataCombinada ? hora : /^\d{2}:\d{2}$/.test(dataCombinada) ? dataCombinada : null
+  if (soHora) {
+    if (!/^\d{2}:\d{2}/.test(soHora)) return null
+    const hoje = hojeBrasilia(agora)
+    const t = soHora.slice(0, 5)
+    const when = new Date(`${hoje}T${t}:00-03:00`)
+    return isNaN(when.getTime()) ? null : { key: `${hoje} ${t}`, when }
+  }
   if (!dataCombinada) return null
-  // Apenas horário "HH:MM" (qualquer dia) → não dá para agendar um dia específico
-  if (/^\d{2}:\d{2}$/.test(dataCombinada)) return null
 
   let datePart = dataCombinada
   let timePart = hora || ''
@@ -45,7 +58,7 @@ async function handle(req: NextRequest): Promise<NextResponse> {
     .from('diligencias')
     .select('id, vitima, status, pesquisa_status, pesquisa_data_combinada, pesquisa_hora_entrevista, pesquisa_retorno_notificado_para')
     .eq('status', StatusDiligencia.Realizada)
-    .not('pesquisa_data_combinada', 'is', null)
+    .or('pesquisa_data_combinada.not.is.null,pesquisa_hora_entrevista.not.is.null')
 
   if (error) {
     console.error('[push/send-due] query diligencias:', error.message)
@@ -59,7 +72,7 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   const due: Due[] = []
   for (const d of dils ?? []) {
     if (d.pesquisa_status === StatusPesquisa.Concluida) continue
-    const sched = parseScheduled(d.pesquisa_data_combinada, d.pesquisa_hora_entrevista ?? null)
+    const sched = parseScheduled(d.pesquisa_data_combinada, d.pesquisa_hora_entrevista ?? null, agora)
     if (!sched) continue
     const diff = agora.getTime() - sched.when.getTime()
     if (diff < 0 || diff > LOOKBACK_MS) continue           // ainda não chegou, ou muito antigo
