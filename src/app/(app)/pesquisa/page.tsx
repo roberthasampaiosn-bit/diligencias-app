@@ -446,7 +446,7 @@ function PesquisaContent() {
 
   // "Sem contato — concluir" na fila: o número não abre no WhatsApp (ou não há
   // como falar com a pessoa). Encerra a pesquisa como concluída sem resposta,
-  // com uma justificativa neutra, e pula os outros telefones da mesma pesquisa.
+  // com uma justificativa neutra, e vai para o próximo item da fila.
   const MOTIVOS_SEM_CONTATO = [
     'Tentativas de contato sem retorno.',
     'Colaborador não localizado no telefone informado.',
@@ -464,8 +464,9 @@ function PesquisaContent() {
     setSemContatoAberto(false)
     setMotivoSemContato(MOTIVOS_SEM_CONTATO[0])
     setMotivoSemContatoLivre('')
-    let prox = batchIdx + 1
-    while (prox < batchQueue.length && batchQueue[prox].d.id === current.d.id) prox++
+    // Avança só para o próximo item — outros telefones da mesma pessoa continuam
+    // na fila para avaliação individual.
+    const prox = batchIdx + 1
     if (prox >= batchQueue.length) {
       setBatchQueue([])
       setBatchIdx(0)
