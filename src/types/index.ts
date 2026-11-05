@@ -23,9 +23,13 @@ export enum TipoDiligencia {
   // BAT BRASIL — Delegacia / Tribunal
   RegistroBO = 'Registro de BO na DP',
   AditamentoBO = 'Aditamento de BO',
+  TentativaAditamentoBO = 'Tentativa de aditamento de BO',
   DepoimentoOitivaReconhecimento = 'Depoimento / Oitiva / Reconhecimento na DP',
   AcompanhamentoFlagrante = 'Acompanhamento de flagrante',
   ExtracaoCopiasDP = 'Extração de cópias na DP',
+  LiberacaoCargaVeiculo = 'Liberação / restituição de carga e veículo',
+  EngajamentoAutoridade = 'Engajamento com a autoridade (apontamento da investigação)',
+  ProtocoloPeticao = 'Protocolo de petição',
   AudienciaTJ = 'Audiência no TJ',
   CopiasTJ = 'Cópias de processo no TJ',
   // V.TAL

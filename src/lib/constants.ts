@@ -5,9 +5,13 @@ import { TipoDiligencia } from '@/types'
 export const TIPOS_DILIGENCIA_BAT: TipoDiligencia[] = [
   TipoDiligencia.RegistroBO,
   TipoDiligencia.AditamentoBO,
+  TipoDiligencia.TentativaAditamentoBO,
   TipoDiligencia.DepoimentoOitivaReconhecimento,
   TipoDiligencia.AcompanhamentoFlagrante,
   TipoDiligencia.ExtracaoCopiasDP,
+  TipoDiligencia.LiberacaoCargaVeiculo,
+  TipoDiligencia.EngajamentoAutoridade,
+  TipoDiligencia.ProtocoloPeticao,
   TipoDiligencia.AudienciaTJ,
   TipoDiligencia.CopiasTJ,
   TipoDiligencia.AssistenciaJuridicaRemota,
