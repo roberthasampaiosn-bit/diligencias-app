@@ -198,13 +198,25 @@ function FormBatBrasil() {
       // Data em que ESTA diligência está sendo feita (hoje) — não confundir com data do evento.
       // Dobrada é o MESMO serviço lançado 2x → mesma data da original.
       dataAtendimento: isDobrada ? (d.dataAtendimento || hojeStr) : hojeStr,
-      // Texto igual ao da planilha da BAT (coluna Observação da linha em dobro)
-      observacoes: isDobrada
-        ? 'Diligência lançada em dobro tendo em vista que durou mais de 6 horas.'
-        : '',
+      // Dobrada = cópia de TUDO da original (o formulário segue editável antes de salvar)
+      observacoes: isDobrada ? (d.observacoes ?? '') : '',
       numeroBOProcesso: isDobrada ? (d.numeroBOProcesso || prev.numeroBOProcesso) : prev.numeroBOProcesso,
       dpRegistrou: isDobrada ? (d.dpRegistrou || prev.dpRegistrou) : prev.dpRegistrou,
+      ...(isDobrada ? {
+        tipoDiligenciaDescricao: d.tipoDiligenciaDescricao ?? '',
+        obsAdvogado: d.obsAdvogado ?? '',
+        sobraMercadoria: d.sobraMercadoria ?? '',
+        motoristaAgredido: d.motoristaAgredido ?? '',
+        dataInformativo: d.dataInformativo ?? '',
+        horaInformativo: d.horaInformativo ?? '',
+        dataLigacaoAdvogado: d.dataLigacaoAdvogado ?? '',
+        horaLigacaoAdvogado: d.horaLigacaoAdvogado ?? '',
+      } : {}),
     }))
+    if (isDobrada) {
+      setIncluirNaPlanilha(!!d.incluirNaPlanilha)
+      setDispensarDocumentos(!!d.dispensarDocumentos)
+    }
     setAutoFilled(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromDiligencia])
