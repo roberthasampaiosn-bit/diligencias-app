@@ -148,6 +148,11 @@ export function PendenciasDocumentais({ diligencias }: { diligencias: Diligencia
         <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
           <FileText className="w-4 h-4 text-blue-500" /> Pendências de documentos
         </h2>
+        {totalFaltam > 0 && (
+          <Link href="/pendencias" className="text-xs font-medium text-blue-600 hover:text-blue-800">
+            Resolver →
+          </Link>
+        )}
         {mesesOrdenados.length > 0 && (
           <select
             value={mesSel}

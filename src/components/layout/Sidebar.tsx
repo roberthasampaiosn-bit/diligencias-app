@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, FileSearch, ClipboardList, Users, UserPlus,
-  DollarSign, MessageSquare, FileText, Scale, X, BarChart3, CarFront, LogOut, Sheet,
+  DollarSign, MessageSquare, FileText, Scale, X, BarChart3, CarFront, LogOut, Sheet, ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/triagem', label: 'Triagem', icon: FileSearch },
   { href: '/diligencias', label: 'Diligências', icon: ClipboardList },
   { href: '/planilha', label: 'Planilha do mês', icon: Sheet },
+  { href: '/pendencias', label: 'Resolver pendências', icon: ClipboardCheck },
   { href: '/advogados', label: 'Advogados', icon: Users },
   { href: '/cadastros', label: 'Cadastros', icon: UserPlus },
   { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
