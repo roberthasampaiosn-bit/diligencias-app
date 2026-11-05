@@ -166,12 +166,13 @@ export function telefoneCasaBusca(telefones: string | null | undefined, busca: s
     })
 }
 
-// Pareia nome<->telefone por POSIÇÃO. Nomes e telefones podem ter vários itens
-// separados por ";" (2 vítimas). Devolve o nome da vítima na mesma posição do
-// telefone informado, para não saudar a pessoa errada. Sem correspondência
-// (listas de tamanhos diferentes), cai para o primeiro nome.
+// Pareia nome<->telefone por POSIÇÃO. Com 2 vítimas, os telefones vêm separados
+// por ";" e os nomes por "," (é assim que chegam do e-mail da BAT) — aceita ";"
+// nos nomes também. Devolve o nome da vítima na mesma posição do telefone
+// informado, para não saudar a pessoa errada. Sem correspondência (listas de
+// tamanhos diferentes), cai para o primeiro nome.
 export function nomeDoTelefone(vitimas: string, telefones: string, telefone: string): string {
-  const nomes = (vitimas ?? '').split(';').map((n) => n.trim()).filter(Boolean)
+  const nomes = (vitimas ?? '').split(/[;,]/).map((n) => n.trim()).filter(Boolean)
   const fones = (telefones ?? '').split(';').map((p) => p.trim()).filter(Boolean)
   const idx = fones.findIndex((p) => cleanPhone(p) === cleanPhone(telefone))
   return (idx >= 0 ? nomes[idx] : undefined) ?? nomes[0] ?? (vitimas ?? '')
