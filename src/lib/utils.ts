@@ -140,7 +140,7 @@ export function cleanPhones(phones: string): string {
 // Variantes de um número para comparação: tira o 55 do país (o WhatsApp mostra
 // "+55 21 99999-9999", o app guarda "21999999999") e cobre o 9º dígito —
 // o WhatsApp às vezes exibe celular antigo sem ele ("+55 81 9976-0196").
-function variantesTelefone(digits: string): string[] {
+export function variantesTelefone(digits: string): string[] {
   let d = digits
   if (d.length >= 12 && d.startsWith('55')) d = d.slice(2)
   const out = [d]

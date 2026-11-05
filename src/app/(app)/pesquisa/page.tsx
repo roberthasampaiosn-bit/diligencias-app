@@ -694,14 +694,16 @@ function PesquisaContent() {
         nome: d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || '',
         telefones: d.telefoneVitima ?? '',
         ccc: d.ccc ?? '',
+        dataEvento: refDataEvento(d),
       })),
     ...triagemBase.map((e) => ({
       chave: `e:${e.id}`,
       nome: sanitizeName(e.nomeVitima),
       telefones: e.telefoneVitima ?? '',
       ccc: e.ccc ?? '',
+      dataEvento: (e.dataEvento ?? '').split('T')[0],
     })),
-  ], [realizadas, triagemBase, eventoMap])
+  ], [realizadas, triagemBase, eventoMap, refDataEvento])
 
   const [modalColar, setModalColar] = useState(false)
 

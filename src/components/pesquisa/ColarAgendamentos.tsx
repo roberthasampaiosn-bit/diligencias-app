@@ -17,7 +17,8 @@ import {
 
 interface Linha {
   item: AgendamentoColado
-  porTelefone: boolean
+  confiavel: boolean
+  motivo: string
   opcoes: CandidatoAgendamento[]
   escolhido: string          // chave do candidato ('' = nenhum)
   marcado: boolean
@@ -56,14 +57,13 @@ export function ColarAgendamentos({
   function lerLista() {
     const hoje = hojeBR()
     setLinhas(lerAgendamentosColados(texto).map((item) => {
-      const { porTelefone, opcoes } = casarAgendamento(item, candidatos)
-      const unico = opcoes.length === 1 ? opcoes[0].chave : ''
+      const { confiavel, motivo, opcoes } = casarAgendamento(item, candidatos)
       const dataPassou = !!item.data && item.data < hoje
       return {
-        item, porTelefone, opcoes,
-        escolhido: unico,
-        // Marca sozinho só o que está seguro: achado pelo telefone, sem erro, não é "agora"
-        marcado: !!unico && porTelefone && !item.erro && !item.agora && !dataPassou,
+        item, confiavel, motivo, opcoes,
+        // Pré-seleciona o melhor palpite; só MARCA sozinho o que está seguro
+        escolhido: confiavel ? opcoes[0].chave : '',
+        marcado: confiavel && !item.erro && !item.agora && !dataPassou,
       }
     }))
   }
@@ -99,13 +99,14 @@ export function ColarAgendamentos({
           <>
             <p className="text-sm text-slate-600">
               Cole aqui a lista que o Claude gerou a partir dos prints (linhas com
-              <span className="font-mono text-xs bg-slate-100 rounded px-1 mx-1">TELEFONE | DATA | HORA | NOME | RESPOSTA</span>).
+              <span className="font-mono text-xs bg-slate-100 rounded px-1 mx-1">TELEFONE | DATA | HORA | NOME | EVENTO | RESPOSTA</span>).
+              O telefone pode vir cortado (&quot;55939921...&quot;): o app usa o começo do número, o nome e a data do evento.
             </p>
             <Textarea
               rows={10}
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              placeholder={'AGENDAMENTOS\n558199760196 | 06/11/2026 | 14:00 | Laurifrank Alves | "Bom dia 06/11 as 14:00"'}
+              placeholder={'AGENDAMENTOS\n55939921... | 06/11/2026 | 16:30 | Antonio Gustavo | 20/10/2026 | "Pode ser amanhã às 16:30?"'}
               className="font-mono text-xs"
             />
             <div className="flex gap-2 justify-end">
@@ -120,7 +121,7 @@ export function ColarAgendamentos({
             {linhas.length === 0 ? (
               <p className="text-sm text-red-600">
                 Nenhuma linha no formato esperado. Confira se copiou o bloco com as linhas
-                &quot;TELEFONE | DATA | HORA | NOME | RESPOSTA&quot;.
+                &quot;TELEFONE | DATA | HORA | NOME | EVENTO | RESPOSTA&quot;.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -131,8 +132,7 @@ export function ColarAgendamentos({
                   const podeMarcar = !!l.escolhido && !item.erro && !item.agora
                   const aviso = item.erro ? item.erro
                     : l.opcoes.length === 0 ? 'Não encontrado entre as pesquisas pendentes'
-                    : !l.porTelefone ? 'Achado só pelo nome — confira se é a pessoa certa'
-                    : l.opcoes.length > 1 ? 'Mais de uma pesquisa com esse telefone — escolha'
+                    : !l.confiavel ? 'Não tenho certeza de quem é — escolha a pessoa'
                     : dataPassou ? 'Essa data já passou'
                     : null
                   return (
@@ -157,15 +157,20 @@ export function ColarAgendamentos({
                               {escolhido?.nome || item.nome || '(sem nome)'}
                             </span>
                             {escolhido?.ccc && <span className="text-xs text-slate-500">{escolhido.ccc}</span>}
-                            <span className="text-xs text-slate-400">{formatPhone(item.telefone.replace(/^55(?=\d{10,11}$)/, ''))}</span>
+                            <span className="text-xs text-slate-400">
+                              {item.telefoneCortado ? `+${item.telefone}…` : formatPhone(item.telefone.replace(/^55(?=\d{10,11}$)/, ''))}
+                            </span>
                           </div>
+                          {l.escolhido && l.motivo && (
+                            <p className="text-[11px] text-slate-400">Achado por: {l.motivo}</p>
+                          )}
                           <p className={cn('text-xs font-medium', item.agora ? 'text-emerald-700' : 'text-blue-700')}>
                             {item.agora && <PhoneCall className="w-3 h-3 inline mr-1" />}
                             {item.erro ? '—' : descreverRetorno(item)}
                             {item.agora && ' (não agenda — ligue já)'}
                           </p>
                           {item.resposta && <p className="text-xs text-slate-500 italic truncate">&ldquo;{item.resposta}&rdquo;</p>}
-                          {(l.opcoes.length > 1 || (!l.porTelefone && l.opcoes.length > 0)) && (
+                          {(l.opcoes.length > 1 || (!l.confiavel && l.opcoes.length > 0)) && (
                             <select
                               value={l.escolhido}
                               onChange={(e) => alterar(i, { escolhido: e.target.value, marcado: !!e.target.value && !item.erro && !item.agora })}
