@@ -123,7 +123,7 @@ export default function PendenciasPage() {
             <p className="text-2xl font-bold text-slate-800 mt-1">{conta(c)}</p>
             {(c === 'comprovantePagamento' || c === 'comprovanteServico') && conta(c) > 0 && (
               <button onClick={() => copiar(c)} className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
-                <Copy className="w-3 h-3" /> {c === 'comprovantePagamento' ? 'Copiar lista p/ o extrato' : 'Copiar lista p/ a Anne'}
+                <Copy className="w-3 h-3" /> Copiar lista
               </button>
             )}
           </CardBody></Card>
