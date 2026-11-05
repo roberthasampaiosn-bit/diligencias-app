@@ -16,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
 import { PendenciasDocumentais } from '@/components/dashboard/PendenciasDocumentais'
+import { AvaliacoesAnne } from '@/components/dashboard/AvaliacoesAnne'
 import { formatCurrency, tituloDiligencia } from '@/lib/utils'
 import { EmpresaCliente, StatusEvento, StatusPagamento, StatusDiligencia } from '@/types'
 
@@ -119,6 +120,9 @@ export default function DashboardPage() {
           <StatCard title="Pesq. concluídas" value={stats.pesquisasConcluidas} icon={Search} color="blue" subtitle="Respondidas" />
         </Link>
       </div>
+
+      {/* Avaliações que ficaram para a Anne (some quando não há nenhuma) */}
+      <AvaliacoesAnne diligencias={diligencias} />
 
       {/* Pendências de documentos + PDF final (por mês) */}
       <PendenciasDocumentais diligencias={diligencias} />

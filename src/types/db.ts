@@ -88,6 +88,7 @@ export interface DiligenciaRow {
   avaliacao_observacao: string | null
   avaliacao_contratar_novamente: boolean | null
   avaliacao_data: string | null
+  avaliacao_pendente_anne?: boolean | null
   observacao_interna: string | null
   // Data/hora do informativo (email recebido)
   data_informativo?: string | null

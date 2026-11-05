@@ -28,7 +28,7 @@ export interface DiligenciasContextValue {
   deleteDiligencia: (id: string) => Promise<void>
   marcarRealizada: (id: string, dataAtendimento?: string) => void
   marcarPago: (id: string) => Promise<void>
-  finalizarCiclo: (id: string, avaliacao?: AvaliacaoAdvogado) => void
+  finalizarCiclo: (id: string, avaliacao?: AvaliacaoAdvogado, opts?: { anneVaiAvaliar?: boolean }) => void
   atualizarAnexo: (id: string, campo: keyof Anexos, valor: string) => void
   uploadAnexo: (id: string, campo: keyof Anexos, file: File) => Promise<string>
   removerAnexo: (id: string, campo: keyof Anexos) => Promise<void>
@@ -286,9 +286,14 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
     }
   }, [patchD, addToast, userEmail])
 
-  const finalizarCiclo = useCallback((id: string, avaliacao?: AvaliacaoAdvogado) => {
+  const finalizarCiclo = useCallback((id: string, avaliacao?: AvaliacaoAdvogado, opts?: { anneVaiAvaliar?: boolean }) => {
     // Finalizar o ciclo confirma que não é mais um rascunho da triagem.
-    const patch: Partial<Diligencia> = { cicloFinalizado: true, incompleta: false, ...(avaliacao && { avaliacao }) }
+    // anneVaiAvaliar: finaliza sem nota e deixa a avaliação na fila da Anne (Dashboard).
+    const patch: Partial<Diligencia> = {
+      cicloFinalizado: true, incompleta: false,
+      ...(avaliacao && { avaliacao }),
+      ...(opts?.anneVaiAvaliar && { avaliacaoPendenteAnne: true }),
+    }
     patchD(id, patch)
     patchDiligencia(id, patch)
       .then(() => {

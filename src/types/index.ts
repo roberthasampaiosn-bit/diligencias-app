@@ -239,6 +239,8 @@ export interface Diligencia {
   anexos: Anexos
   eventoId?: string
   avaliacao?: AvaliacaoAdvogado
+  // Ciclo finalizado sem nota: "A Anne vai avaliar". Fica no Dashboard até ela avaliar.
+  avaliacaoPendenteAnne?: boolean
   observacaoInterna?: string
   // ZapSign — assinatura digital
   zapsignDocumentIdContrato?: string

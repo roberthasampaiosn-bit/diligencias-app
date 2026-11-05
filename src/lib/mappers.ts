@@ -149,6 +149,7 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
       observacao: row.avaliacao_observacao ?? undefined,
       contratariaNovamente: row.avaliacao_contratar_novamente ?? undefined,
     } : undefined,
+    avaliacaoPendenteAnne: row.avaliacao_pendente_anne ?? false,
     observacaoInterna: row.observacao_interna ?? undefined,
     dataInformativo: row.data_informativo ?? undefined,
     horaInformativo: row.hora_informativo ?? undefined,
