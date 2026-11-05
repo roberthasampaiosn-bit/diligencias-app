@@ -427,6 +427,7 @@ function PesquisaContent() {
     if (markAsSent && current) {
       registrarWhatsApp(current.d.id, current.mensagem)
     }
+    setSemContatoAberto(false)
     const isLast = batchIdx + 1 >= batchQueue.length
     if (isLast) {
       setBatchQueue([])
@@ -440,6 +441,38 @@ function PesquisaContent() {
   function closeBatch() {
     setBatchQueue([])
     setBatchIdx(0)
+    setSemContatoAberto(false)
+  }
+
+  // "Sem contato — concluir" na fila: o número não abre no WhatsApp (ou não há
+  // como falar com a pessoa). Encerra a pesquisa como concluída sem resposta,
+  // com uma justificativa neutra, e pula os outros telefones da mesma pesquisa.
+  const MOTIVOS_SEM_CONTATO = [
+    'Tentativas de contato sem retorno.',
+    'Colaborador não localizado no telefone informado.',
+  ]
+  const [semContatoAberto, setSemContatoAberto] = useState(false)
+  const [motivoSemContato, setMotivoSemContato] = useState(MOTIVOS_SEM_CONTATO[0])
+  const [motivoSemContatoLivre, setMotivoSemContatoLivre] = useState('')
+
+  function concluirSemContato() {
+    const current = batchQueue[batchIdx]
+    if (!current) return
+    const motivo = motivoSemContato === 'outro' ? motivoSemContatoLivre.trim() : motivoSemContato
+    if (!motivo) return
+    encerrarSemResposta(current.d.id, motivo)
+    setSemContatoAberto(false)
+    setMotivoSemContato(MOTIVOS_SEM_CONTATO[0])
+    setMotivoSemContatoLivre('')
+    let prox = batchIdx + 1
+    while (prox < batchQueue.length && batchQueue[prox].d.id === current.d.id) prox++
+    if (prox >= batchQueue.length) {
+      setBatchQueue([])
+      setBatchIdx(0)
+      clearSelection()
+    } else {
+      setBatchIdx(prox)
+    }
   }
 
   // Enter para confirmar modal "Respondeu"
@@ -1820,6 +1853,48 @@ function PesquisaContent() {
               >
                 <MessageCircle className="w-4 h-4" /> Abrir WhatsApp
               </a>
+
+              {/* Número sem WhatsApp? Ligar direto ou encerrar sem contato */}
+              <div className="flex gap-2">
+                <a
+                  href={`tel:+55${cleanPhone(current.phone)}`}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-blue-200 text-blue-700 hover:bg-blue-50 text-sm font-medium transition-colors"
+                >
+                  <Phone className="w-4 h-4" /> Ligar
+                </a>
+                <button
+                  onClick={() => setSemContatoAberto((v) => !v)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-amber-200 text-amber-700 hover:bg-amber-50 text-sm font-medium transition-colors"
+                >
+                  <PhoneOff className="w-4 h-4" /> Sem contato — concluir
+                </button>
+              </div>
+
+              {semContatoAberto && (
+                <div className="border border-amber-200 bg-amber-50/60 rounded-xl p-3 space-y-2">
+                  <p className="text-xs text-slate-600">
+                    A pesquisa fica <strong>concluída sem resposta</strong> com a justificativa abaixo.
+                  </p>
+                  {[...MOTIVOS_SEM_CONTATO, 'outro'].map((m) => (
+                    <label key={m} className="flex items-start gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="motivo-sem-contato" className="mt-1"
+                        checked={motivoSemContato === m} onChange={() => setMotivoSemContato(m)} />
+                      <span>{m === 'outro' ? 'Outra justificativa' : m}</span>
+                    </label>
+                  ))}
+                  {motivoSemContato === 'outro' && (
+                    <Textarea value={motivoSemContatoLivre} onChange={(e) => setMotivoSemContatoLivre(e.target.value)}
+                      rows={2} placeholder="Escreva a justificativa" />
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setSemContatoAberto(false)}>Cancelar</Button>
+                    <Button variant="warning" size="sm" onClick={concluirSemContato}
+                      disabled={motivoSemContato === 'outro' && !motivoSemContatoLivre.trim()}>
+                      Concluir e ir para o próximo
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <button
