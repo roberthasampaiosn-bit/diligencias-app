@@ -6,8 +6,10 @@ import { useSearchParams } from 'next/navigation'
 import {
   MessageSquare, MessageCircle, Phone, PhoneCall, Calendar, CheckCircle2,
   PhoneOff, Clock, AlertCircle, ExternalLink, Download, Copy,
-  ArrowUp, ArrowDown, ListOrdered, Trash2, RotateCcw, Archive,
+  ArrowUp, ArrowDown, ListOrdered, Trash2, RotateCcw, Archive, ClipboardPaste,
 } from 'lucide-react'
+import { ColarAgendamentos } from '@/components/pesquisa/ColarAgendamentos'
+import type { CandidatoAgendamento } from '@/lib/agendamentosColados'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useEventos } from '@/context/EventosContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
@@ -649,11 +651,9 @@ function PesquisaContent() {
 
   // Eventos da triagem pendentes — aparecem na fila de pesquisa
   // Só após 24h do evento e enquanto a pesquisa não estiver concluída
-  const triagemPendentes = useMemo(() => {
-    // Durante a busca, ignora o filtro de status para encontrar qualquer evento
-    if (filtro !== 'pendentes' && !search) return []
+  const triagemBase = useMemo(() => {
     const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const base = eventos.filter((e) => {
+    return eventos.filter((e) => {
       if (e.statusEvento !== StatusEvento.Pendente) return false
       if (!e.dataEvento || e.dataEvento > cutoff24h) return false
       // Evento sem CCC não gera pesquisa — não polui a fila (arquive na triagem se quiser)
@@ -667,6 +667,12 @@ function PesquisaContent() {
       if (dilPorEventoId[e.id]) return false
       return true
     })
+  }, [eventos, dilPorEventoId])
+
+  const triagemPendentes = useMemo(() => {
+    // Durante a busca, ignora o filtro de status para encontrar qualquer evento
+    if (filtro !== 'pendentes' && !search) return []
+    const base = triagemBase
     if (!search) return base
     const q = normalizeStr(search)
     const ql = search.toLowerCase().trim()
@@ -676,7 +682,39 @@ function PesquisaContent() {
       e.ccc.toLowerCase().includes(ql) ||
       telefoneCasaBusca(e.telefoneVitima, search)
     )
-  }, [eventos, filtro, search, dilPorEventoId])
+  }, [triagemBase, filtro, search])
+
+  // "Colar agendamentos": todas as pesquisas pendentes (sem filtro de período)
+  // + eventos da triagem que ainda não viraram diligência
+  const candidatosAgendamento = useMemo<CandidatoAgendamento[]>(() => [
+    ...realizadas
+      .filter((d) => d.pesquisa.status === StatusPesquisa.Pendente)
+      .map((d) => ({
+        chave: `d:${d.id}`,
+        nome: d.vitima || eventoMap[d.eventoId ?? '']?.nomeVitima || '',
+        telefones: d.telefoneVitima ?? '',
+        ccc: d.ccc ?? '',
+      })),
+    ...triagemBase.map((e) => ({
+      chave: `e:${e.id}`,
+      nome: sanitizeName(e.nomeVitima),
+      telefones: e.telefoneVitima ?? '',
+      ccc: e.ccc ?? '',
+    })),
+  ], [realizadas, triagemBase, eventoMap])
+
+  const [modalColar, setModalColar] = useState(false)
+
+  async function agendarColado(chave: string, retorno: { data?: string; hora: string }) {
+    const [tipo, id] = [chave.slice(0, 1), chave.slice(2)]
+    let dilId = id
+    if (tipo === 'e') {
+      const ev = eventos.find((e) => e.id === id)
+      if (!ev) throw new Error('Evento não encontrado')
+      dilId = (dilPorEventoId[ev.id] ?? await criarDiligenciaDoEvento(ev)).id
+    }
+    await atualizarPesquisa(dilId, { dataCombinada: retorno.data, horaEntrevista: retorno.hora }, { silencioso: true })
+  }
 
   // Eventos arquivados (lixeira) — só BAT, para poder restaurar depois
   const eventosArquivados = useMemo(
@@ -897,6 +935,16 @@ function PesquisaContent() {
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline ml-1">Exportar Excel</span>
                   <span className="sm:hidden ml-1">Excel</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setModalColar(true)}
+                  title="Cole a lista que o Claude gerou dos prints do WhatsApp e agende todos de uma vez"
+                >
+                  <ClipboardPaste className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline ml-1">Colar agendamentos</span>
+                  <span className="sm:hidden ml-1">Colar</span>
                 </Button>
                 <PushButton />
               </div>
@@ -1937,6 +1985,13 @@ function PesquisaContent() {
           </Modal>
         )
       })()}
+
+      <ColarAgendamentos
+        open={modalColar}
+        onClose={() => setModalColar(false)}
+        candidatos={candidatosAgendamento}
+        onAgendar={agendarColado}
+      />
 
       {/* Modal: Agendar retorno */}
       <Modal

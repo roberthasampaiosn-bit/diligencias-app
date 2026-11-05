@@ -40,7 +40,7 @@ export interface DiligenciasContextValue {
   encerrarSemResposta: (id: string, observacao: string) => void
   dispensarPesquisa: (id: string, motivo: string) => void
   reabrirPesquisa: (id: string) => void
-  atualizarPesquisa: (id: string, patch: Partial<Pesquisa>) => Promise<void>
+  atualizarPesquisa: (id: string, patch: Partial<Pesquisa>, opts?: { silencioso?: boolean }) => Promise<void>
 }
 
 const DiligenciasContext = createContext<DiligenciasContextValue | null>(null)
@@ -454,11 +454,12 @@ export function DiligenciasProvider({ children }: { children: ReactNode }) {
       .catch((err) => { console.error(err); addToast('error', 'Não foi possível reabrir. Verifique sua conexão.') })
   }, [patchP, addToast, userEmail])
 
-  const atualizarPesquisa = useCallback(async (id: string, patch: Partial<Pesquisa>): Promise<void> => {
+  const atualizarPesquisa = useCallback(async (id: string, patch: Partial<Pesquisa>, opts?: { silencioso?: boolean }): Promise<void> => {
     patchP(id, patch)
     try {
       await patchPesquisa(id, patch)
-      addToast('success', 'Pesquisa salva.')
+      // silencioso: em lote ("Colar agendamentos") quem chama mostra um aviso só no fim
+      if (!opts?.silencioso) addToast('success', 'Pesquisa salva.')
       const d = diligenciasRef.current.find((x) => x.id === id)
       logAudit({ usuarioEmail: userEmail, acao: 'atualizou_pesquisa', entidadeId: id, detalhes: d?.ccc })
     } catch (err) {
