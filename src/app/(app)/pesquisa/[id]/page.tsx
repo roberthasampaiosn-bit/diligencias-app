@@ -3,7 +3,8 @@
 import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Phone, PhoneCall, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw } from 'lucide-react'
+import { MessageCircle, Phone, PhoneCall, Plus, Save, AlertCircle, Clock, Calendar, CheckCircle2, PhoneOff, ClipboardCopy, ExternalLink, RotateCcw, Package } from 'lucide-react'
+import { SOBRA_MERCADORIA_OPS } from '@/lib/constants'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -64,7 +65,8 @@ function formatISOBR(s: string | undefined): string {
 export default function PesquisaDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { diligencias, atualizarPesquisa, registrarLigacao, marcarRespondida, encerrarSemResposta, reabrirPesquisa } = useDiligencias()
+  const { diligencias, atualizarPesquisa, registrarLigacao, marcarRespondida, encerrarSemResposta, reabrirPesquisa, updateDiligencia } = useDiligencias()
+  const [savingSobra, setSavingSobra] = useState<string | null>(null)
 
   const diligencia = useMemo(() => diligencias.find((d) => d.id === id), [diligencias, id])
 
@@ -121,6 +123,20 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
 
   function setPesquisa(patch: Partial<Pesquisa>) {
     setLocalPesquisa((prev) => ({ ...(prev ?? diligencia!.pesquisa), ...patch }))
+  }
+
+  // Sobra de mercadoria: grava na hora (não depende do "Salvar pesquisa").
+  // Clicar na opção já marcada desmarca (volta a vazio).
+  async function handleSobra(op: string) {
+    const novo = diligencia!.sobraMercadoria === op ? '' : op
+    setSavingSobra(op)
+    try {
+      await updateDiligencia(id, { sobraMercadoria: novo })
+    } catch {
+      // toast de erro já é exibido pelo contexto
+    } finally {
+      setSavingSobra(null)
+    }
   }
 
   function handleAgendarRetorno() {
@@ -268,6 +284,34 @@ export default function PesquisaDetailPage({ params }: { params: Promise<Params>
           )}
         </CardBody>
       </Card>
+
+      {/* Sobra de mercadoria — pergunta feita à vítima durante a pesquisa (BAT) */}
+      {diligencia.empresaCliente === 'BAT BRASIL' && (() => {
+        const atual = diligencia.sobraMercadoria || ''
+        return (
+          <div className={`rounded-xl border px-4 py-3 ${atual ? 'bg-white border-slate-200' : 'bg-amber-50 border-amber-300'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Package className={`w-4 h-4 ${atual ? 'text-slate-400' : 'text-amber-600'}`} />
+              <p className="text-sm font-semibold text-slate-700">Teve sobra de mercadoria?</p>
+              {!atual && <span className="text-[11px] font-medium text-amber-700">ainda não respondido</span>}
+            </div>
+            <div className="flex gap-2">
+              {SOBRA_MERCADORIA_OPS.map((op) => (
+                <button
+                  key={op}
+                  type="button"
+                  disabled={savingSobra !== null}
+                  onClick={() => handleSobra(op)}
+                  className={`flex-1 py-2 px-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-60 ${atual === op ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                >
+                  {savingSobra === op ? 'Salvando…' : op}
+                </button>
+              ))}
+            </div>
+            {atual && <p className="text-[11px] text-slate-400 mt-1.5">Salvo. Clique de novo na opção marcada para desmarcar.</p>}
+          </div>
+        )
+      })()}
 
       {/* Banner retorno agendado */}
       {hasRetornoAgendado && (
