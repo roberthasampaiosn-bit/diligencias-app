@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardCheck, Copy, ExternalLink, FileSignature, MessageCircle, MinusCircle, Paperclip, RefreshCw, Send } from 'lucide-react'
+import { ClipboardCheck, CloudUpload, Copy, ExternalLink, FileSignature, MessageCircle, MinusCircle, Paperclip, RefreshCw, Send, XCircle } from 'lucide-react'
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { useToast } from '@/context/ToastContext'
 import { supabase } from '@/lib/supabase'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { documentosFaltando, formatCurrency, formatDate, tituloDiligencia, cn, comValorDoDobro } from '@/lib/utils'
+import { documentosFaltando, formatCurrency, formatDate, tituloDiligencia, cn, comValorDoDobro, semDocumentosDiligencia } from '@/lib/utils'
+import { salvarDiligenciaNoDrive } from '@/lib/pdfFinal'
 import { gerarContratoBase64Only, gerarReciboBase64Only } from '@/lib/pdf'
 import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -58,10 +59,38 @@ export default function PendenciasPage() {
     .map((d) => ({ d, faltam: documentosFaltando(d).map((r) => CAMPO_POR_ROTULO[r]).filter(Boolean) as Campo[] }))
     .filter((x) => x.faltam.length > 0), [diligencias])
 
-  const meses = useMemo(() => Array.from(new Set(itens.map((x) => mesDe(x.d)))).filter(Boolean).sort((a, b) => b.localeCompare(a)), [itens])
+  // Completas (todos os documentos ok) que ainda não estão no Drive
+  const prontasDrive = useMemo(() => diligencias.filter((d) => !d.incompleta && d.cicloFinalizado && !semDocumentosDiligencia(d)
+    && documentosFaltando(d).length === 0 && !d.pdfDriveUrl && Object.values(d.anexos).some((u) => u?.startsWith('http'))), [diligencias])
+
+  const meses = useMemo(() => Array.from(new Set([...itens.map((x) => mesDe(x.d)), ...prontasDrive.map(mesDe)])).filter(Boolean).sort((a, b) => b.localeCompare(a)), [itens, prontasDrive])
   const mes = mesSel ?? meses[0] ?? ''
   const linhas = useMemo(() => itens.filter((x) => mesDe(x.d) === mes)
     .sort((a, b) => dataDe(a.d).localeCompare(dataDe(b.d))), [itens, mes])
+
+  const prontasMes = useMemo(() => prontasDrive.filter((d) => mesDe(d) === mes).sort((a, b) => dataDe(a).localeCompare(dataDe(b))), [prontasDrive, mes])
+  const noDriveMes = useMemo(() => diligencias.filter((d) => d.pdfDriveUrl && mesDe(d) === mes).length, [diligencias, mes])
+  const { updateDiligencia } = useDiligencias()
+  const [salvando, setSalvando] = useState<string | null>(null)
+  const [progresso, setProgresso] = useState('')
+
+  async function salvarNoDrive(lista: Diligencia[]) {
+    let ok = 0
+    for (let i = 0; i < lista.length; i++) {
+      const d = lista[i]
+      setSalvando(d.id); setProgresso(lista.length > 1 ? `${i + 1} de ${lista.length}` : '')
+      try {
+        const r = await salvarDiligenciaNoDrive(d, advogadoMap.get(d.advogadoId)?.nomeCompleto, diligencias)
+        const agora = new Date().toISOString()
+        await updateDiligencia(d.id, { pdfFinalGeradoEm: agora, pdfDriveUrl: r.url, pdfDriveEm: agora })
+        ok++
+      } catch (e) {
+        addToast('error', `${nomeAdv(d)} (${formatDate(dataDe(d))}): ${(e as Error).message}`)
+      }
+    }
+    setSalvando(null); setProgresso('')
+    if (ok) addToast('success', `${ok} PDF${ok > 1 ? 's' : ''} salvo${ok > 1 ? 's' : ''} no Drive.`)
+  }
 
   const tokensKey = linhas.flatMap((x) => [x.d.zapsignDocumentIdContrato, x.d.zapsignDocumentIdRecibo]).filter(Boolean).sort().join(',')
 
@@ -111,10 +140,45 @@ export default function PendenciasPage() {
         {meses.length > 0 && (
           <select value={mes} onChange={(e) => setMesSel(e.target.value)}
             className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white capitalize">
-            {meses.map((m) => <option key={m} value={m}>{rotuloMes(m)} ({itens.filter((x) => mesDe(x.d) === m).length})</option>)}
+            {meses.map((m) => <option key={m} value={m}>{rotuloMes(m)} ({itens.filter((x) => mesDe(x.d) === m).length} pendentes, {prontasDrive.filter((d) => mesDe(d) === m).length} p/ Drive)</option>)}
           </select>
         )}
       </div>
+
+      {/* Completas que ainda não foram para o Drive */}
+      <Card>
+        <CardBody>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                <CloudUpload className="w-4 h-4 text-emerald-600" /> Prontas para o Drive: {prontasMes.length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Documentação completa e ainda não salvas no Drive · {noDriveMes} já no Drive em {rotuloMes(mes || '2000-01')}
+              </p>
+            </div>
+            {prontasMes.length > 0 && (
+              <Button variant="success" size="sm" loading={!!salvando} onClick={() => salvarNoDrive(prontasMes)}>
+                <CloudUpload className="w-3.5 h-3.5" /> {salvando ? `Salvando ${progresso}` : `Salvar ${prontasMes.length > 1 ? 'todas' : ''} no Drive`}
+              </Button>
+            )}
+          </div>
+          {prontasMes.length > 0 && (
+            <ul className="mt-3 divide-y divide-slate-100 text-sm">
+              {prontasMes.map((d) => (
+                <li key={d.id} className="py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-slate-700">{formatDate(dataDe(d))} · {nomeAdv(d)}</span>
+                  <span className="text-xs text-slate-500">{d.cidade}/{d.uf} · {d.ccc || tituloDiligencia(d)}</span>
+                  <button disabled={!!salvando} onClick={() => salvarNoDrive([d])}
+                    className="ml-auto text-xs text-emerald-700 hover:text-emerald-900 disabled:opacity-40">
+                    {salvando === d.id ? 'Salvando…' : 'Salvar'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {(['contratoAssinado', 'reciboAssinado', 'comprovantePagamento', 'comprovanteServico'] as Campo[]).map((c) => (
@@ -269,8 +333,28 @@ function LinhaPendencia({ d, faltam, adv, status, onStatusMudou }: {
             <MessageCircle className="w-3.5 h-3.5" /> Mandar p/ Adriana
           </a>
         )}
+        <button onClick={() => encerrarSemAssinatura(tipo)} disabled={ocupado === tipo}
+          title="Desistiu de esperar a assinatura: anexa o PDF enviado (sem assinatura) e tira da pendência"
+          className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-700 disabled:opacity-40">
+          <XCircle className="w-3.5 h-3.5" /> Encerrar sem assinatura
+        </button>
       </>
     )
+  }
+
+  async function encerrarSemAssinatura(tipo: 'contrato' | 'recibo') {
+    if (!window.confirm(`Anexar o ${tipo} SEM assinatura e tirar da pendência? Fica registrado na observação interna.`)) return
+    setOcupado(tipo)
+    try {
+      const res = await fetch('/api/zapsign/sem-assinatura', { method: 'POST', headers: await authHeader(), body: JSON.stringify({ diligenciaId: d.id, tipo }) })
+      const r = await res.json().catch(() => ({}))
+      if (!res.ok) { addToast('error', r.error ?? 'Não foi possível encerrar.'); return }
+      addToast('success', r.assinado ? `O ${tipo} já estava assinado — anexado.` : `${tipo === 'contrato' ? 'Contrato' : 'Recibo'} anexado sem assinatura.`)
+      await refetch()
+      onStatusMudou()
+    } finally {
+      setOcupado(null)
+    }
   }
 
   return (

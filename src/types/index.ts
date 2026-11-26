@@ -274,6 +274,8 @@ export interface Diligencia {
   resultadoDemanda?: string
   centroCusto?: string
   pdfFinalGeradoEm?: string   // data/hora da última geração do PDF final (aviso, item B)
+  pdfDriveUrl?: string        // link do PDF final salvo no Google Drive (vazio = ainda não foi)
+  pdfDriveEm?: string
   createdAt: string
   updatedAt: string
 }

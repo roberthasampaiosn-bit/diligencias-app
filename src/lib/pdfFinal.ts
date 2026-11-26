@@ -1,5 +1,7 @@
 import { PDFDocument } from 'pdf-lib'
 import { supabase } from '@/lib/supabase'
+import { Diligencia, EmpresaCliente } from '@/types'
+import { nomeArquivoPDFFinal } from '@/lib/utils'
 
 export interface ItemPDFFinal {
   url: string
@@ -187,4 +189,33 @@ export async function salvarPDFFinalNoDrive(
     substituiu: !!out.substituiu,
     avisoErros: erros.length > 0 ? `${erros.length} arquivo(s) não puderam ser incluídos no PDF.` : undefined,
   }
+}
+
+// ─── PDF final de uma diligência ──────────────────────────────────────────────
+// Ordem fixa: contrato, recibo, comprovante de pagamento, comprovante de serviço.
+export function itensPDFFinalDe(d: Diligencia): ItemPDFFinal[] {
+  const ordem = [
+    { campo: 'contratoAssinado' as const, nome: 'Contrato assinado' },
+    { campo: 'reciboAssinado' as const, nome: 'Recibo assinado' },
+    { campo: 'comprovantePagamento' as const, nome: 'Comprovante de pagamento' },
+    { campo: 'comprovanteServico' as const, nome: 'Comprovante de serviço' },
+  ]
+  return ordem
+    .filter((i) => d.anexos[i.campo]?.startsWith('http'))
+    .map((i) => ({ url: d.anexos[i.campo]!, nome: i.nome }))
+}
+
+// Salva o PDF final da diligência na pasta do mês do cliente no Drive
+// (mês = data da diligência). Usado pela tela da diligência e pelo "Salvar todas".
+export async function salvarDiligenciaNoDrive(d: Diligencia, advogadoNome: string | undefined, todas: Diligencia[]): Promise<ResultadoDrive> {
+  const itens = itensPDFFinalDe(d)
+  if (!itens.length) throw new Error('Nenhum documento anexado para montar o PDF.')
+  const dataBruta = (d.dataAtendimento || d.dataEvento || d.createdAt || '').split('T')[0]
+  const [ano, mes] = dataBruta.split('-')
+  if (!ano || !mes) throw new Error('Diligência sem data — não dá para saber em qual mês do Drive salvar.')
+  return salvarPDFFinalNoDrive(nomeArquivoPDFFinal(d, advogadoNome, todas), itens, {
+    empresa: d.empresaCliente === EmpresaCliente.VTAL ? 'VTAL' : 'BAT',
+    ano,
+    mes,
+  })
 }

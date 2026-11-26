@@ -179,6 +179,8 @@ export function toDiligencia(row: DiligenciaRow): Diligencia {
     dispensarDocumentos: row.dispensar_documentos ?? undefined,
     documentosDispensados: (row.documentos_dispensados ?? undefined) as (keyof Diligencia['anexos'])[] | undefined,
     pdfFinalGeradoEm: row.pdf_final_gerado_em ?? undefined,
+    pdfDriveUrl: row.pdf_drive_url ?? undefined,
+    pdfDriveEm: row.pdf_drive_em ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

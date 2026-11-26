@@ -74,7 +74,19 @@ export function prontaParaPdfFinal(d: Diligencia): boolean {
 // Nome do PDF final no mesmo padrão usado no Drive do escritório:
 //   "30.07.2026 Diligência em Castanhal CCC BR-2026070034 Dr(a) Jéssika.pdf"
 // Data = data da diligência (dataAtendimento); cidade; CCC; "Dr(a)" + 1º nome do advogado.
-export function nomeArquivoPDFFinal(d: Diligencia, advogadoNome?: string): string {
+// `todas` (opcional): quando há OUTRA diligência do mesmo advogado, mesmo dia,
+// mesma cidade e mesmo CCC (ex.: registro de BO + oitiva no mesmo dia), o nome
+// ganha o tipo no fim — senão o Drive substituiria um arquivo pelo outro.
+export function nomeArquivoPDFFinal(d: Diligencia, advogadoNome?: string, todas?: Diligencia[]): string {
+  const base = nomeArquivoPDFFinalBase(d, advogadoNome)
+  const chave = (x: Diligencia) => [x.advogadoId, (x.dataAtendimento || '').slice(0, 10), x.cidade?.trim(), x.ccc?.trim()].join('|')
+  const irmaos = (todas ?? []).filter((x) => x.id !== d.id && !dobroDe(x) && chave(x) === chave(d))
+  if (!irmaos.length) return base
+  const tipo = (d.tipoDiligenciaDescricao || d.tipoDiligencia || '').replace(/[\\/:*?"<>|]/g, '-').trim()
+  return base.replace(/\.pdf$/, ` - ${tipo}.pdf`)
+}
+
+function nomeArquivoPDFFinalBase(d: Diligencia, advogadoNome?: string): string {
   const dataBruta = (d.dataAtendimento || d.dataEvento || d.createdAt || '').split('T')[0]
   const [y, m, dd] = dataBruta.split('-')
   const dataFmt = (y && m && dd) ? `${dd}.${m}.${y}` : ''

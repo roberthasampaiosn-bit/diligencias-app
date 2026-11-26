@@ -131,6 +131,8 @@ export interface DiligenciaRow {
   status_assinatura_contrato?: string | null
   status_assinatura_recibo?: string | null
   pdf_final_gerado_em?: string | null
+  pdf_drive_url?: string | null
+  pdf_drive_em?: string | null
   created_at: string
   updated_at: string
   ligacoes?: LigacaoRow[]

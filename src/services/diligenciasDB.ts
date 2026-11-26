@@ -207,6 +207,8 @@ export async function patchDiligencia(id: string, patch: Partial<Diligencia>): P
   if ('incluirNaPlanilha' in patch) row.incluir_na_planilha = patch.incluirNaPlanilha ?? null
   if ('avaliacaoPendenteAnne' in patch) row.avaliacao_pendente_anne = patch.avaliacaoPendenteAnne ?? false
   if ('pdfFinalGeradoEm' in patch) row.pdf_final_gerado_em = patch.pdfFinalGeradoEm ?? null
+  if ('pdfDriveUrl' in patch) row.pdf_drive_url = patch.pdfDriveUrl ?? null
+  if ('pdfDriveEm' in patch) row.pdf_drive_em = patch.pdfDriveEm ?? null
 
   if ('pesquisa' in patch && patch.pesquisa) {
     const p = patch.pesquisa

@@ -12,7 +12,7 @@ import {
 import { useDiligencias } from '@/context/DiligenciasContext'
 import { useAdvogados } from '@/context/AdvogadosContext'
 import { useEventos } from '@/context/EventosContext'
-import { gerarPDFFinal, salvarPDFFinalNoDrive } from '@/lib/pdfFinal'
+import { gerarPDFFinal, salvarDiligenciaNoDrive } from '@/lib/pdfFinal'
 import { juntarEmPdf, ehPdf, ehImagem } from '@/lib/juntarArquivos'
 import { gerarContratoPDF, gerarReciboPDF, gerarContratoBase64Only, gerarReciboBase64Only } from '@/lib/pdf'
 import { useToast } from '@/context/ToastContext'
@@ -524,15 +524,12 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     setPdfErro(null)
     setDriveSalvo(null)
     try {
-      const r = await salvarPDFFinalNoDrive(nomeArquivoPDFFinal(dLocal, adv?.nomeCompleto), itens, {
-        empresa: dLocal.empresaCliente === EmpresaCliente.VTAL ? 'VTAL' : 'BAT',
-        ano,
-        mes,
-      })
+      const r = await salvarDiligenciaNoDrive(dLocal, adv?.nomeCompleto, diligencias)
       setDriveSalvo({ url: r.url, pasta: r.pasta })
       addToast('success', `${r.substituiu ? 'PDF atualizado' : 'PDF salvo'} no Drive: ${r.pasta}`)
       if (r.avisoErros) setPdfErro(r.avisoErros)
-      updateDiligencia(id, { pdfFinalGeradoEm: new Date().toISOString() }).catch(() => {})
+      const agora = new Date().toISOString()
+      updateDiligencia(id, { pdfFinalGeradoEm: agora, pdfDriveUrl: r.url, pdfDriveEm: agora }).catch(() => {})
     } catch (err) {
       setPdfErro((err as Error).message)
     } finally {
@@ -548,7 +545,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
     setPdfLoading(true)
     setPdfErro(null)
     try {
-      await gerarPDFFinal(nomeArquivoPDFFinal(dLocal, adv?.nomeCompleto), itens)
+      await gerarPDFFinal(nomeArquivoPDFFinal(dLocal, adv?.nomeCompleto, diligencias), itens)
       // Marca que o PDF final foi gerado (aviso — não bloqueia gerar de novo).
       updateDiligencia(id, { pdfFinalGeradoEm: new Date().toISOString() }).catch(() => {})
     } catch (err) {
@@ -976,6 +973,17 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               {pdfErro}
               <button className="ml-auto text-red-500 hover:text-red-700" onClick={() => setPdfErro(null)}>✕</button>
+            </div>
+          )}
+
+          {/* Já está no Drive (de um envio anterior) */}
+          {!driveSalvo && d.pdfDriveUrl && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <CloudUpload className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>✓ No Drive{d.pdfDriveEm ? ` desde ${formatDate(d.pdfDriveEm.slice(0, 10))}` : ''}. Se mudar algum documento, salve de novo.</span>
+              <a href={d.pdfDriveUrl} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline">
+                Abrir <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
           )}
 
