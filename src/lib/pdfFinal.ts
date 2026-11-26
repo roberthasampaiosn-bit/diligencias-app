@@ -1,4 +1,5 @@
 import { PDFDocument } from 'pdf-lib'
+import { supabase } from '@/lib/supabase'
 
 export interface ItemPDFFinal {
   url: string
@@ -39,7 +40,9 @@ function detectarTipo(url: string, contentType: string): 'pdf' | 'jpg' | 'png' |
   return 'desconhecido'
 }
 
-export async function gerarPDFFinal(nomeArquivo: string, itens: ItemPDFFinal[]): Promise<void> {
+// Monta o PDF final (bytes) juntando os anexos na ordem de `itens`.
+// `erros` = arquivos que não puderam entrar (o restante é gerado mesmo assim).
+export async function montarPDFFinal(itens: ItemPDFFinal[]): Promise<{ bytes: Uint8Array; erros: Error[] }> {
   const merged = await PDFDocument.create()
 
   // Baixa e decodifica todos os arquivos em paralelo, mas preserva a ordem do array `itens`
@@ -98,7 +101,11 @@ export async function gerarPDFFinal(nomeArquivo: string, itens: ItemPDFFinal[]):
     throw new Error('Nenhuma página foi gerada.')
   }
 
-  const pdfBytes = await merged.save()
+  return { bytes: await merged.save(), erros }
+}
+
+export async function gerarPDFFinal(nomeArquivo: string, itens: ItemPDFFinal[]): Promise<void> {
+  const { bytes: pdfBytes, erros } = await montarPDFFinal(itens)
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -113,5 +120,71 @@ export async function gerarPDFFinal(nomeArquivo: string, itens: ItemPDFFinal[]):
     throw new Error(
       `PDF gerado, mas ${erros.length} arquivo(s) não puderam ser incluídos.`,
     )
+  }
+}
+
+// ─── Salvar direto no Google Drive ───────────────────────────────────────────
+// O PDF vai do navegador DIRETO para um Google Apps Script (publicado pela conta
+// dona das pastas — ver scripts/drive-salvar-pdf.gs), que grava em
+// "<Cliente>/<MM - Mês AAAA>/". Não passa pela Vercel (limite de 4,5 MB por
+// requisição). O app só assina a autorização em /api/drive/assinar — o segredo
+// compartilhado nunca vai para o navegador.
+
+export interface ResultadoDrive {
+  url: string      // link do arquivo no Drive
+  pasta: string    // ex.: "BAT - Souza Cruz / 09 - Setembro 2026"
+  substituiu: boolean
+  avisoErros?: string
+}
+
+function bytesParaBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
+export async function salvarPDFFinalNoDrive(
+  nomeArquivo: string,
+  itens: ItemPDFFinal[],
+  destino: { empresa: string; ano: string; mes: string },
+): Promise<ResultadoDrive> {
+  const nome = nomeArquivo.toLowerCase().endsWith('.pdf') ? nomeArquivo : `${nomeArquivo}.pdf`
+  const { bytes, erros } = await montarPDFFinal(itens)
+
+  // Só quem está logado no app consegue autorização (a rota confere o token).
+  const { data: { session } } = await supabase.auth.getSession()
+  const assRes = await fetch('/api/drive/assinar', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session?.access_token ?? ''}`,
+    },
+    body: JSON.stringify({ nome, ...destino }),
+  })
+  const ass = await assRes.json().catch(() => ({}))
+  if (!assRes.ok) throw new Error(ass.error ?? `Falha ao autorizar o envio ao Drive (${assRes.status}).`)
+
+  // text/plain = requisição "simples" (sem preflight CORS), que o Apps Script aceita.
+  let out: { ok?: boolean; error?: string; url?: string; pasta?: string; substituiu?: boolean } | null = null
+  try {
+    const res = await fetch(ass.scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...ass.payload, pdfBase64: bytesParaBase64(bytes) }),
+    })
+    out = await res.json().catch(() => null)
+  } catch {
+    throw new Error('Não foi possível falar com o Google Drive. Verifique a internet e tente de novo.')
+  }
+  if (!out?.ok || !out.url) throw new Error(out?.error ?? 'O Google Drive não confirmou o envio.')
+
+  return {
+    url: out.url,
+    pasta: out.pasta ?? '',
+    substituiu: !!out.substituiu,
+    avisoErros: erros.length > 0 ? `${erros.length} arquivo(s) não puderam ser incluídos no PDF.` : undefined,
   }
 }
