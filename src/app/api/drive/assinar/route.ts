@@ -1,6 +1,7 @@
 import { createHmac } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabaseServer'
+import { idPastaMes } from '@/lib/drivePastas'
 
 // POST /api/drive/assinar
 // Autoriza o navegador a mandar o PDF final DIRETO para o Google Apps Script
@@ -38,10 +39,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Nome do arquivo ou mês/ano inválido.' }, { status: 400 })
   }
 
+  // ID exato da pasta do mês ('' = o script procura/cria pelo nome).
+  const pastaId = idPastaMes(empresa, ano, mes)
+
   const exp = Date.now() + VALIDADE_MS
   // Mesma string que o Apps Script remonta para conferir a assinatura.
-  const base = [exp, empresa, ano, mes, nome].join('|')
+  const base = [exp, empresa, ano, mes, nome, pastaId].join('|')
   const sig = createHmac('sha256', segredo).update(base, 'utf8').digest('hex')
 
-  return NextResponse.json({ scriptUrl, payload: { exp, empresa, ano, mes, nome, sig } })
+  return NextResponse.json({ scriptUrl, payload: { exp, empresa, ano, mes, nome, pastaId, sig } })
 }
