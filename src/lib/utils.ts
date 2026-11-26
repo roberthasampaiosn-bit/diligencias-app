@@ -23,11 +23,17 @@ export function normalizarBusca(s: string | null | undefined): string {
 // Fonte única usada pela lista de Diligências E pelo painel do Dashboard, para
 // que as duas telas concordem sobre o que está pendente.
 
-// Diligências que NÃO precisam de documentos anexados: remotas, Fadel (quase
-// nunca têm) ou marcadas manualmente como "Sem documentos".
+// Diligências que NÃO precisam de documentos anexados: remotas, Fadel atendida
+// pela advogada da própria Fadel (sem custo) ou marcadas como "Sem documentos".
+// Caso da Fadel em que o escritório contratou e PAGOU advogado (valor > 0) cobra
+// documentos como qualquer outra.
+export function fadelSemCusto(d: Pick<Diligencia, 'empresa' | 'valorDiligencia'>): boolean {
+  return /fadel/i.test(d.empresa ?? '') && !((d.valorDiligencia ?? 0) > 0)
+}
+
 export function semDocumentosDiligencia(d: Diligencia): boolean {
   return d.modoDiligencia === ModoDiligencia.Remoto
-    || /fadel/i.test(d.empresa ?? '')
+    || fadelSemCusto(d)
     || !!d.dispensarDocumentos
 }
 

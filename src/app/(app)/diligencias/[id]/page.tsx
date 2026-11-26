@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusDiligenciaBadge, StatusPagamentoBadge, StatusPesquisaBadge, EmpresaBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone, nomeArquivoPDFFinal, comValorDoDobro, dobroDe } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDataHora, formatPhone, formatCPF, buildWhatsAppUrl, buildPesquisaMessage, tituloDiligencia, nomeDoTelefone, nomeArquivoPDFFinal, comValorDoDobro, dobroDe, fadelSemCusto } from '@/lib/utils'
 import { StatusDiligencia, StatusPagamento, AvaliacaoAdvogado, Anexos, Diligencia, EmpresaCliente } from '@/types'
 import { buildWhatsAppZapSign, buildWhatsAppLembreteZapSign, buildWhatsAppAdriana } from '@/services/zapsignService'
 import type { EnviarZapSignResult } from '@/app/api/zapsign/enviar/route'
@@ -193,7 +193,7 @@ export default function DiligenciaDetailPage({ params }: { params: Promise<Param
   // Pendência documental: só para presenciais não-Fadel não dispensadas (remotas e
   // Fadel não têm documento a anexar). Documentos marcados individualmente como
   // "não se aplica" (documentosDispensados) também saem da conta.
-  const semDocumentos = isRemoto || /fadel/i.test(d.empresa ?? '') || d.dispensarDocumentos
+  const semDocumentos = isRemoto || fadelSemCusto(d) || d.dispensarDocumentos
   const dispensadosSet = new Set(d.documentosDispensados ?? [])
   const pendenciasDocumentais = !semDocumentos ? [
     !d.anexos.contratoAssinado && !dispensadosSet.has('contratoAssinado') && 'Contrato assinado',
